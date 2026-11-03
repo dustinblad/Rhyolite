@@ -1,0 +1,15 @@
+{
+  "activeDesignSystem": "apple",
+  "secondaryDesignSystem": "apple-music-ios",
+  "source": "https://github.com/feimacode/open-design-agent-kit",
+  "designSystemsPath": ".open-design/design-systems",
+  "artifacts": [
+    {
+      "id": "rhyolite-apple-mockup",
+      "kind": "prototype",
+      "title": "Rhyolite — Apple Design System 6-Screen Prototype",
+      "entryPath": ".open-design/prototype/rhyolite-apple-mockup.html",
+      "designSystemId": "apple"
+    }
+  ]
+}

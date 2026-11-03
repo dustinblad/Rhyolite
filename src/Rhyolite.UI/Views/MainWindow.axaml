@@ -1,0 +1,13 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="using:Rhyolite.Views"
+        mc:Ignorable="d" d:DesignWidth="1420" d:DesignHeight="880"
+        Width="1420" Height="880"
+        MinWidth="960" MinHeight="640"
+        x:Class="Rhyolite.Views.MainWindow"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Rhyolite — Local-First Knowledge Studio (Apple Design System)">
+  <views:MainView />
+</Window>

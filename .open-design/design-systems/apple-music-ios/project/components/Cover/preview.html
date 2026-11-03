@@ -1,0 +1,57 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Apple Music (iOS)</title>
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--bg); color:var(--fg); font-family:var(--font-display); overflow:hidden; }
+  .cover { position:relative; height:288px; overflow:hidden; }
+  .art { position:absolute; top:0; left:480px; width:480px; height:288px; overflow:hidden; }
+  .art svg { display:block; width:480px; height:288px; }
+  .brand { fill:var(--accent); }
+  .deep { fill:var(--fg); }
+  .tint { fill:var(--surface-warm); }
+  .signal { fill:var(--success); }
+  .dot { fill:var(--accent); }
+  .rule { stroke:var(--border); stroke-width:1; }
+  .blk { rx:var(--radius-md); }
+  .tile { rx:var(--radius-sm); }
+  .pill { rx:12px; }
+  .words { position:absolute; left:var(--space-6, 24px); bottom:var(--space-6, 24px); max-width:440px; }
+  .name { margin:0; font-size:66px; line-height:.95; font-weight:600; letter-spacing:-.02em; color:var(--fg); }
+  .tag { margin:12px 0 0 2px; font-size:14px; line-height:20px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      accent 144×264 slab bled off the top · surface-warm 168×176 · fg 128×208 off the right edge · success 64×16 once
+  arrangement one tall brand slab with satellites, bottoms on one line
+  pattern     pills over the surface-warm block, half-round ends (soft and friendly: radius-lg is 16px)
+  scales      gaps space-4; corners radius-md; pills 24px tall, rx half of that
+-->
+<rect class="brand blk" x="16" y="-24" width="144" height="264"/>
+<rect class="signal blk" x="16" y="248" width="64" height="16"/>
+<rect class="tint blk" x="176" y="88" width="168" height="176"/>
+<rect class="deep blk" x="360" y="56" width="136" height="208"/>
+<rect class="brand pill" x="192" y="104" width="64" height="24"/>
+<rect class="deep pill" x="272" y="104" width="40" height="24"/>
+<rect class="brand pill" x="192" y="144" width="64" height="24"/>
+<rect class="deep pill" x="272" y="144" width="40" height="24"/>
+<rect class="brand pill" x="192" y="184" width="64" height="24"/>
+<rect class="deep pill" x="272" y="184" width="40" height="24"/>
+<rect class="brand pill" x="192" y="224" width="64" height="24"/>
+<rect class="deep pill" x="272" y="224" width="40" height="24"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">Apple Music<br>(iOS)</h1>
+<p class="tag">Music + lyrics.</p>
+</div>
+</div>
+</body>
+</html>

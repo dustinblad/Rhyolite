@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Rhyolite.Android/Rhyolite.Android.csproj" />
+    <Project Path="src/Rhyolite.Core/Rhyolite.Core.csproj" />
+    <Project Path="src/Rhyolite.Desktop/Rhyolite.Desktop.csproj" />
+    <Project Path="src/Rhyolite.iOS/Rhyolite.iOS.csproj" />
+    <Project Path="src/Rhyolite.UI/Rhyolite.UI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Rhyolite.Tests/Rhyolite.Tests.csproj" />
+  </Folder>
+</Solution>

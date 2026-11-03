@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rhyolite — Apple Design System Multi-Screen Prototype</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Scoped Apple Design System Tokens from feimacode/open-design-agent-kit (claude-design-systems/apple & apple-music-ios) */
+    [data-apple-theme="light"] {
+      --ap-bg: #ffffff;
+      --ap-surface: #f5f5f7;
+      --ap-surface-warm: #fbfbfd;
+      --ap-surface-elevated: #ffffff;
+      --ap-surface-glass: rgba(245, 245, 247, 0.84);
+      --ap-fg: #1d1d1f;
+      --ap-fg-2: #424245;
+      --ap-muted: #6e6e73;
+      --ap-meta: #86868b;
+      --ap-border: #d2d2d7;
+      --ap-border-soft: #e8e8ed;
+      --ap-accent: #0071e3;
+      --ap-accent-hover: #0077ed;
+      --ap-link: #0066cc;
+      --ap-success: #16a34a;
+      --ap-warn: #eab308;
+      --ap-danger: #dc2626;
+      --ap-shadow-card: 0 12px 32px rgba(0, 0, 0, 0.08);
+      --ap-shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.18);
+      --ap-canvas-dot: #d2d2d7;
+      --ap-callout-bg: rgba(0, 113, 227, 0.06);
+      --ap-code-bg: #f5f5f7;
+    }
+
+    [data-apple-theme="dark"] {
+      --ap-bg: #000000;
+      --ap-surface: #1c1c1e;
+      --ap-surface-warm: #272729;
+      --ap-surface-elevated: #2a2a2c;
+      --ap-surface-glass: rgba(28, 28, 30, 0.84);
+      --ap-fg: #ffffff;
+      --ap-fg-2: #ebebf5;
+      --ap-muted: #98989d;
+      --ap-meta: #8e8e93;
+      --ap-border: #38383a;
+      --ap-border-soft: #2c2c2e;
+      --ap-accent: #0071e3;
+      --ap-accent-hover: #0077ed;
+      --ap-link: #2997ff;
+      --ap-success: #34c759;
+      --ap-warn: #ff9500;
+      --ap-danger: #ff3b30;
+      --ap-shadow-card: none;
+      --ap-shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.75);
+      --ap-canvas-dot: #2c2c2e;
+      --ap-callout-bg: rgba(41, 151, 255, 0.10);
+      --ap-code-bg: #1c1c1e;
+    }
+
+    .apple-shell {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+      background-color: var(--ap-surface);
+      color: var(--ap-fg);
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .apple-display {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter Tight", system-ui, sans-serif;
+      letter-spacing: -0.015em;
+      line-height: 1.08;
+    }
+
+    .apple-body {
+      font-size: 17px;
+      line-height: 1.47;
+      letter-spacing: -0.01em;
+    }
+
+    .apple-mono {
+      font-family: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+    }
+
+    .apple-card {
+      background-color: var(--ap-bg);
+      border: 1px solid var(--ap-border);
+      border-radius: 12px;
+      box-shadow: var(--ap-shadow-card);
+    }
+
+    .apple-panel-lg {
+      background-color: var(--ap-bg);
+      border: 1px solid var(--ap-border);
+      border-radius: 18px;
+      box-shadow: var(--ap-shadow-card);
+    }
+
+    .apple-pill {
+      border-radius: 980px;
+    }
+
+    .apple-btn-primary {
+      background-color: var(--ap-accent);
+      color: #ffffff;
+      border-radius: 8px;
+      transition: transform 0.12s ease, background-color 0.15s ease;
+    }
+    .apple-btn-primary:hover {
+      background-color: var(--ap-accent-hover);
+    }
+    .apple-btn-primary:active {
+      transform: scale(0.97);
+    }
+
+    .canvas-grid {
+      background-image: radial-gradient(var(--ap-canvas-dot) 1.25px, transparent 1.25px);
+      background-size: 20px 20px;
+    }
+
+    /* Smooth custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--ap-border);
+      border-radius: 980px;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased m-0 p-0">
+
+  <div id="appRoot" data-apple-theme="light" class="apple-shell min-h-screen flex flex-col">
+
+    <!-- TOP PROTOTYPE CONTROL BAR (Screen Switcher + Theme Toggle + Cmd+P Trigger) -->
+    <header style="background-color: var(--ap-surface-glass); border-bottom: 1px solid var(--ap-border);" class="sticky top-0 z-40 backdrop-blur-md px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white shadow-sm" style="background: linear-gradient(135deg, #0071e3 0%, #2997ff 100%);">
+          R
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-base tracking-tight" style="color: var(--ap-fg);">Rhyolite</span>
+            <span class="apple-pill text-xs font-medium px-2.5 py-0.5" style="background-color: var(--ap-callout-bg); color: var(--ap-link); border: 1px solid var(--ap-border);">
+              Apple Design System · .NET 10 + Avalonia
+            </span>
+          </div>
+          <p class="text-xs m-0" style="color: var(--ap-muted);">Interactive 6-Screen Architecture &amp; UI Mockup</p>
+        </div>
+      </div>
+
+      <!-- Screen Selector Tabs -->
+      <nav class="flex flex-wrap items-center gap-1 p-1 rounded-xl" style="background-color: var(--ap-border-soft);">
+        <button onclick="switchScreen('editor')" id="tab-editor" class="screen-tab px-3 py-1.5 rounded-lg text-xs font-semibold transition-all">
+          1. Note Studio
+        </button>
+        <button onclick="switchScreen('graph')" id="tab-graph" class="screen-tab px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+          2. Knowledge Graph
+        </button>
+        <button onclick="switchScreen('canvas')" id="tab-canvas" class="screen-tab px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+          3. Spatial Canvas
+        </button>
+        <button onclick="switchScreen('bases')" id="tab-bases" class="screen-tab px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+          4. Bases &amp; Kanban
+        </button>
+        <button onclick="switchScreen('expansions')" id="tab-expansions" class="screen-tab px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+          5. Study &amp; Time-Machine
+        </button>
+        <button onclick="switchScreen('mobile')" id="tab-mobile" class="screen-tab px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+          6. iOS &amp; Android
+        </button>
+      </nav>
+
+      <!-- Right Controls: Command Palette + Light/Dark Toggle -->
+      <div class="flex items-center gap-2">
+        <button onclick="toggleCommandPalette()" class="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border); color: var(--ap-fg);">
+          <span>⌘P Command Palette</span>
+        </button>
+        <button onclick="toggleAppleTheme()" id="themeToggleBtn" class="apple-btn-primary px-3.5 py-1.5 text-xs font-semibold flex items-center gap-1.5">
+          <span id="themeIcon">🌙</span>
+          <span id="themeLabel">True-Black Dark</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 1: EDITORIAL NOTE STUDIO & HYBRID LIVE EDITOR (DESKTOP 3-PANE) -->
+    <!-- ===================================================================== -->
+    <section id="screen-editor" class="screen-view flex-1 p-5 flex flex-col gap-4">
+      <!-- App Window Frame -->
+      <div class="apple-panel-lg flex-1 flex flex-col overflow-hidden" style="min-height: 680px;">
+
+        <!-- Native Window Titlebar + Tab Strip -->
+        <div class="px-4 py-2.5 flex items-center justify-between" style="background-color: var(--ap-surface); border-bottom: 1px solid var(--ap-border);">
+          <div class="flex items-center gap-4">
+            <!-- macOS Traffic Lights -->
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full inline-block" style="background-color: #ff5f57;"></span>
+              <span class="w-3 h-3 rounded-full inline-block" style="background-color: #febc2e;"></span>
+              <span class="w-3 h-3 rounded-full inline-block" style="background-color: #28c840;"></span>
+            </div>
+            <!-- Vault Pill -->
+            <div class="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border); color: var(--ap-fg);">
+              <span>🪨 Rhyolite Vault</span>
+              <span style="color: var(--ap-meta);">▾</span>
+            </div>
+          </div>
+
+          <!-- Open Document Tabs -->
+          <div class="flex items-center gap-1.5 overflow-x-auto">
+            <div class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border); color: var(--ap-fg);">
+              <span style="color: var(--ap-accent);">●</span>
+              <span>Storage Architecture.md</span>
+              <span style="color: var(--ap-meta);">×</span>
+            </div>
+            <div onclick="switchScreen('canvas')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 cursor-pointer" style="color: var(--ap-muted);">
+              <span>🗺️ System Map.canvas</span>
+            </div>
+            <div onclick="switchScreen('bases')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 cursor-pointer" style="color: var(--ap-muted);">
+              <span>🗂️ Engineering Roadmap.base</span>
+            </div>
+          </div>
+
+          <!-- Editor Mode Segmented Switcher -->
+          <div class="flex items-center gap-1 p-0.5 rounded-lg" style="background-color: var(--ap-border-soft);">
+            <button onclick="setEditorMode('reading')" id="mode-reading" class="px-2.5 py-1 rounded-md text-xs font-semibold" style="background-color: var(--ap-bg); color: var(--ap-fg);">Reading</button>
+            <button onclick="setEditorMode('live')" id="mode-live" class="px-2.5 py-1 rounded-md text-xs font-medium" style="color: var(--ap-muted);">Live Split</button>
+            <button onclick="setEditorMode('source')" id="mode-source" class="px-2.5 py-1 rounded-md text-xs font-medium" style="color: var(--ap-muted);">Source</button>
+          </div>
+        </div>
+
+        <!-- 3-Pane Workspace Body -->
+        <div class="flex-1 grid grid-cols-12 overflow-hidden">
+
+          <!-- LEFT SIDEBAR: Navigation Rail + Vault Explorer -->
+          <aside class="col-span-3 flex flex-col justify-between p-3.5" style="background-color: var(--ap-surface); border-right: 1px solid var(--ap-border);">
+            <div class="space-y-4">
+              <!-- Quick Filter Input -->
+              <div class="px-3 py-2 rounded-lg flex items-center justify-between text-xs" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border); color: var(--ap-muted);">
+                <span>🔍 Filter notes or #tags…</span>
+                <span class="apple-mono text-xs" style="color: var(--ap-meta);">⌘O</span>
+              </div>
+
+              <!-- Pinned Bookmarks Section -->
+              <div>
+                <div class="px-2 mb-1.5 flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--ap-meta);">Bookmarks</span>
+                  <span class="text-xs" style="color: var(--ap-meta);">3</span>
+                </div>
+                <div class="space-y-1">
+                  <div class="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between" style="background-color: var(--ap-accent); color: #ffffff;">
+                    <span>📄 Storage Architecture.md</span>
+                    <span class="text-xs opacity-80">Pinned</span>
+                  </div>
+                  <div onclick="switchScreen('graph')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between cursor-pointer" style="color: var(--ap-fg-2);">
+                    <span>🕸️ Global Knowledge Graph</span>
+                    <span class="text-xs" style="color: var(--ap-meta);">142 nodes</span>
+                  </div>
+                  <div onclick="switchScreen('expansions')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between cursor-pointer" style="color: var(--ap-fg-2);">
+                    <span>🧠 FSRS Daily Deck</span>
+                    <span class="apple-pill px-2 py-0.5 text-xs font-semibold" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">12 due</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Folder Hierarchy -->
+              <div>
+                <div class="px-2 mb-1.5 flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--ap-meta);">Vault Files</span>
+                  <span class="text-xs" style="color: var(--ap-link);">+ New</span>
+                </div>
+                <div class="space-y-1 text-xs">
+                  <div class="px-2 py-1 font-semibold flex items-center gap-1.5" style="color: var(--ap-fg);">
+                    <span>▾ 📁 01 — Architecture</span>
+                  </div>
+                  <div class="pl-5 space-y-1">
+                    <div class="px-2.5 py-1.5 rounded-lg font-semibold flex items-center justify-between" style="background-color: var(--ap-border-soft); color: var(--ap-fg);">
+                      <span>Storage Architecture.md</span>
+                      <span class="apple-mono text-xs" style="color: var(--ap-meta);">2.4 KB</span>
+                    </div>
+                    <div class="px-2.5 py-1.5 rounded-lg flex items-center justify-between" style="color: var(--ap-fg-2);">
+                      <span>Avalonia Rendering Pipeline.md</span>
+                      <span class="apple-mono text-xs" style="color: var(--ap-meta);">4.1 KB</span>
+                    </div>
+                    <div class="px-2.5 py-1.5 rounded-lg flex items-center justify-between" style="color: var(--ap-fg-2);">
+                      <span>Apple Design Tokens.md</span>
+                      <span class="apple-mono text-xs" style="color: var(--ap-meta);">3.8 KB</span>
+                    </div>
+                  </div>
+                  <div class="px-2 py-1 font-semibold flex items-center gap-1.5 pt-1" style="color: var(--ap-fg);">
+                    <span>▾ 📅 02 — Daily Notes</span>
+                  </div>
+                  <div class="pl-5 space-y-1">
+                    <div class="px-2.5 py-1.5 rounded-lg flex items-center justify-between" style="color: var(--ap-fg-2);">
+                      <span>2026-11-03.md</span>
+                      <span class="text-xs" style="color: var(--ap-success);">Today</span>
+                    </div>
+                    <div class="px-2.5 py-1.5 rounded-lg flex items-center justify-between" style="color: var(--ap-fg-2);">
+                      <span>2026-11-02.md</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Document Outline (TOC) -->
+              <div>
+                <div class="px-2 mb-1.5">
+                  <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--ap-meta);">Outline</span>
+                </div>
+                <div class="space-y-1 pl-2 text-xs" style="border-left: 2px solid var(--ap-border);">
+                  <div class="font-semibold" style="color: var(--ap-link);">1. Hybrid Storage Engine</div>
+                  <div class="pl-3" style="color: var(--ap-muted);">1.1 Plain .md Source of Truth</div>
+                  <div class="pl-3" style="color: var(--ap-muted);">1.2 SQLite WAL Sidecar Cache</div>
+                  <div style="color: var(--ap-fg-2);">2. Sub-Millisecond Benchmarks</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bottom Vault Telemetry -->
+            <div class="p-2.5 rounded-xl flex items-center justify-between text-xs" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border);">
+              <div>
+                <div class="font-semibold" style="color: var(--ap-fg);">142 Notes · 638 Links</div>
+                <div style="color: var(--ap-muted);">SQLite WAL Index · 0.14 ms</div>
+              </div>
+              <span class="w-2.5 h-2.5 rounded-full" style="background-color: var(--ap-success);"></span>
+            </div>
+          </aside>
+
+          <!-- CENTER STAGE: Apple Editorial Document Canvas -->
+          <main class="col-span-6 p-8 overflow-y-auto" style="background-color: var(--ap-bg);">
+            <div class="max-w-2xl mx-auto space-y-5">
+
+              <!-- Breadcrumb & Live Save Indicator -->
+              <div class="flex items-center justify-between text-xs" style="color: var(--ap-meta);">
+                <span>01 — Architecture &nbsp;/&nbsp; <strong style="color: var(--ap-fg);">Storage Architecture.md</strong></span>
+                <span class="apple-pill px-2.5 py-0.5 font-medium" style="background-color: var(--ap-surface); color: var(--ap-muted);">
+                  ✓ Flushed to .md in 0.14 ms
+                </span>
+              </div>
+
+              <!-- Apple Properties / YAML Frontmatter Inspector -->
+              <div class="p-3.5 rounded-xl space-y-2" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border);">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--ap-meta);">Properties (YAML Frontmatter)</span>
+                  <span class="apple-mono text-xs" style="color: var(--ap-link);">+ Add Property</span>
+                </div>
+                <div class="flex flex-wrap gap-2 pt-1">
+                  <span class="apple-pill px-3 py-1 text-xs font-medium" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border);">
+                    <strong style="color: var(--ap-meta);">status:</strong> <span style="color: var(--ap-success);">● Verified</span>
+                  </span>
+                  <span class="apple-pill px-3 py-1 text-xs font-medium" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border);">
+                    <strong style="color: var(--ap-meta);">engine:</strong> <span style="color: var(--ap-fg);">.NET 10 + SQLite WAL</span>
+                  </span>
+                  <span class="apple-pill px-3 py-1 text-xs font-medium" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+                    #architecture
+                  </span>
+                  <span class="apple-pill px-3 py-1 text-xs font-medium" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+                    #local-first
+                  </span>
+                  <span class="apple-pill px-3 py-1 text-xs font-medium" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+                    #apple-design
+                  </span>
+                </div>
+              </div>
+
+              <!-- Document Title (SF Pro Display Scale) -->
+              <h1 class="apple-display text-3xl font-semibold tracking-tight m-0" style="color: var(--ap-fg);">
+                Hybrid Storage Engine: Plain Markdown + SQLite Sidecar
+              </h1>
+
+              <!-- Body Paragraph (17px SF Pro Text, 1.47 Line-Height) -->
+              <p class="apple-body m-0" style="color: var(--ap-fg);">
+                Rhyolite preserves plain <code class="apple-mono text-xs px-1.5 py-0.5 rounded" style="background-color: var(--ap-code-bg);">.md</code> files on disk as the canonical source of truth while pairing them with a lock-free in-memory AST and <a href="javascript:void(0)" onclick="switchScreen('graph')" class="font-medium underline" style="color: var(--ap-link);">[[Avalonia Rendering Pipeline]]</a>. Keystrokes never block on disk I/O.
+              </p>
+
+              <!-- Apple Callout Block -->
+              <div class="p-4 rounded-xl space-y-1.5" style="background-color: var(--ap-callout-bg); border: 1px solid var(--ap-border);">
+                <div class="flex items-center gap-2 text-xs font-semibold" style="color: var(--ap-link);">
+                  <span>⚡ [!IMPORTANT] Zero-Latency Typing Pipeline</span>
+                </div>
+                <p class="text-sm m-0 leading-relaxed" style="color: var(--ap-fg-2);">
+                  Edits mutate the in-memory rope buffer in <strong>&lt; 0.05 ms</strong>. A background channel debounces disk writes (400 ms) and incrementally updates only the changed note's edges in <code class="apple-mono text-xs">.rhyolite/cache.db</code>.
+                </p>
+              </div>
+
+              <!-- Interactive Task Checklist -->
+              <div class="space-y-2">
+                <h2 class="apple-display text-xl font-semibold m-0" style="color: var(--ap-fg);">Implementation Milestones</h2>
+                <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+                  <input type="checkbox" checked class="w-4 h-4 rounded accent-[#0071e3]" />
+                  <span class="line-through" style="color: var(--ap-muted);">Configure plain <code class="apple-mono text-xs">.md</code> atomic writer with temp-file swap</span>
+                </label>
+                <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+                  <input type="checkbox" checked class="w-4 h-4 rounded accent-[#0071e3]" />
+                  <span class="line-through" style="color: var(--ap-muted);">Enable SQLite Write-Ahead Logging (WAL) sidecar index for instant cold boots</span>
+                </label>
+                <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+                  <input type="checkbox" class="w-4 h-4 rounded accent-[#0071e3]" />
+                  <span style="color: var(--ap-fg);">Benchmark 10,000-note graph PageRank &amp; <a href="javascript:void(0)" onclick="switchScreen('expansions')" style="color: var(--ap-link);">[[FSRS Spaced Repetition]]</a> sync 📅 2026-11-05</span>
+                </label>
+              </div>
+
+              <!-- Embedded Code / Live Split Block -->
+              <div id="codeOrSplitContainer" class="rounded-xl overflow-hidden" style="background-color: var(--ap-code-bg); border: 1px solid var(--ap-border);">
+                <div class="px-3.5 py-2 flex items-center justify-between text-xs" style="border-bottom: 1px solid var(--ap-border); color: var(--ap-meta);">
+                  <span class="apple-mono font-semibold">C# 14 · VaultIndexEngine.cs</span>
+                  <span>Copy</span>
+                </div>
+                <pre class="apple-mono text-xs p-3.5 m-0 overflow-x-auto leading-relaxed" style="color: var(--ap-fg);">public async ValueTask SaveNoteAsync(VaultNote note, CancellationToken ct)
+{
+    // 1. Atomic .md write (&lt; 0.2 ms)
+    await AtomicFileWriter.WriteTextAsync(note.FilePath, note.RawMarkdown, ct);
+    // 2. Single-node delta update in memory + SQLite WAL channel
+    GraphIndex.UpdateNodeEdges(note.Id, MarkdownAstParser.ExtractLinks(note));
+}</pre>
+              </div>
+
+            </div>
+          </main>
+
+          <!-- RIGHT INSPECTOR: Backlinks, Unlinked Mentions & AI Vault Copilot -->
+          <aside class="col-span-3 p-3.5 flex flex-col justify-between overflow-y-auto" style="background-color: var(--ap-surface); border-left: 1px solid var(--ap-border);">
+            <div class="space-y-4">
+
+              <!-- Linked Mentions (Backlinks) -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--ap-meta);">Linked Mentions (3)</span>
+                  <span class="text-xs" style="color: var(--ap-link);">Expand</span>
+                </div>
+                <div class="space-y-2">
+                  <div class="apple-card p-2.5 space-y-1">
+                    <div class="text-xs font-semibold" style="color: var(--ap-fg);">📄 Avalonia Rendering Pipeline.md</div>
+                    <p class="text-xs m-0" style="color: var(--ap-muted);">
+                      "...receives incremental graph deltas from <span style="color: var(--ap-link);">[[Storage Architecture]]</span> without frame drops..."
+                    </p>
+                  </div>
+                  <div class="apple-card p-2.5 space-y-1">
+                    <div class="text-xs font-semibold" style="color: var(--ap-fg);">📅 2026-11-03.md</div>
+                    <p class="text-xs m-0" style="color: var(--ap-muted);">
+                      "...finalized hybrid SQLite WAL cache in <span style="color: var(--ap-link);">[[Storage Architecture]]</span>..."
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Unlinked Mentions with 1-Click Link -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--ap-meta);">Unlinked Mentions (1)</span>
+                </div>
+                <div class="apple-card p-2.5 flex items-center justify-between gap-2">
+                  <div>
+                    <div class="text-xs font-semibold" style="color: var(--ap-fg);">📄 Cross-Platform Sync.md</div>
+                    <p class="text-xs m-0" style="color: var(--ap-muted);">Mentions "Storage Architecture"</p>
+                  </div>
+                  <button class="apple-pill px-2.5 py-1 text-xs font-semibold" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+                    Link
+                  </button>
+                </div>
+              </div>
+
+              <!-- Rhyolite Expansion: AI Vault Copilot -->
+              <div class="apple-card p-3 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold flex items-center gap-1.5" style="color: var(--ap-fg);">
+                    <span style="color: var(--ap-accent);">✦</span> Rhyolite Vault Copilot
+                  </span>
+                  <span class="apple-pill px-2 py-0.5 text-xs" style="background-color: var(--ap-surface); color: var(--ap-meta);">Local RAG</span>
+                </div>
+                <p class="text-xs m-0 leading-relaxed" style="color: var(--ap-fg-2);">
+                  <strong>Semantic Discovery:</strong> This note shares 89% vector similarity with <span style="color: var(--ap-link);">[[Mobile File Watcher]]</span>. Want to link them or generate 3 FSRS flashcards?
+                </p>
+                <div class="flex gap-1.5">
+                  <button onclick="switchScreen('expansions')" class="apple-btn-primary px-2.5 py-1 text-xs font-medium flex-1">
+                    Generate 3 Cards
+                  </button>
+                  <button onclick="switchScreen('expansions')" class="px-2.5 py-1 rounded-lg text-xs font-medium" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border); color: var(--ap-fg);">
+                    View Diff
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Status Footer -->
+            <div class="pt-3 flex items-center justify-between text-xs" style="border-top: 1px solid var(--ap-border); color: var(--ap-meta);">
+              <span>248 words · 1 min read</span>
+              <span>UTF-8 · Markdown</span>
+            </div>
+          </aside>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 2: INTERACTIVE FORCE-DIRECTED KNOWLEDGE GRAPH & ANALYTICS      -->
+    <!-- ===================================================================== -->
+    <section id="screen-graph" class="screen-view hidden flex-1 p-5 flex flex-col gap-4">
+      <div class="apple-panel-lg flex-1 grid grid-cols-12 overflow-hidden" style="min-height: 680px;">
+
+        <!-- Interactive Skia-Simulated Graph Canvas -->
+        <div class="col-span-9 relative flex flex-col justify-between p-5 canvas-grid" style="background-color: var(--ap-bg);">
+          <!-- Floating Top Overlay Bar -->
+          <div class="z-10 flex flex-wrap items-center justify-between gap-3">
+            <div class="px-4 py-2 rounded-xl backdrop-blur-md flex items-center gap-3" style="background-color: var(--ap-surface-glass); border: 1px solid var(--ap-border);">
+              <span class="text-sm font-semibold" style="color: var(--ap-fg);">🕸️ Interactive Knowledge Graph</span>
+              <span class="apple-pill px-2.5 py-0.5 text-xs font-medium" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+                Drag any node · Hover to spotlight neighborhood
+              </span>
+            </div>
+
+            <div class="px-3 py-1.5 rounded-xl backdrop-blur-md flex items-center gap-3 text-xs" style="background-color: var(--ap-surface-glass); border: 1px solid var(--ap-border);">
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: #0071e3;"></span> Architecture</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: #16a34a;"></span> Daily Notes</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: #eab308;"></span> Design System</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: #dc2626;"></span> Study Decks</span>
+            </div>
+          </div>
+
+          <!-- HTML5 Interactive Force Graph -->
+          <canvas id="knowledgeGraphCanvas" width="820" height="520" class="w-full flex-1 cursor-grab active:cursor-grabbing"></canvas>
+
+          <!-- Floating Bottom Graph Controls -->
+          <div class="z-10 flex items-center justify-between">
+            <div class="px-3.5 py-2 rounded-xl backdrop-blur-md text-xs flex items-center gap-4" style="background-color: var(--ap-surface-glass); border: 1px solid var(--ap-border); color: var(--ap-muted);">
+              <span>Skia 60fps Hardware Renderer</span>
+              <span>•</span>
+              <span id="graphSelectedNodeLabel" class="font-semibold" style="color: var(--ap-fg);">Selected: Storage Architecture.md (PageRank: 0.94)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="resetGraphPositions()" class="apple-btn-primary px-3.5 py-1.5 text-xs font-semibold">
+                Re-Center Physics
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Graph Inspector & Topology Health -->
+        <aside class="col-span-3 p-4 flex flex-col justify-between" style="background-color: var(--ap-surface); border-left: 1px solid var(--ap-border);">
+          <div class="space-y-5">
+            <div>
+              <h3 class="apple-display text-lg font-semibold m-0" style="color: var(--ap-fg);">Graph Forces &amp; Filters</h3>
+              <p class="text-xs m-0 mt-1" style="color: var(--ap-muted);">Fruchterman-Reingold layout parameters</p>
+            </div>
+
+            <!-- Sliders -->
+            <div class="apple-card p-3.5 space-y-3">
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span style="color: var(--ap-fg-2);">Center Gravity</span>
+                  <span class="apple-mono" style="color: var(--ap-meta);">0.42</span>
+                </div>
+                <input type="range" min="10" max="90" value="42" class="w-full accent-[#0071e3]" />
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span style="color: var(--ap-fg-2);">Node Repulsion</span>
+                  <span class="apple-mono" style="color: var(--ap-meta);">180 px</span>
+                </div>
+                <input type="range" min="50" max="300" value="180" class="w-full accent-[#0071e3]" />
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span style="color: var(--ap-fg-2);">Link Distance</span>
+                  <span class="apple-mono" style="color: var(--ap-meta);">110 px</span>
+                </div>
+                <input type="range" min="40" max="220" value="110" class="w-full accent-[#0071e3]" />
+              </div>
+            </div>
+
+            <!-- Rhyolite Expansion: Topology & Knowledge Health -->
+            <div class="apple-card p-3.5 space-y-2.5">
+              <div class="text-xs font-semibold uppercase tracking-wider" style="color: var(--ap-meta);">
+                Knowledge Health (Rhyolite Expansion)
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="p-2.5 rounded-lg" style="background-color: var(--ap-surface);">
+                  <div style="color: var(--ap-muted);">Hub Note</div>
+                  <div class="font-semibold mt-0.5" style="color: var(--ap-fg);">Storage Arch</div>
+                </div>
+                <div class="p-2.5 rounded-lg" style="background-color: var(--ap-surface);">
+                  <div style="color: var(--ap-muted);">Clustering</div>
+                  <div class="font-semibold mt-0.5" style="color: var(--ap-success);">88.4% Dense</div>
+                </div>
+                <div class="p-2.5 rounded-lg" style="background-color: var(--ap-surface);">
+                  <div style="color: var(--ap-muted);">Orphan Notes</div>
+                  <div class="font-semibold mt-0.5" style="color: var(--ap-warn);">2 Unlinked</div>
+                </div>
+                <div class="p-2.5 rounded-lg" style="background-color: var(--ap-surface);">
+                  <div style="color: var(--ap-muted);">Ghost Links</div>
+                  <div class="font-semibold mt-0.5" style="color: var(--ap-link);">1 Pending</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="switchScreen('editor')" class="apple-btn-primary w-full py-2 text-xs font-semibold">
+            Open Selected Note in Studio →
+          </button>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 3: INFINITE SPATIAL CANVAS (.CANVAS JSON 1.0)                  -->
+    <!-- ===================================================================== -->
+    <section id="screen-canvas" class="screen-view hidden flex-1 p-5 flex flex-col gap-4">
+      <div class="apple-panel-lg flex-1 relative overflow-hidden canvas-grid flex flex-col justify-between p-6" style="min-height: 680px; background-color: var(--ap-bg);">
+
+        <!-- Top Canvas Header -->
+        <div class="z-10 flex items-center justify-between">
+          <div class="px-4 py-2 rounded-xl backdrop-blur-md flex items-center gap-3" style="background-color: var(--ap-surface-glass); border: 1px solid var(--ap-border);">
+            <span class="text-sm font-semibold" style="color: var(--ap-fg);">🗺️ System Map.canvas</span>
+            <span class="apple-pill px-2.5 py-0.5 text-xs font-medium" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+              JSON Canvas 1.0 Compatible
+            </span>
+          </div>
+          <div class="px-3.5 py-2 rounded-xl backdrop-blur-md text-xs font-medium" style="background-color: var(--ap-surface-glass); border: 1px solid var(--ap-border); color: var(--ap-muted);">
+            4 Cards · 1 Group · 3 Bezier Edges · Zoom 100%
+          </div>
+        </div>
+
+        <!-- Spatial Canvas Interactive Board -->
+        <div class="relative flex-1 my-4 rounded-2xl p-6" style="border: 1px dashed var(--ap-border);">
+          <span class="apple-pill px-3 py-1 text-xs font-semibold uppercase tracking-wider" style="background-color: var(--ap-surface); color: var(--ap-meta); border: 1px solid var(--ap-border);">
+            Group: Rhyolite .NET 10 Core Architecture
+          </span>
+
+          <!-- SVG Bezier Connectors -->
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1000 460" preserveAspectRatio="none">
+            <defs>
+              <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#0071e3" />
+              </marker>
+            </defs>
+            <path d="M 310 150 C 390 150, 390 120, 460 120" stroke="#0071e3" stroke-width="2.5" fill="none" marker-end="url(#arrowBlue)" />
+            <path d="M 310 210 C 390 210, 390 310, 460 310" stroke="#0071e3" stroke-width="2.5" fill="none" marker-end="url(#arrowBlue)" />
+            <path d="M 710 140 C 760 140, 760 220, 800 220" stroke="#16a34a" stroke-width="2.5" fill="none" marker-end="url(#arrowBlue)" />
+          </svg>
+
+          <!-- Canvas Cards Grid Layout -->
+          <div class="grid grid-cols-12 gap-6 mt-6 relative z-10 items-center">
+
+            <!-- Card 1: Source Note Card -->
+            <div class="col-span-4 apple-card p-4 space-y-2" style="border-top: 4px solid #0071e3;">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-semibold" style="color: var(--ap-link);">📄 Note Embed</span>
+                <span class="apple-mono" style="color: var(--ap-meta);">Storage Architecture.md</span>
+              </div>
+              <h4 class="apple-display text-base font-semibold m-0" style="color: var(--ap-fg);">Plain .md Source of Truth</h4>
+              <p class="text-xs m-0 leading-relaxed" style="color: var(--ap-fg-2);">
+                All notes remain standard Markdown files on disk. Zero vendor lock-in; instant Git &amp; iCloud compatibility.
+              </p>
+              <div class="pt-1 flex gap-1.5">
+                <span class="apple-pill px-2 py-0.5 text-xs" style="background-color: var(--ap-surface); color: var(--ap-meta);">0.14 ms write</span>
+              </div>
+            </div>
+
+            <!-- Middle Column: 2 Connected Cards -->
+            <div class="col-span-4 space-y-6">
+              <div class="apple-card p-4 space-y-2" style="border-top: 4px solid #16a34a;">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-semibold" style="color: var(--ap-success);">⚡ In-Memory Delta AST</span>
+                  <span class="apple-mono" style="color: var(--ap-meta);">Markdig + YAML</span>
+                </div>
+                <h4 class="apple-display text-base font-semibold m-0" style="color: var(--ap-fg);">Incremental Link &amp; Tag Graph</h4>
+                <p class="text-xs m-0 leading-relaxed" style="color: var(--ap-fg-2);">
+                  Re-parses only the single modified note on keystroke debounce (150 ms) and updates forward/backlink dictionaries in O(1).
+                </p>
+              </div>
+
+              <div class="apple-card p-4 space-y-2" style="border-top: 4px solid #eab308;">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-semibold" style="color: var(--ap-warn);">🗄️ SQLite WAL Sidecar</span>
+                  <span class="apple-mono" style="color: var(--ap-meta);">.rhyolite/cache.db</span>
+                </div>
+                <h4 class="apple-display text-base font-semibold m-0" style="color: var(--ap-fg);">Cold-Boot Metadata Cache</h4>
+                <p class="text-xs m-0 leading-relaxed" style="color: var(--ap-fg-2);">
+                  Caches FTS5 search tokens, frontmatter schemas, FSRS card stability, and SHA-256 hashes for &lt;50 ms cold startup.
+                </p>
+              </div>
+            </div>
+
+            <!-- Right Column: Multi-Platform Output Card -->
+            <div class="col-span-4 apple-card p-4 space-y-2.5" style="border-top: 4px solid #0071e3;">
+              <div class="text-xs font-semibold" style="color: var(--ap-link);">🖥️ 📱 6 Native Targets</div>
+              <h4 class="apple-display text-base font-semibold m-0" style="color: var(--ap-fg);">Avalonia 11 Unified UI</h4>
+              <div class="grid grid-cols-2 gap-1.5 text-xs">
+                <div class="p-2 rounded-lg" style="background-color: var(--ap-surface);"> macOS (arm64/x64)</div>
+                <div class="p-2 rounded-lg" style="background-color: var(--ap-surface);">⊞ Windows (x64/arm64)</div>
+                <div class="p-2 rounded-lg" style="background-color: var(--ap-surface);">🐧 Linux (X11/Wayland)</div>
+                <div class="p-2 rounded-lg" style="background-color: var(--ap-surface);">📱 iOS &amp; Android</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Floating Apple Pill Canvas Dock -->
+        <div class="z-10 mx-auto apple-pill px-5 py-2.5 backdrop-blur-md flex items-center gap-3" style="background-color: var(--ap-surface-glass); border: 1px solid var(--ap-border);">
+          <button class="apple-btn-primary px-3 py-1 text-xs font-semibold">+ Add Note Card</button>
+          <button class="px-3 py-1 rounded-lg text-xs font-medium" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border);">+ Text Card</button>
+          <button class="px-3 py-1 rounded-lg text-xs font-medium" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border);">+ Group Frame</button>
+          <span class="text-xs" style="color: var(--ap-meta);">|</span>
+          <span class="text-xs font-medium" style="color: var(--ap-muted);">Saved to System Map.canvas</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 4: BASES — DATABASE VIEWS OVER MARKDOWN (TABLE & KANBAN)       -->
+    <!-- ===================================================================== -->
+    <section id="screen-bases" class="screen-view hidden flex-1 p-5 flex flex-col gap-4">
+      <div class="apple-panel-lg flex-1 p-6 flex flex-col gap-5" style="min-height: 680px;">
+
+        <!-- Bases Header -->
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-4" style="border-bottom: 1px solid var(--ap-border);">
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h2 class="apple-display text-2xl font-semibold m-0" style="color: var(--ap-fg);">🗂️ Engineering Roadmap.base</h2>
+              <span class="apple-pill px-2.5 py-0.5 text-xs font-medium" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+                Query: folder:"01 — Architecture" OR #roadmap
+              </span>
+            </div>
+            <p class="text-xs m-0 mt-1" style="color: var(--ap-muted);">
+              Live database projection over local Markdown YAML frontmatter — editing any cell updates the underlying <code class="apple-mono text-xs">.md</code> file immediately.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="setBasesSubView('table')" id="bases-btn-table" class="apple-btn-primary px-3.5 py-1.5 text-xs font-semibold">
+              Table View
+            </button>
+            <button onclick="setBasesSubView('kanban')" id="bases-btn-kanban" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border); color: var(--ap-fg);">
+              Kanban Board
+            </button>
+          </div>
+        </div>
+
+        <!-- TABLE SUB-VIEW -->
+        <div id="bases-table-view" class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--ap-border); color: var(--ap-meta);">
+                <th class="py-3 px-3 font-semibold uppercase tracking-wider">Note Title (.md)</th>
+                <th class="py-3 px-3 font-semibold uppercase tracking-wider">Status</th>
+                <th class="py-3 px-3 font-semibold uppercase tracking-wider">Subsystem</th>
+                <th class="py-3 px-3 font-semibold uppercase tracking-wider">Priority</th>
+                <th class="py-3 px-3 font-semibold uppercase tracking-wider">Backlinks</th>
+                <th class="py-3 px-3 font-semibold uppercase tracking-wider">Disk Latency</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y" style="border-color: var(--ap-border-soft);">
+              <tr>
+                <td class="py-3.5 px-3 font-semibold" style="color: var(--ap-link);">📄 Storage Architecture.md</td>
+                <td class="py-3.5 px-3"><span class="apple-pill px-2.5 py-1 font-semibold" style="background-color: rgba(22,163,74,0.12); color: var(--ap-success);">● Shipped</span></td>
+                <td class="py-3.5 px-3">Rhyolite.Core</td>
+                <td class="py-3.5 px-3">P0 Critical</td>
+                <td class="py-3.5 px-3 apple-mono">14 links</td>
+                <td class="py-3.5 px-3 apple-mono" style="color: var(--ap-muted);">0.14 ms</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-3 font-semibold" style="color: var(--ap-link);">📄 Apple Design Tokens.md</td>
+                <td class="py-3.5 px-3"><span class="apple-pill px-2.5 py-1 font-semibold" style="background-color: rgba(22,163,74,0.12); color: var(--ap-success);">● Shipped</span></td>
+                <td class="py-3.5 px-3">Rhyolite.UI</td>
+                <td class="py-3.5 px-3">P0 Critical</td>
+                <td class="py-3.5 px-3 apple-mono">19 links</td>
+                <td class="py-3.5 px-3 apple-mono" style="color: var(--ap-muted);">0.11 ms</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-3 font-semibold" style="color: var(--ap-link);">📄 Skia Force Graph Engine.md</td>
+                <td class="py-3.5 px-3"><span class="apple-pill px-2.5 py-1 font-semibold" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">◐ In Progress</span></td>
+                <td class="py-3.5 px-3">Rhyolite.UI</td>
+                <td class="py-3.5 px-3">P1 High</td>
+                <td class="py-3.5 px-3 apple-mono">9 links</td>
+                <td class="py-3.5 px-3 apple-mono" style="color: var(--ap-muted);">0.16 ms</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-3 font-semibold" style="color: var(--ap-link);">📄 FSRS Spaced Repetition.md</td>
+                <td class="py-3.5 px-3"><span class="apple-pill px-2.5 py-1 font-semibold" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">◐ In Progress</span></td>
+                <td class="py-3.5 px-3">Rhyolite.Study</td>
+                <td class="py-3.5 px-3">P1 High</td>
+                <td class="py-3.5 px-3 apple-mono">7 links</td>
+                <td class="py-3.5 px-3 apple-mono" style="color: var(--ap-muted);">0.12 ms</td>
+              </tr>
+              <tr>
+                <td class="py-3.5 px-3 font-semibold" style="color: var(--ap-link);">📄 Mobile HIG Adaptive Shell.md</td>
+                <td class="py-3.5 px-3"><span class="apple-pill px-2.5 py-1 font-semibold" style="background-color: rgba(234,179,8,0.15); color: var(--ap-warn);">○ Planned</span></td>
+                <td class="py-3.5 px-3">Rhyolite.iOS / Android</td>
+                <td class="py-3.5 px-3">P1 High</td>
+                <td class="py-3.5 px-3 apple-mono">6 links</td>
+                <td class="py-3.5 px-3 apple-mono" style="color: var(--ap-muted);">0.15 ms</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- KANBAN SUB-VIEW -->
+        <div id="bases-kanban-view" class="hidden grid grid-cols-3 gap-4 flex-1">
+          <!-- Column 1 -->
+          <div class="p-4 rounded-xl space-y-3" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border);">
+            <div class="flex items-center justify-between text-xs font-semibold">
+              <span style="color: var(--ap-warn);">○ PLANNED (1)</span>
+              <span style="color: var(--ap-meta);">+</span>
+            </div>
+            <div class="apple-card p-3.5 space-y-2">
+              <div class="text-xs font-semibold" style="color: var(--ap-fg);">Mobile HIG Adaptive Shell.md</div>
+              <p class="text-xs m-0" style="color: var(--ap-muted);">iOS 44pt touch ergonomics &amp; .regularMaterial tab bar</p>
+              <div class="apple-pill px-2 py-0.5 text-xs inline-block" style="background-color: var(--ap-surface); color: var(--ap-meta);">Rhyolite.iOS / Android</div>
+            </div>
+          </div>
+
+          <!-- Column 2 -->
+          <div class="p-4 rounded-xl space-y-3" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border);">
+            <div class="flex items-center justify-between text-xs font-semibold">
+              <span style="color: var(--ap-link);">◐ IN PROGRESS (2)</span>
+              <span style="color: var(--ap-meta);">+</span>
+            </div>
+            <div class="apple-card p-3.5 space-y-2">
+              <div class="text-xs font-semibold" style="color: var(--ap-fg);">Skia Force Graph Engine.md</div>
+              <p class="text-xs m-0" style="color: var(--ap-muted);">60fps Fruchterman-Reingold + PageRank centrality</p>
+            </div>
+            <div class="apple-card p-3.5 space-y-2">
+              <div class="text-xs font-semibold" style="color: var(--ap-fg);">FSRS Spaced Repetition.md</div>
+              <p class="text-xs m-0" style="color: var(--ap-muted);">Zero-plugin inline flashcards &amp; cloze deletions</p>
+            </div>
+          </div>
+
+          <!-- Column 3 -->
+          <div class="p-4 rounded-xl space-y-3" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border);">
+            <div class="flex items-center justify-between text-xs font-semibold">
+              <span style="color: var(--ap-success);">● SHIPPED (2)</span>
+              <span style="color: var(--ap-meta);">+</span>
+            </div>
+            <div class="apple-card p-3.5 space-y-2">
+              <div class="text-xs font-semibold" style="color: var(--ap-fg);">Storage Architecture.md</div>
+              <p class="text-xs m-0" style="color: var(--ap-muted);">Plain .md + In-Memory AST + SQLite WAL sidecar</p>
+            </div>
+            <div class="apple-card p-3.5 space-y-2">
+              <div class="text-xs font-semibold" style="color: var(--ap-fg);">Apple Design Tokens.md</div>
+              <p class="text-xs m-0" style="color: var(--ap-muted);">feimacode/open-design-agent-kit AXAML resource system</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 5: RHYOLITE EXPANSIONS (FSRS FLASHCARDS, TIME-MACHINE & FOCUS) -->
+    <!-- ===================================================================== -->
+    <section id="screen-expansions" class="screen-view hidden flex-1 p-5 flex flex-col gap-4">
+      <div class="grid grid-cols-12 gap-5 flex-1" style="min-height: 680px;">
+
+        <!-- Left 7 Cols: Native FSRS Spaced Repetition Studio -->
+        <div class="col-span-7 apple-panel-lg p-6 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="apple-pill px-2.5 py-0.5 text-xs font-semibold" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+                Rhyolite Native Expansion · FSRS v4 Scheduler
+              </span>
+              <h2 class="apple-display text-2xl font-semibold m-0 mt-1.5" style="color: var(--ap-fg);">
+                Spaced Repetition Flashcard Studio
+              </h2>
+            </div>
+            <div class="text-right text-xs" style="color: var(--ap-muted);">
+              <div>Deck: <strong style="color: var(--ap-fg);">01 — Architecture</strong></div>
+              <div>12 cards due today · 94% retention</div>
+            </div>
+          </div>
+
+          <!-- Interactive Flashcard -->
+          <div class="my-6 p-7 rounded-2xl space-y-4" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border);">
+            <div class="flex items-center justify-between text-xs" style="color: var(--ap-meta);">
+              <span>Source: 📄 Storage Architecture.md (Line 42)</span>
+              <span class="apple-mono">Stability: 14.2d · Difficulty: 4.1</span>
+            </div>
+            <div class="text-xs font-semibold uppercase tracking-wider" style="color: var(--ap-link);">Question</div>
+            <h3 class="apple-display text-xl font-semibold m-0" style="color: var(--ap-fg);">
+              Why does Rhyolite pair plain <code class="apple-mono text-base">.md</code> files with a SQLite WAL sidecar cache instead of storing note bodies inside SQLite?
+            </h3>
+
+            <div id="flashcardAnswerBox" class="pt-4 space-y-2" style="border-top: 1px solid var(--ap-border);">
+              <div class="text-xs font-semibold uppercase tracking-wider" style="color: var(--ap-success);">Answer</div>
+              <p class="text-sm m-0 leading-relaxed" style="color: var(--ap-fg-2);">
+                1. <strong>Zero Lock-In:</strong> Plain <code class="apple-mono text-xs">.md</code> files remain directly editable by VS Code, Git, iCloud, and scripts.<br/>
+                2. <strong>&lt; 1 ms Typing Latency:</strong> In-memory AST updates only the edited file's delta.<br/>
+                3. <strong>&lt; 50 ms Cold Startup:</strong> SQLite WAL caches pre-parsed links, frontmatter, and FTS5 tokens across 10,000+ notes.
+              </p>
+            </div>
+          </div>
+
+          <!-- FSRS Rating Pills -->
+          <div class="grid grid-cols-4 gap-3">
+            <button onclick="advanceFlashcard('Again')" class="p-3 rounded-xl text-center transition-all" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border);">
+              <div class="text-xs font-semibold" style="color: var(--ap-danger);">Again</div>
+              <div class="apple-mono text-xs mt-0.5" style="color: var(--ap-meta);">10 min</div>
+            </button>
+            <button onclick="advanceFlashcard('Hard')" class="p-3 rounded-xl text-center transition-all" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border);">
+              <div class="text-xs font-semibold" style="color: var(--ap-warn);">Hard</div>
+              <div class="apple-mono text-xs mt-0.5" style="color: var(--ap-meta);">2 days</div>
+            </button>
+            <button onclick="advanceFlashcard('Good')" class="p-3 rounded-xl text-center transition-all" style="background-color: var(--ap-callout-bg); border: 1px solid var(--ap-accent);">
+              <div class="text-xs font-semibold" style="color: var(--ap-link);">Good</div>
+              <div class="apple-mono text-xs mt-0.5" style="color: var(--ap-meta);">6 days</div>
+            </button>
+            <button onclick="advanceFlashcard('Easy')" class="p-3 rounded-xl text-center transition-all" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border);">
+              <div class="text-xs font-semibold" style="color: var(--ap-success);">Easy</div>
+              <div class="apple-mono text-xs mt-0.5" style="color: var(--ap-meta);">15 days</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right 5 Cols: Snapshot Time-Machine Diff + Apple Focus Timer -->
+        <div class="col-span-5 flex flex-col gap-5">
+
+          <!-- Time-Machine Visual Diff -->
+          <div class="apple-panel-lg p-5 flex-1 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between">
+                <h3 class="apple-display text-lg font-semibold m-0" style="color: var(--ap-fg);">⏱️ Snapshot Time-Machine</h3>
+                <span class="apple-pill px-2.5 py-0.5 text-xs font-medium" style="background-color: var(--ap-surface); color: var(--ap-meta);">
+                  18 local snapshots
+                </span>
+              </div>
+              <p class="text-xs m-0 mt-1" style="color: var(--ap-muted);">
+                Comparing <strong>Current (15:14)</strong> vs. <strong>Snapshot #17 (14:50)</strong>
+              </p>
+
+              <div class="mt-3 rounded-xl p-3 apple-mono text-xs space-y-1.5" style="background-color: var(--ap-code-bg); border: 1px solid var(--ap-border);">
+                <div style="color: var(--ap-muted);">@@ -14,4 +14,5 @@ Storage Architecture.md</div>
+                <div class="px-2 py-1 rounded" style="background-color: rgba(220,38,38,0.12); color: var(--ap-danger);">
+                  - Index rebuilds full vault on save
+                </div>
+                <div class="px-2 py-1 rounded" style="background-color: rgba(22,163,74,0.14); color: var(--ap-success);">
+                  + Incremental single-note AST delta (&lt; 0.5 ms)
+                </div>
+                <div class="px-2 py-1 rounded" style="background-color: rgba(22,163,74,0.14); color: var(--ap-success);">
+                  + SQLite WAL sidecar cache (.rhyolite/cache.db)
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-3">
+              <span class="text-xs" style="color: var(--ap-meta);">Git branch: <code class="apple-mono">main</code> (clean)</span>
+              <button class="apple-btn-primary px-3 py-1.5 text-xs font-semibold">Restore Snapshot</button>
+            </div>
+          </div>
+
+          <!-- Apple Pomodoro Focus Session Bound to Active Task -->
+          <div class="apple-panel-lg p-5 flex items-center justify-between gap-4">
+            <div class="space-y-1">
+              <span class="apple-pill px-2.5 py-0.5 text-xs font-semibold" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+                Deep Work Focus
+              </span>
+              <h3 class="apple-display text-lg font-semibold m-0 pt-1" style="color: var(--ap-fg);">
+                Benchmark 10k-Note Graph
+              </h3>
+              <p class="text-xs m-0" style="color: var(--ap-muted);">
+                Auto-logs session to <code class="apple-mono">2026-11-03.md</code>
+              </p>
+            </div>
+            <div class="text-right">
+              <div class="apple-display text-3xl font-bold apple-mono" style="color: var(--ap-fg);">24:18</div>
+              <button class="apple-btn-primary mt-2 px-4 py-1 text-xs font-semibold apple-pill">Pause</button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 6: CROSS-PLATFORM MOBILE & TABLET (iOS HIG & ANDROID)          -->
+    <!-- ===================================================================== -->
+    <section id="screen-mobile" class="screen-view hidden flex-1 p-5 flex flex-col gap-4">
+      <div class="apple-panel-lg flex-1 p-6 grid grid-cols-12 gap-8 items-center" style="min-height: 680px;">
+
+        <!-- Left 5 Cols: iPhone 16 Pro (iOS HIG from apple-music-ios tokens) -->
+        <div class="col-span-5 flex flex-col items-center">
+          <div class="mb-2 text-xs font-semibold uppercase tracking-wider" style="color: var(--ap-meta);">
+            iOS Target (net10.0-ios · 44pt Touch Targets · .regularMaterial)
+          </div>
+
+          <!-- iPhone Frame -->
+          <div class="w-80 rounded-[36px] p-3.5 flex flex-col justify-between" style="background-color: var(--ap-bg); border: 4px solid var(--ap-border); min-height: 580px; box-shadow: var(--ap-shadow-card);">
+            <!-- Dynamic Island + Status Bar -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between px-3 pt-1 text-xs font-semibold">
+                <span>9:41</span>
+                <span class="w-20 h-4 rounded-full inline-block" style="background-color: #1d1d1f;"></span>
+                <span>5G 100%</span>
+              </div>
+
+              <!-- iOS Large Title Navigation (34pt scale) -->
+              <div class="px-2 pt-2">
+                <div class="text-xs font-semibold" style="color: var(--ap-link);">Rhyolite Vault</div>
+                <h2 class="apple-display text-2xl font-bold m-0" style="color: var(--ap-fg);">Notes &amp; Daily</h2>
+              </div>
+
+              <!-- iOS Search Pill -->
+              <div class="mx-2 px-3 py-2 rounded-xl text-xs" style="background-color: var(--ap-surface); color: var(--ap-muted);">
+                🔍 Search 142 notes, #tags, or flashcards…
+              </div>
+
+              <!-- Today's Daily Note Hero Card (12pt signature radius) -->
+              <div class="mx-2 p-3.5 rounded-xl space-y-1.5" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border);">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-semibold" style="color: var(--ap-link);">📅 Today · Nov 3</span>
+                  <span class="apple-mono text-xs" style="color: var(--ap-success);">Synced</span>
+                </div>
+                <div class="text-sm font-semibold" style="color: var(--ap-fg);">Storage Architecture Review</div>
+                <p class="text-xs m-0" style="color: var(--ap-muted);">
+                  Plain .md files + SQLite WAL sidecar cache verified at 0.14 ms write speed.
+                </p>
+              </div>
+
+              <!-- Grouped List Rows -->
+              <div class="mx-2 rounded-xl overflow-hidden divide-y" style="background-color: var(--ap-surface); border: 1px solid var(--ap-border); border-color: var(--ap-border-soft);">
+                <div class="p-3 flex items-center justify-between text-xs">
+                  <span>📄 Storage Architecture.md</span>
+                  <span style="color: var(--ap-meta);">›</span>
+                </div>
+                <div class="p-3 flex items-center justify-between text-xs">
+                  <span>🗺️ System Map.canvas</span>
+                  <span style="color: var(--ap-meta);">›</span>
+                </div>
+                <div class="p-3 flex items-center justify-between text-xs">
+                  <span>🧠 FSRS Study Deck (12 due)</span>
+                  <span style="color: var(--ap-link);">Review ›</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Floating Mini Quick-Capture Bar + iOS 5-Tab Bar -->
+            <div class="space-y-2 pt-3">
+              <div class="mx-2 px-3 py-2 rounded-xl flex items-center justify-between text-xs" style="background-color: var(--ap-callout-bg); border: 1px solid var(--ap-border);">
+                <span class="font-semibold" style="color: var(--ap-link);">+ Quick Capture to Daily Note</span>
+                <span class="apple-mono text-xs" style="color: var(--ap-meta);">🎤 ✎</span>
+              </div>
+
+              <div class="pt-2 px-2 flex items-center justify-around text-xs" style="border-top: 1px solid var(--ap-border);">
+                <div class="text-center font-semibold" style="color: var(--ap-accent);">📄<div>Notes</div></div>
+                <div class="text-center" style="color: var(--ap-muted);">🕸️<div>Graph</div></div>
+                <div class="text-center" style="color: var(--ap-muted);">🗺️<div>Canvas</div></div>
+                <div class="text-center" style="color: var(--ap-muted);">🧠<div>Study</div></div>
+                <div class="text-center" style="color: var(--ap-muted);">🔍<div>Search</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 7 Cols: Android & iPadOS Tablet Split-Screen + Platform Matrix -->
+        <div class="col-span-7 space-y-5">
+          <div>
+            <span class="apple-pill px-2.5 py-0.5 text-xs font-semibold" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+              Single Shared Codebase · 6 Native Targets
+            </span>
+            <h2 class="apple-display text-2xl font-semibold m-0 mt-1.5" style="color: var(--ap-fg);">
+              Adaptive Breakpoints Across Desktop, Tablet &amp; Mobile
+            </h2>
+            <p class="text-xs m-0 mt-1" style="color: var(--ap-muted);">
+              Follows <code class="apple-mono">open-design-agent-kit</code> responsive breakpoints: single-column stack (&lt;640px), 2-column tablet split (641px–1023px), and 3-pane studio (1024px+).
+            </p>
+          </div>
+
+          <!-- Tablet / Android Split Preview Frame -->
+          <div class="rounded-2xl p-4 grid grid-cols-12 gap-4" style="background-color: var(--ap-surface); border: 2px solid var(--ap-border);">
+            <div class="col-span-4 p-3 rounded-xl space-y-2" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border);">
+              <div class="text-xs font-semibold" style="color: var(--ap-meta);">ANDROID / TABLET MASTER</div>
+              <div class="p-2 rounded-lg text-xs font-semibold" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+                Storage Architecture.md
+              </div>
+              <div class="p-2 rounded-lg text-xs" style="color: var(--ap-fg-2);">
+                Apple Design Tokens.md
+              </div>
+              <div class="p-2 rounded-lg text-xs" style="color: var(--ap-fg-2);">
+                System Map.canvas
+              </div>
+            </div>
+            <div class="col-span-8 p-4 rounded-xl space-y-2" style="background-color: var(--ap-bg); border: 1px solid var(--ap-border);">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-semibold" style="color: var(--ap-success);">● Live Markdown Reader</span>
+                <span class="apple-mono" style="color: var(--ap-meta);">net10.0-android / net10.0-ios</span>
+              </div>
+              <h4 class="apple-display text-base font-semibold m-0" style="color: var(--ap-fg);">
+                Hybrid Storage Engine on Mobile Flash
+              </h4>
+              <p class="text-xs m-0 leading-relaxed" style="color: var(--ap-fg-2);">
+                Uses platform-native storage providers while sharing 100% of <code class="apple-mono">Rhyolite.Core</code> and <code class="apple-mono">Rhyolite.UI</code>.
+              </p>
+            </div>
+          </div>
+
+          <!-- 6-Platform Build Matrix -->
+          <div class="grid grid-cols-3 gap-3 text-xs">
+            <div class="apple-card p-3">
+              <div class="font-semibold" style="color: var(--ap-fg);"> macOS</div>
+              <div class="apple-mono mt-0.5" style="color: var(--ap-meta);">osx-arm64 / osx-x64</div>
+            </div>
+            <div class="apple-card p-3">
+              <div class="font-semibold" style="color: var(--ap-fg);">⊞ Windows</div>
+              <div class="apple-mono mt-0.5" style="color: var(--ap-meta);">win-x64 / win-arm64</div>
+            </div>
+            <div class="apple-card p-3">
+              <div class="font-semibold" style="color: var(--ap-fg);">🐧 Linux</div>
+              <div class="apple-mono mt-0.5" style="color: var(--ap-meta);">linux-x64 / linux-arm64</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- FLOATING COMMAND PALETTE MODAL (⌘P / Ctrl+P)                          -->
+    <!-- ===================================================================== -->
+    <div id="commandPaletteModal" class="hidden fixed inset-0 z-50 flex items-start justify-center pt-24 px-4" style="background-color: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px);">
+      <div class="w-full max-w-lg rounded-2xl overflow-hidden" style="background-color: var(--ap-surface-elevated); border: 1px solid var(--ap-border); box-shadow: var(--ap-shadow-modal);">
+        <div class="p-3.5 flex items-center justify-between" style="border-bottom: 1px solid var(--ap-border);">
+          <span class="text-sm font-medium" style="color: var(--ap-fg);">🔍 Type a command or jump to note…</span>
+          <button onclick="toggleCommandPalette()" class="apple-pill px-2.5 py-0.5 text-xs" style="background-color: var(--ap-surface); color: var(--ap-meta);">ESC</button>
+        </div>
+        <div class="p-2 space-y-1 text-xs">
+          <div onclick="switchScreen('editor'); toggleCommandPalette();" class="p-2.5 rounded-xl flex items-center justify-between cursor-pointer" style="background-color: var(--ap-callout-bg); color: var(--ap-link);">
+            <span class="font-semibold">📄 Open Note: Storage Architecture.md</span>
+            <span class="apple-mono">↵</span>
+          </div>
+          <div onclick="switchScreen('graph'); toggleCommandPalette();" class="p-2.5 rounded-xl flex items-center justify-between cursor-pointer" style="color: var(--ap-fg);">
+            <span>🕸️ Graph View: Open Global Knowledge Graph</span>
+            <span class="apple-mono" style="color: var(--ap-meta);">⌘G</span>
+          </div>
+          <div onclick="switchScreen('canvas'); toggleCommandPalette();" class="p-2.5 rounded-xl flex items-center justify-between cursor-pointer" style="color: var(--ap-fg);">
+            <span>🗺️ Canvas: Open System Map.canvas</span>
+            <span class="apple-mono" style="color: var(--ap-meta);">⌘⇧C</span>
+          </div>
+          <div onclick="switchScreen('expansions'); toggleCommandPalette();" class="p-2.5 rounded-xl flex items-center justify-between cursor-pointer" style="color: var(--ap-fg);">
+            <span>🧠 FSRS Study: Start Daily Review Session (12 due)</span>
+            <span class="apple-mono" style="color: var(--ap-meta);">⌘R</span>
+          </div>
+          <div onclick="toggleAppleTheme(); toggleCommandPalette();" class="p-2.5 rounded-xl flex items-center justify-between cursor-pointer" style="color: var(--ap-fg);">
+            <span>🌗 Theme: Toggle Apple Light / True-Black Dark Mode</span>
+            <span class="apple-mono" style="color: var(--ap-meta);">⌘⇧T</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Screen Switching Logic
+    const screens = ['editor', 'graph', 'canvas', 'bases', 'expansions', 'mobile'];
+    function switchScreen(target) {
+      screens.forEach(s => {
+        const el = document.getElementById('screen-' + s);
+        const tab = document.getElementById('tab-' + s);
+        if (s === target) {
+          el.classList.remove('hidden');
+          tab.style.backgroundColor = 'var(--ap-accent)';
+          tab.style.color = '#ffffff';
+        } else {
+          el.classList.add('hidden');
+          tab.style.backgroundColor = 'transparent';
+          tab.style.color = 'var(--ap-fg-2)';
+        }
+      });
+      if (target === 'graph') {
+        requestAnimationFrame(drawGraph);
+      }
+    }
+
+    // Apple Theme Switcher (Light <-> True-Black Dark)
+    function toggleAppleTheme() {
+      const root = document.getElementById('appRoot');
+      const current = root.getAttribute('data-apple-theme');
+      const next = current === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-apple-theme', next);
+      document.getElementById('themeIcon').textContent = next === 'light' ? '🌙' : '☀️';
+      document.getElementById('themeLabel').textContent = next === 'light' ? 'True-Black Dark' : 'Apple Light';
+      drawGraph();
+    }
+
+    // Command Palette Modal
+    function toggleCommandPalette() {
+      const modal = document.getElementById('commandPaletteModal');
+      modal.classList.toggle('hidden');
+    }
+
+    // Editor Mode Switcher
+    function setEditorMode(mode) {
+      ['reading', 'live', 'source'].forEach(m => {
+        const btn = document.getElementById('mode-' + m);
+        if (m === mode) {
+          btn.style.backgroundColor = 'var(--ap-bg)';
+          btn.style.color = 'var(--ap-fg)';
+          btn.classList.add('font-semibold');
+        } else {
+          btn.style.backgroundColor = 'transparent';
+          btn.style.color = 'var(--ap-muted)';
+          btn.classList.remove('font-semibold');
+        }
+      });
+    }
+
+    // Bases Table / Kanban Toggle
+    function setBasesSubView(view) {
+      const table = document.getElementById('bases-table-view');
+      const kanban = document.getElementById('bases-kanban-view');
+      const btnTable = document.getElementById('bases-btn-table');
+      const btnKanban = document.getElementById('bases-btn-kanban');
+      if (view === 'table') {
+        table.classList.remove('hidden');
+        kanban.classList.add('hidden');
+        btnTable.className = 'apple-btn-primary px-3.5 py-1.5 text-xs font-semibold';
+        btnKanban.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold';
+        btnKanban.style.backgroundColor = 'var(--ap-surface)';
+        btnKanban.style.color = 'var(--ap-fg)';
+      } else {
+        table.classList.add('hidden');
+        kanban.classList.remove('hidden');
+        btnKanban.className = 'apple-btn-primary px-3.5 py-1.5 text-xs font-semibold';
+        btnTable.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold';
+        btnTable.style.backgroundColor = 'var(--ap-surface)';
+        btnTable.style.color = 'var(--ap-fg)';
+      }
+    }
+
+    // Flashcard progression
+    const flashcards = [
+      {
+        q: 'Why does Rhyolite pair plain .md files with a SQLite WAL sidecar cache instead of storing note bodies inside SQLite?',
+        a: '1. Zero Lock-In: Plain .md files remain editable by external tools. 2. <1ms Typing Latency: In-memory AST updates only the edited file delta. 3. <50ms Cold Startup: SQLite WAL caches links, frontmatter, and FTS5 tokens.'
+      },
+      {
+        q: 'Which Apple Design System color tokens from open-design-agent-kit govern Rhyolite Light & Dark modes?',
+        a: 'Light Mode uses #FFFFFF canvas, #F5F5F7 surface, #1D1D1F ink, and #0071E3 Action Blue. Dark Mode uses True Black #000000 canvas, #1C1C1E -> #272729 graphite surface steps, and #2997FF high-luminance link blue.'
+      }
+    ];
+    let cardIdx = 0;
+    function advanceFlashcard(rating) {
+      cardIdx = (cardIdx + 1) % flashcards.length;
+      const box = document.querySelector('#screen-expansions h3');
+      const ans = document.querySelector('#flashcardAnswerBox p');
+      box.textContent = flashcards[cardIdx].q;
+      ans.textContent = flashcards[cardIdx].a;
+    }
+
+    // Interactive Knowledge Graph Canvas
+    const graphNodes = [
+      { id: 0, label: 'Storage Architecture.md', x: 410, y: 250, r: 16, color: '#0071e3', pr: '0.94' },
+      { id: 1, label: 'Avalonia Rendering.md', x: 250, y: 150, r: 13, color: '#0071e3', pr: '0.82' },
+      { id: 2, label: 'Apple Design Tokens.md', x: 580, y: 150, r: 14, color: '#eab308', pr: '0.88' },
+      { id: 3, label: '2026-11-03.md', x: 260, y: 360, r: 12, color: '#16a34a', pr: '0.71' },
+      { id: 4, label: 'FSRS Spaced Repetition.md', x: 570, y: 360, r: 13, color: '#dc2626', pr: '0.79' },
+      { id: 5, label: 'System Map.canvas', x: 410, y: 110, r: 11, color: '#0071e3', pr: '0.68' },
+      { id: 6, label: 'SQLite WAL Index.md', x: 410, y: 395, r: 12, color: '#0071e3', pr: '0.76' },
+      { id: 7, label: 'Mobile HIG Shell.md', x: 690, y: 255, r: 11, color: '#eab308', pr: '0.64' },
+      { id: 8, label: 'Local Vault RAG.md', x: 140, y: 255, r: 11, color: '#dc2626', pr: '0.66' }
+    ];
+    const graphEdges = [
+      [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6],
+      [1, 5], [1, 8], [2, 5], [2, 7], [3, 6], [4, 6], [4, 8]
+    ];
+    let hoveredNode = null;
+    let draggingNode = null;
+
+    function drawGraph() {
+      const canvas = document.getElementById('knowledgeGraphCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const isDark = document.getElementById('appRoot').getAttribute('data-apple-theme') === 'dark';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw edges
+      graphEdges.forEach(([a, b]) => {
+        const na = graphNodes[a];
+        const nb = graphNodes[b];
+        const isHighlighted = hoveredNode && (hoveredNode.id === a || hoveredNode.id === b);
+        ctx.beginPath();
+        ctx.moveTo(na.x, na.y);
+        ctx.lineTo(nb.x, nb.y);
+        ctx.strokeStyle = isHighlighted
+          ? '#0071e3'
+          : (isDark ? 'rgba(235, 235, 245, 0.22)' : 'rgba(29, 29, 31, 0.18)');
+        ctx.lineWidth = isHighlighted ? 2.5 : 1.5;
+        ctx.stroke();
+      });
+
+      // Draw nodes
+      graphNodes.forEach(n => {
+        const isHovered = hoveredNode && hoveredNode.id === n.id;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, isHovered ? n.r + 3 : n.r, 0, Math.PI * 2);
+        ctx.fillStyle = n.color;
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = isDark ? '#000000' : '#ffffff';
+        ctx.stroke();
+
+        // Label
+        ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif';
+        ctx.fillStyle = isDark ? '#ffffff' : '#1d1d1f';
+        ctx.textAlign = 'center';
+        ctx.fillText(n.label, n.x, n.y + n.r + 16);
+      });
+    }
+
+    function resetGraphPositions() {
+      graphNodes[0].x = 410; graphNodes[0].y = 250;
+      graphNodes[1].x = 250; graphNodes[1].y = 150;
+      graphNodes[2].x = 580; graphNodes[2].y = 150;
+      graphNodes[3].x = 260; graphNodes[3].y = 360;
+      graphNodes[4].x = 570; graphNodes[4].y = 360;
+      drawGraph();
+    }
+
+    // Wire up mouse events for interactive graph dragging
+    window.addEventListener('DOMContentLoaded', () => {
+      switchScreen('editor');
+      const canvas = document.getElementById('knowledgeGraphCanvas');
+      canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const mx = (e.clientX - rect.left) * scaleX;
+        const my = (e.clientY - rect.top) * scaleY;
+
+        if (draggingNode) {
+          draggingNode.x = mx;
+          draggingNode.y = my;
+          drawGraph();
+          return;
+        }
+
+        hoveredNode = graphNodes.find(n => Math.hypot(n.x - mx, n.y - my) <= n.r + 6) || null;
+        if (hoveredNode) {
+          document.getElementById('graphSelectedNodeLabel').textContent =
+            `Selected: ${hoveredNode.label} (PageRank: ${hoveredNode.pr})`;
+        }
+        drawGraph();
+      });
+      canvas.addEventListener('mousedown', () => {
+        if (hoveredNode) draggingNode = hoveredNode;
+      });
+      window.addEventListener('mouseup', () => {
+        draggingNode = null;
+      });
+    });
+  </script>
+</body>
+</html>

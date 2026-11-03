@@ -1,0 +1,112 @@
+using System;
+using System.IO;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media.Imaging;
+using Avalonia.Styling;
+using Avalonia.Threading;
+using Rhyolite.ViewModels;
+using Rhyolite.Views;
+
+namespace Rhyolite.Desktop;
+
+sealed class Program
+{
+    [STAThread]
+    public static int Main(string[] args)
+    {
+        if (args.Length >= 2 && args[0] == "--export-mockups")
+        {
+            return ExportAllScreenMockups(args[1]);
+        }
+
+        return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    }
+
+    private static int ExportAllScreenMockups(string outputDir)
+    {
+        Directory.CreateDirectory(outputDir);
+
+        BuildAvaloniaApp().SetupWithoutStarting();
+
+        var vm = System.Threading.Tasks.Task.Run(async () =>
+        {
+            var m = new MainViewModel();
+            await m.InitializationTask.ConfigureAwait(false);
+            return m;
+        }).GetAwaiter().GetResult();
+
+        var view = new MainView
+        {
+            DataContext = vm,
+            Width = 1440,
+            Height = 900
+        };
+
+        var root = new ThemeVariantScope
+        {
+            RequestedThemeVariant = ThemeVariant.Light,
+            Child = view,
+            Width = 1440,
+            Height = 900
+        };
+
+        var window = new Window
+        {
+            Width = 1440,
+            Height = 900,
+            Content = root,
+            ShowInTaskbar = false
+        };
+        window.Show();
+
+        var specs = new (string FileName, string Screen, bool DarkMode)[]
+        {
+            ("01_note_studio_light.png", "Studio", false),
+            ("02_note_studio_dark.png", "Studio", true),
+            ("03_knowledge_graph_light.png", "Graph", false),
+            ("04_spatial_canvas_dark.png", "Canvas", true),
+            ("05_bases_database_light.png", "Bases", false),
+            ("06_study_timemachine_light.png", "Study", false),
+            ("07_mcp_graphql_p2p_dark.png", "Protocol", true),
+            ("08_mobile_ios_android_light.png", "Mobile", false),
+            ("09_enterprise_github_pr_devex_dark.png", "DevEx", true)
+        };
+
+        var size = new Size(1440, 900);
+        var pixelSize = new PixelSize(1440, 900);
+        var dpi = new Vector(96, 96);
+
+        foreach (var (fileName, screen, darkMode) in specs)
+        {
+            vm.IsDarkTheme = darkMode;
+            vm.ThemeButtonLabel = darkMode ? "☀️ Apple Light" : "🌙 True-Black Dark";
+            if (Application.Current is App app)
+            {
+                app.SetAppleTheme(darkMode);
+            }
+            root.RequestedThemeVariant = darkMode ? ThemeVariant.Dark : ThemeVariant.Light;
+            vm.SwitchScreen(screen);
+
+            Dispatcher.UIThread.RunJobs();
+            root.Measure(size);
+            root.Arrange(new Rect(size));
+            root.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+
+            using var bitmap = new RenderTargetBitmap(pixelSize, dpi);
+            bitmap.Render(root);
+            string fullPath = Path.Combine(outputDir, fileName);
+            bitmap.Save(fullPath);
+            Console.WriteLine($"Rendered: {fullPath}");
+        }
+
+        return 0;
+    }
+
+    public static AppBuilder BuildAvaloniaApp()
+        => AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+            .WithInterFont()
+            .LogToTrace();
+}

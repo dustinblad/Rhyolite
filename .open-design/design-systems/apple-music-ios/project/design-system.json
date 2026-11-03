@@ -1,0 +1,24 @@
+{
+  "v": 3,
+  "layout": "files",
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-22T11:49:23.587Z"
+  },
+  "title": "Apple Music (iOS)",
+  "namespace": "AppleMusicIOS",
+  "libraries": [],
+  "sections": {},
+  "groups": [],
+  "assetGroups": {},
+  "blobs": {},
+  "docs": {
+    "sections": []
+  },
+  "lastChange": {
+    "by": "Open Design",
+    "at": "2026-10-22T11:49:23.587Z",
+    "via": "Open Design · apple-music-ios@open-design-v0.24.1",
+    "note": "Built by scripts/build-claude-design-systems.ts."
+  }
+}

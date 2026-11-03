@@ -1,0 +1,23 @@
+# .NET / C# Build Artifacts
+bin/
+obj/
+artifacts/
+out/
+TestResults/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+.vs/
+.idea/
+*.swp
+
+# Ephemeral Local Vault Caches & Secrets
+.rhyolite/
+*.kdbx
+.env
+.env.*
