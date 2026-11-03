@@ -205,6 +205,8 @@ Rhyolite uses a deterministic release pipeline controlled by [`VERSION`](VERSION
 ---
 
 ## Architecture & Verification Docs
+- [Master Architectural & Implementation Plan (`PLAN.md`)](PLAN.md) ([`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md))
+- [Claude Code Replication Specification & Prompt Log (`docs/CLAUDE_CODE_REPLICATION_SPEC.md`)](docs/CLAUDE_CODE_REPLICATION_SPEC.md)
 - [MCP, GraphQL, P2P & Bladbase/Docmost Protocol Specification](docs/MCP_GRAPHQL_P2P_AUTH_SPEC.md)
 - [Enterprise DevEx & Feature Gap Analysis](docs/FEATURE_GAP_ANALYSIS.md)
 - [Multi-Agent Verification & Algorithmic Efficiency Report](docs/MULTI_AGENT_VERIFICATION_REPORT.md)
