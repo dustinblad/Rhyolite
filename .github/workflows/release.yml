@@ -1,0 +1,48 @@
+name: Rhyolite Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      bump_mode:
+        description: 'Version increment mode (patch = +0.0.1, minor = +0.1.0, major = +1.0.0)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  build-test-and-release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run xUnit Verification & Benchmark Suite
+        run: dotnet test tests/Rhyolite.Tests/Rhyolite.Tests.csproj -c Release --nologo
+
+      - name: Publish Release via release.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chmod +x ./scripts/release.sh
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ./scripts/release.sh "${{ inputs.bump_mode }}"
+          else
+            ./scripts/release.sh publish
+          fi

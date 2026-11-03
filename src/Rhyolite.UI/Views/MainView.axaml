@@ -21,9 +21,8 @@
       <Grid ColumnDefinitions="Auto,*,Auto">
         <!-- Brand Header -->
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-          <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource AppleAccentBrush}">
-            <TextBlock Text="R" Foreground="#FFFFFF" FontWeight="Bold" FontSize="15"
-                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Border Width="32" Height="32" CornerRadius="8" ClipToBounds="True" Background="#0B0D14">
+            <Image Source="avares://Rhyolite.UI/Assets/Icon.png" Width="32" Height="32" Stretch="UniformToFill" />
           </Border>
           <StackPanel VerticalAlignment="Center">
             <StackPanel Orientation="Horizontal" Spacing="8">
