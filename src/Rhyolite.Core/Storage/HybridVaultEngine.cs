@@ -50,6 +50,11 @@ public sealed class HybridVaultEngine : IDisposable
 
     private void InitializeSqliteWalSidecar()
     {
+        EnsureSqliteSchema();
+    }
+
+    public void EnsureSqliteSchema()
+    {
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
@@ -74,6 +79,25 @@ public sealed class HybridVaultEngine : IDisposable
                 label TEXT NOT NULL,
                 content_sha256 TEXT NOT NULL,
                 raw_markdown TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS github_pr_cache (
+                cache_key TEXT PRIMARY KEY,
+                repo TEXT NOT NULL,
+                pr_number INTEGER NOT NULL,
+                head_sha TEXT NOT NULL,
+                etag TEXT NOT NULL,
+                analysis_markdown TEXT NOT NULL,
+                updated_utc TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS external_sync_bindings (
+                binding_key TEXT PRIMARY KEY,
+                connector_kind TEXT NOT NULL,
+                workspace_or_space_id TEXT NOT NULL,
+                relative_path TEXT NOT NULL,
+                last_synced_sha256 TEXT NOT NULL,
+                updated_utc TEXT NOT NULL
             );
             """;
         cmd.ExecuteNonQuery();
@@ -259,6 +283,115 @@ public sealed class HybridVaultEngine : IDisposable
     {
         File.WriteAllText(_canvasFilePath, JsonCanvasEngine.Serialize(doc), Encoding.UTF8);
     }
+
+    /// <summary>
+    /// Upserts a GitHub PR diff analysis row in the SQLite WAL sidecar cache with O(1) PRIMARY KEY B-tree indexing.
+    /// </summary>
+    public void UpsertGitHubPrCache(string cacheKey, string repo, int prNumber, string headSha, string etag, string analysisMarkdown)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO github_pr_cache (cache_key, repo, pr_number, head_sha, etag, analysis_markdown, updated_utc)
+            VALUES ($cacheKey, $repo, $prNumber, $headSha, $etag, $analysisMarkdown, $updatedUtc)
+            ON CONFLICT(cache_key) DO UPDATE SET
+                repo = excluded.repo,
+                pr_number = excluded.pr_number,
+                head_sha = excluded.head_sha,
+                etag = excluded.etag,
+                analysis_markdown = excluded.analysis_markdown,
+                updated_utc = excluded.updated_utc;
+            """;
+        cmd.Parameters.AddWithValue("$cacheKey", cacheKey);
+        cmd.Parameters.AddWithValue("$repo", repo);
+        cmd.Parameters.AddWithValue("$prNumber", prNumber);
+        cmd.Parameters.AddWithValue("$headSha", headSha);
+        cmd.Parameters.AddWithValue("$etag", etag ?? string.Empty);
+        cmd.Parameters.AddWithValue("$analysisMarkdown", analysisMarkdown);
+        cmd.Parameters.AddWithValue("$updatedUtc", DateTime.UtcNow.ToString("O"));
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Queries a cached GitHub PR analysis row in O(1) via the cache_key PRIMARY KEY B-tree index.
+    /// </summary>
+    public (bool Found, string HeadSha, string Etag, string AnalysisMarkdown) TryGetGitHubPrCache(string cacheKey)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT head_sha, etag, analysis_markdown
+            FROM github_pr_cache
+            WHERE cache_key = $cacheKey
+            LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("$cacheKey", cacheKey);
+
+        using var reader = cmd.ExecuteReader();
+        if (reader.Read())
+        {
+            return (
+                true,
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2));
+        }
+
+        return (false, string.Empty, string.Empty, string.Empty);
+    }
+
+    /// <summary>
+    /// Upserts an external workspace sync binding (e.g. Confluence/Notion/GitHub) in the SQLite WAL sidecar cache.
+    /// </summary>
+    public void UpsertExternalSyncBinding(string connectorKind, string workspaceOrSpaceId, string relativePath, string lastSyncedSha256)
+    {
+        string normalizedPath = relativePath.Replace('\\', '/');
+        string bindingKey = BuildSyncBindingKey(connectorKind, workspaceOrSpaceId, normalizedPath);
+
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO external_sync_bindings (binding_key, connector_kind, workspace_or_space_id, relative_path, last_synced_sha256, updated_utc)
+            VALUES ($bindingKey, $connectorKind, $workspaceId, $relativePath, $sha256, $updatedUtc)
+            ON CONFLICT(binding_key) DO UPDATE SET
+                connector_kind = excluded.connector_kind,
+                workspace_or_space_id = excluded.workspace_or_space_id,
+                relative_path = excluded.relative_path,
+                last_synced_sha256 = excluded.last_synced_sha256,
+                updated_utc = excluded.updated_utc;
+            """;
+        cmd.Parameters.AddWithValue("$bindingKey", bindingKey);
+        cmd.Parameters.AddWithValue("$connectorKind", connectorKind);
+        cmd.Parameters.AddWithValue("$workspaceId", workspaceOrSpaceId);
+        cmd.Parameters.AddWithValue("$relativePath", normalizedPath);
+        cmd.Parameters.AddWithValue("$sha256", lastSyncedSha256);
+        cmd.Parameters.AddWithValue("$updatedUtc", DateTime.UtcNow.ToString("O"));
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Retrieves the last synced SHA-256 content hash for an external connector binding via O(1) PRIMARY KEY lookup.
+    /// </summary>
+    public string? GetLastSyncedHash(string connectorKind, string workspaceOrSpaceId, string relativePath)
+    {
+        string normalizedPath = relativePath.Replace('\\', '/');
+        string bindingKey = BuildSyncBindingKey(connectorKind, workspaceOrSpaceId, normalizedPath);
+
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT last_synced_sha256
+            FROM external_sync_bindings
+            WHERE binding_key = $bindingKey
+            LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("$bindingKey", bindingKey);
+
+        return cmd.ExecuteScalar() as string;
+    }
+
+    private static string BuildSyncBindingKey(string connectorKind, string workspaceOrSpaceId, string normalizedPath) =>
+        $"{connectorKind.Trim()}:{workspaceOrSpaceId.Trim()}:{normalizedPath}";
 
     private void RecordSnapshotInternal(VaultNote note, string label)
     {

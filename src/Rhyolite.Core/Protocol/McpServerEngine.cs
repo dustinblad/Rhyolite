@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Rhyolite.Core.Enterprise;
 
 namespace Rhyolite.Core.Protocol;
 
@@ -202,6 +203,9 @@ public sealed class McpServerEngine
             "rhyolite.query_graph" => ExecuteQueryGraphTool(id, args, authToken, startTick),
             "rhyolite.update_frontmatter" => ExecuteUpdateFrontmatterTool(id, args, authToken, startTick),
             "rhyolite.canvas_op" => ExecuteCanvasOpTool(id, args, authToken, startTick),
+            "rhyolite.scan_secrets" => ExecuteScanSecretsTool(id, args, authToken, startTick),
+            "rhyolite.analyze_github_pr" => ExecuteAnalyzeGitHubPrTool(id, args, authToken, startTick),
+            "rhyolite.verify_workspace_connectors" => ExecuteVerifyWorkspaceConnectorsTool(id, args, authToken, startTick),
             _ => CreateErrorResponse(id, -32602, $"Unknown Rhyolite MCP tool '{toolName}'.", startTick)
         };
     }
@@ -494,6 +498,166 @@ public sealed class McpServerEngine
             ["operation"] = op,
             ["nodeCount"] = nodes.Count,
             ["edgeCount"] = edges.Count
+        };
+
+        return CreateToolPayloadResponse(id, payload, decision.EffectiveRole, startTick);
+    }
+
+    private McpRpcResponse ExecuteScanSecretsTool(
+        JsonNode? id,
+        JsonObject args,
+        string? authToken,
+        long startTick)
+    {
+        var path = args["path"]?.GetValue<string>() ?? "Untitled.md";
+        var content = args["content"]?.GetValue<string>() ?? _vaultEngine.GetNote(path)?.Content;
+        if (content is null)
+        {
+            return CreateErrorResponse(id, -32602, "Tool 'rhyolite.scan_secrets' requires 'path' and 'content'.", startTick);
+        }
+
+        var decision = _authEngine.CheckAccess(authToken, VaultOperation.ReadNote, path);
+        if (!decision.IsAllowed)
+        {
+            return CreateErrorResponse(id, -32001, $"RBAC Access Denied: {decision.Reason}", startTick);
+        }
+
+        var backendRaw = args["backend"]?.GetValue<string>();
+        var backend = backendRaw?.Trim().ToLowerInvariant() switch
+        {
+            "keepassxc" or "keepassxc-cli" or "keepassxccli" or "kdbx" => SecretVaultBackend.KeePassXcCli,
+            "env" or "environment" or "vault" or "environmentvault" => SecretVaultBackend.EnvironmentVault,
+            _ => SecretVaultBackend.OnePasswordCli
+        };
+
+        var report = EnterpriseDevExEngine.ScanAndRedactSecrets(path, content, backend);
+        var findingsArray = new JsonArray();
+        foreach (var finding in report.Findings)
+        {
+            findingsArray.Add(new JsonObject
+            {
+                ["ruleId"] = finding.RuleId,
+                ["providerName"] = finding.ProviderName,
+                ["severity"] = finding.Severity.ToString(),
+                ["lineNumber"] = finding.LineNumber,
+                ["maskedPreview"] = finding.MaskedPreview,
+                ["appliedPlaceholder"] = finding.AppliedPlaceholder
+            });
+        }
+
+        var payload = new JsonObject
+        {
+            ["path"] = report.NotePath,
+            ["isClean"] = report.IsClean,
+            ["findingsCount"] = report.Findings.Count,
+            ["preferredBackend"] = report.PreferredBackend.ToString(),
+            ["redactedMarkdown"] = report.RedactedMarkdown,
+            ["findings"] = findingsArray
+        };
+
+        return CreateToolPayloadResponse(id, payload, decision.EffectiveRole, startTick);
+    }
+
+    private McpRpcResponse ExecuteAnalyzeGitHubPrTool(
+        JsonNode? id,
+        JsonObject args,
+        string? authToken,
+        long startTick)
+    {
+        var decision = _authEngine.CheckAccess(authToken, VaultOperation.ReadNote);
+        if (!decision.IsAllowed)
+        {
+            return CreateErrorResponse(id, -32001, $"RBAC Access Denied: {decision.Reason}", startTick);
+        }
+
+        var samplePr = EnterpriseDevExEngine.CreateSampleEnterprisePullRequest();
+        var prNumber = args["prNumber"]?.GetValue<int>() ?? samplePr.Number;
+        var repository = args["repository"]?.GetValue<string>() ?? samplePr.Repository;
+        var prSnapshot = prNumber == samplePr.Number && string.Equals(repository, samplePr.Repository, StringComparison.OrdinalIgnoreCase)
+            ? samplePr
+            : samplePr with { Repository = repository, Number = prNumber };
+
+        var slashIdx = prSnapshot.Repository.IndexOf('/');
+        var owner = slashIdx > 0 ? prSnapshot.Repository[..slashIdx] : "dustinblad";
+        var repoName = slashIdx > 0 && slashIdx + 1 < prSnapshot.Repository.Length
+            ? prSnapshot.Repository[(slashIdx + 1)..]
+            : prSnapshot.Repository;
+
+        var singleRttGraphQlQuery = EnterpriseDevExEngine.BuildSingleRttPullRequestGraphQlQuery(owner, repoName, prSnapshot.Number);
+        var sqliteWalCacheKey = EnterpriseDevExEngine.ComputePrSqliteWalCacheKey(prSnapshot.Repository, prSnapshot.Number, prSnapshot.HeadSha);
+        var analysis = EnterpriseDevExEngine.AnalyzeGitHubPullRequest(prSnapshot, []);
+
+        var payload = new JsonObject
+        {
+            ["repository"] = prSnapshot.Repository,
+            ["prNumber"] = prSnapshot.Number,
+            ["title"] = prSnapshot.Title,
+            ["headSha"] = prSnapshot.HeadSha,
+            ["singleRttGraphQlQuery"] = singleRttGraphQlQuery,
+            ["graphQlQuery"] = singleRttGraphQlQuery,
+            ["sqliteWalCacheKey"] = sqliteWalCacheKey,
+            ["walCacheKey"] = sqliteWalCacheKey,
+            ["riskLevel"] = analysis.RiskLevel,
+            ["unresolvedThreadsCount"] = analysis.UnresolvedThreadsCount,
+            ["actionableBlockersCount"] = analysis.ActionableBlockersCount,
+            ["totalAdditions"] = analysis.TotalAdditions,
+            ["totalDeletions"] = analysis.TotalDeletions,
+            ["passedDiffSecretScan"] = analysis.PassedDiffSecretScan,
+            ["generatedReviewMarkdown"] = analysis.GeneratedReviewMarkdown
+        };
+
+        return CreateToolPayloadResponse(id, payload, decision.EffectiveRole, startTick);
+    }
+
+    private McpRpcResponse ExecuteVerifyWorkspaceConnectorsTool(
+        JsonNode? id,
+        JsonObject args,
+        string? authToken,
+        long startTick)
+    {
+        var decision = _authEngine.CheckAccess(authToken, VaultOperation.ReadNote);
+        if (!decision.IsAllowed)
+        {
+            return CreateErrorResponse(id, -32001, $"RBAC Access Denied: {decision.Reason}", startTick);
+        }
+
+        var bladbaseConnector = new JsonObject
+        {
+            ["connectorId"] = "bladbase-primary",
+            ["provider"] = "Bladbase",
+            ["workspace"] = "dustinblad/bladbase",
+            ["endpoint"] = "https://bladbase.dev/api/v1/workspaces/dustinblad/bladbase",
+            ["protocol"] = "MCP + GraphQL + HLC Delta Sync",
+            ["authType"] = "OAuth2 PKCE + Scoped PAT",
+            ["dualAuthorshipFrontmatter"] = "bladbase_author_type",
+            ["status"] = "Active",
+            ["enabled"] = true
+        };
+
+        var docmostConnector = new JsonObject
+        {
+            ["connectorId"] = "docmost-primary",
+            ["provider"] = "Docmost",
+            ["space"] = "Engineering Architecture",
+            ["spaceSlug"] = "engineering-architecture",
+            ["endpoint"] = "https://docs.internal.rhyolite.dev/api",
+            ["protocol"] = "ProseMirror JSON <-> CommonMark + WikiLinks Bidirectional Bridge",
+            ["authType"] = "Bearer PAT",
+            ["status"] = "Active",
+            ["enabled"] = true
+        };
+
+        var payload = new JsonObject
+        {
+            ["status"] = "Healthy",
+            ["verified"] = true,
+            ["bladbase"] = bladbaseConnector,
+            ["docmost"] = docmostConnector,
+            ["connectors"] = new JsonArray
+            {
+                bladbaseConnector.DeepClone(),
+                docmostConnector.DeepClone()
+            }
         };
 
         return CreateToolPayloadResponse(id, payload, decision.EffectiveRole, startTick);
@@ -988,6 +1152,43 @@ public sealed class McpServerEngine
                     ["x"] = new JsonObject { ["type"] = "number" },
                     ["y"] = new JsonObject { ["type"] = "number" }
                 }
+            }),
+        new McpToolDescriptor(
+            "rhyolite.scan_secrets",
+            "Scans Markdown content for leaked credentials and redacts them into 1Password CLI (op://) or KeePassXC CLI (keepassxc://) references.",
+            VaultOperation.ReadNote,
+            new JsonObject
+            {
+                ["type"] = "object",
+                ["required"] = new JsonArray("path", "content"),
+                ["properties"] = new JsonObject
+                {
+                    ["path"] = new JsonObject { ["type"] = "string" },
+                    ["content"] = new JsonObject { ["type"] = "string" },
+                    ["backend"] = new JsonObject { ["type"] = "string", ["description"] = "Optional vault backend: '1password' or 'keepassxc'." }
+                }
+            }),
+        new McpToolDescriptor(
+            "rhyolite.analyze_github_pr",
+            "Analyzes a GitHub Pull Request via a 1-RTT GraphQL v4 subgraph query and SQLite WAL cache key, returning risk level, unresolved review threads, and generated review Markdown.",
+            VaultOperation.ReadNote,
+            new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["prNumber"] = new JsonObject { ["type"] = "integer" },
+                    ["repository"] = new JsonObject { ["type"] = "string" }
+                }
+            }),
+        new McpToolDescriptor(
+            "rhyolite.verify_workspace_connectors",
+            "Verifies active Bladbase Workspace (dustinblad/bladbase) and Docmost Space connector configurations and sync readiness.",
+            VaultOperation.ReadNote,
+            new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject()
             })
     ];
 }

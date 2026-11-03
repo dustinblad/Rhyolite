@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Rhyolite.Core.Enterprise;
 
 namespace Rhyolite.Core.Protocol;
 
@@ -80,6 +81,8 @@ public sealed partial class GraphQlEngine
           search(query: String!, limit: Int = 20): [SearchHit!]!
           peers: [PeerNode!]!
           authProviders: [OAuthProviderDescriptor!]!
+          devExPrPreview(prNumber: Int = 142): DevExPrPreview!
+          workspaceConnectors: [WorkspaceConnectorDescriptor!]!
         }
 
         type Mutation {
@@ -171,6 +174,39 @@ public sealed partial class GraphQlEngine
           hlcTimestamp: String!
           sha256: String!
         }
+
+        type DevExPrPreview {
+          repository: String!
+          prNumber: Int!
+          title: String!
+          authorLogin: String!
+          headBranch: String!
+          baseBranch: String!
+          headSha: String!
+          state: String!
+          ciCheckStatus: String!
+          reviewDecision: String!
+          riskLevel: String!
+          unresolvedThreadsCount: Int!
+          actionableBlockersCount: Int!
+          totalAdditions: Int!
+          totalDeletions: Int!
+          sqliteWalCacheKey: String!
+          singleRttGraphQlQuery: String!
+          generatedReviewMarkdown: String!
+        }
+
+        type WorkspaceConnectorDescriptor {
+          connectorId: String!
+          provider: String!
+          workspace: String
+          space: String
+          workspaceOrSpace: String!
+          endpoint: String!
+          protocol: String!
+          status: String!
+          enabled: Boolean!
+        }
         """;
 
     /// <summary>
@@ -256,6 +292,12 @@ public sealed partial class GraphQlEngine
             errors,
             elapsedUs);
     }
+
+    /// <summary>
+    /// Convenience entry point for executing a raw GraphQL query string against the Rhyolite vault.
+    /// </summary>
+    public GraphQlResponse ExecuteQuery(string query, string? authToken = null) =>
+        Execute(new GraphQlRequest(query), authToken);
 
     private void ExecuteQueries(
         string queryText,
@@ -456,6 +498,90 @@ public sealed partial class GraphQlEngine
                 });
             }
             data["authProviders"] = providersArr;
+        }
+
+        if (ContainsFieldOperation(queryText, "devExPrPreview"))
+        {
+            var decision = _authEngine.CheckAccess(authToken, VaultOperation.ReadNote);
+            if (!decision.IsAllowed)
+            {
+                errors.Add(new GraphQlError($"RBAC Denied on 'devExPrPreview': {decision.Reason}", "FORBIDDEN"));
+            }
+            else
+            {
+                var args = ExtractFieldArguments(queryText, "devExPrPreview", variables);
+                var samplePr = EnterpriseDevExEngine.CreateSampleEnterprisePullRequest();
+                var prNumber = GetIntArg(args, "prNumber", samplePr.Number);
+                if (prNumber != samplePr.Number)
+                {
+                    samplePr = samplePr with { Number = prNumber };
+                }
+
+                var walCacheKey = EnterpriseDevExEngine.ComputePrSqliteWalCacheKey(samplePr.Repository, samplePr.Number, samplePr.HeadSha);
+                var singleRttQuery = EnterpriseDevExEngine.BuildSingleRttPullRequestGraphQlQuery("dustinblad", "rhyolite", samplePr.Number);
+                var analysis = EnterpriseDevExEngine.AnalyzeGitHubPullRequest(samplePr, []);
+
+                data["devExPrPreview"] = new JsonObject
+                {
+                    ["repository"] = samplePr.Repository,
+                    ["prNumber"] = samplePr.Number,
+                    ["number"] = samplePr.Number,
+                    ["title"] = samplePr.Title,
+                    ["authorLogin"] = samplePr.AuthorLogin,
+                    ["headBranch"] = samplePr.HeadBranch,
+                    ["baseBranch"] = samplePr.BaseBranch,
+                    ["headSha"] = samplePr.HeadSha,
+                    ["state"] = samplePr.State,
+                    ["ciCheckStatus"] = samplePr.CiCheckStatus,
+                    ["reviewDecision"] = samplePr.ReviewDecision,
+                    ["riskLevel"] = analysis.RiskLevel,
+                    ["unresolvedThreadsCount"] = analysis.UnresolvedThreadsCount,
+                    ["actionableBlockersCount"] = analysis.ActionableBlockersCount,
+                    ["totalAdditions"] = analysis.TotalAdditions,
+                    ["totalDeletions"] = analysis.TotalDeletions,
+                    ["sqliteWalCacheKey"] = walCacheKey,
+                    ["walCacheKey"] = walCacheKey,
+                    ["singleRttGraphQlQuery"] = singleRttQuery,
+                    ["generatedReviewMarkdown"] = analysis.GeneratedReviewMarkdown
+                };
+            }
+        }
+
+        if (ContainsFieldOperation(queryText, "workspaceConnectors"))
+        {
+            var decision = _authEngine.CheckAccess(authToken, VaultOperation.ReadNote);
+            if (!decision.IsAllowed)
+            {
+                errors.Add(new GraphQlError($"RBAC Denied on 'workspaceConnectors': {decision.Reason}", "FORBIDDEN"));
+            }
+            else
+            {
+                data["workspaceConnectors"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["connectorId"] = "bladbase-primary",
+                        ["provider"] = "Bladbase",
+                        ["workspace"] = "dustinblad/bladbase",
+                        ["workspaceOrSpace"] = "dustinblad/bladbase",
+                        ["endpoint"] = "https://bladbase.dev/api/v1/workspaces/dustinblad/bladbase",
+                        ["protocol"] = "MCP + GraphQL + HLC Delta Sync",
+                        ["status"] = "Active",
+                        ["enabled"] = true
+                    },
+                    new JsonObject
+                    {
+                        ["connectorId"] = "docmost-primary",
+                        ["provider"] = "Docmost",
+                        ["space"] = "Engineering Architecture",
+                        ["workspaceOrSpace"] = "Engineering Architecture",
+                        ["endpoint"] = "https://docs.internal.rhyolite.dev/api",
+                        ["protocol"] = "ProseMirror JSON <-> CommonMark + WikiLinks Bidirectional Bridge",
+                        ["status"] = "Active",
+                        ["enabled"] = true
+                    }
+                };
+            }
         }
     }
 
