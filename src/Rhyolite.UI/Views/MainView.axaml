@@ -540,6 +540,7 @@
               <controls:KnowledgeGraphControl x:Name="GraphCanvas"
                                               Nodes="{Binding GraphNodes}"
                                               Edges="{Binding GraphEdges}"
+                                              IsDarkTheme="{Binding IsDarkTheme}"
                                               DesignPresetId="{Binding SelectedDesignSystem.Id}" />
             </Border>
             <Border Grid.Column="1" Classes="apple-card">
@@ -580,6 +581,7 @@
             <Border Grid.Row="1" Classes="apple-card" ClipToBounds="True" Padding="0">
               <controls:SpatialCanvasControl x:Name="CanvasBoard"
                                              Document="{Binding CanvasDoc}"
+                                             IsDarkTheme="{Binding IsDarkTheme}"
                                              DesignPresetId="{Binding SelectedDesignSystem.Id}"
                                              SelectedCardId="{Binding SelectedCanvasCardId}" />
             </Border>
