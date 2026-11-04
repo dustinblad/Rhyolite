@@ -235,4 +235,71 @@ flowchart TD
   * **Live Single-RTT GitHub GraphQL v4 PR Fetcher + Guardrail Override**: Added `FetchAndAnalyzePullRequestLiveOrFallbackAsync` / `TryFetchGitHubPrGraphQlLiveAsync` (`https://api.github.com/graphql` with SQLite WAL `github_pr_cache`) and `allowDestructiveOverride` support in `ExecuteRunbookCellAsync`.
   * **End-to-End Usability Verification Test (`FullAppUsability_SnapshotRestore_FlashcardPersistence_NoteDelete_AndLivePrFallback_WorkEndToEnd`)**: Verified all 6 Phase 4 workflows in `15 ms` (`12/12` xUnit tests passing).
 
+---
+
+## 6. Phase 5 Multi-Agent Verification — Authentic Obsidian Desktop Workspace Redesign & 9-Preset Component Geometry, Bevel & Typography Stacks Overhaul
+
+```mermaid
+flowchart TD
+    Parent5["Parent Architect Agent (4856753c-95e3-456d-946a-2918b10117ab)"]
+    Lead5["Lead Orchestration & Verification Architect (bff50619-217b-440d-9b0a-7507627932cd)"]
+
+    subgraph Phase5Specialists["Phase 5 Parallel Specialist Implementation Engineers"]
+        P5S1["Specialist 1: Core Design Catalog & Protocol Engineer\n(469ca988-685c-4714-8409-dfe185fe9ec7)\nTarget: DesignSystemCatalog.cs, McpServerEngine.cs, GraphQlEngine.cs, EnterpriseDevExIntegrationTests.cs"]
+        P5S2["Specialist 2: Custom Skia Typography & Geometry Engineer\n(065986dd-c0a0-47b6-85d6-b2ba79429e95)\nTarget: KnowledgeGraphControl.cs & SpatialCanvasControl.cs"]
+        P5S3["Specialist 3: Obsidian Workspace & Component Chrome Engineer\n(2e75df26-00e8-4180-bb9b-44dfc35554a3)\nTarget: App.axaml, App.axaml.cs, MainViewModel.cs, MainView.axaml, Program.cs"]
+    end
+
+    Parent5 -->|"Spawns 3 Specialists with Disjoint Scopes"| P5S1 & P5S2 & P5S3
+    P5S1 & P5S2 & P5S3 -->|"Completion Reports + Complexity Justifications"| Lead5
+    Lead5 -->|"Audit + Build (0 Warn / 0 Err) + Test (12/12 Pass) + 10 Obsidian Mockups"| Verified5["Phase 5 Verified & Signed Off"]
+```
+
+### 6.1 Specialist 1 — Core Design Catalog, Typography & Geometry Token Engineer (`469ca988-685c-4714-8409-dfe185fe9ec7`)
+* **Audited Files**:
+  * [`src/Rhyolite.Core/Design/DesignSystemCatalog.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Design/DesignSystemCatalog.cs#L30-L809)
+  * [`src/Rhyolite.Core/Protocol/McpServerEngine.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Protocol/McpServerEngine.cs)
+  * [`src/Rhyolite.Core/Protocol/GraphQlEngine.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Protocol/GraphQlEngine.cs)
+  * [`tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs#L329-L546)
+* **Delivered Capabilities**:
+  * Expanded `DesignSystemPreset` with 26 component geometry, typography stack, Skia typeface, asymmetric border bevel, button/card shadow, input radius, pill radius, and summary properties (`UiFontFamily`, `DisplayFontFamily`, `MonoFontFamily`, `SkiaUiFontName`, `SkiaDisplayFontName`, `SkiaMonoFontName`, `HeadingFontWeight`, `ButtonFontWeight`, `ButtonFontSize`, `PrimaryButtonCornerRadius`, `SecondaryButtonCornerRadius`, `PrimaryButtonBorderThickness`, `SecondaryButtonBorderThickness`, `ButtonPadding`, `PrimaryButtonBgLightHex`/`DarkHex`, `PrimaryButtonFgLightHex`/`DarkHex`, `PrimaryButtonBorderLightHex`/`DarkHex`, `PrimaryButtonShadowLight`/`Dark`, `SecondaryButtonShadowLight`/`Dark`, `CardBorderThickness`, `CardPadding`, `CardShadowLight`/`Dark`, `InputCornerRadius`, `InputBorderThickness`, `PillCornerRadius`, `PillBorderThickness`, `ComponentStyleSummary`).
+  * Configured all 9 presets with distinct typography and component geometries:
+    * **`apple` ("Apple HIG")**: `980px` capsule pill primary buttons, `14px` gallery cards, `SF Pro Text / SF Pro Display / Helvetica Neue`.
+    * **`linear-app` ("Linear")**: `5px` top-lit bevel (`1,2,1,1`) buttons & `8px` starlight cards, `Avenir Next / Inter`.
+    * **`notion` ("Notion")**: `4px` flat paper buttons & `4px` wiki cards with zero drop shadow (`0 0 0 0 #00000000`), `Charter / Georgia` editorial serif.
+    * **`vercel` ("Vercel Geist")**: `0px` brutalist sharp corners across buttons/cards/inputs/pills, `1.5px` high-contrast monochrome borders, `Menlo` monospace UI & `Arial Black` display.
+    * **`claude` ("Claude (Anthropic)")**: `12px` organic terracotta buttons (`1.5px` warm border), `16px` literary salon parchment cards, `Iowan Old Style / Palatino / Baskerville` serif.
+    * **`github` ("GitHub Primer")**: `6px` Primer bottom-bevel (`1,1,1,2`) merge-green (`#1F883D` / `#238636`) primary buttons, top-accent (`1,3,1,1`) repo cards, `Trebuchet MS / SF Mono`.
+    * **`raycast` ("Raycast")**: `8px` 3D mechanical keycap bevel (`1,1,1,3`) buttons, `12px` HUD launcher cards, `Futura` geometric display/UI.
+    * **`stripe` ("Stripe")**: `999px` floating pill buttons with deep blurple elevation shadows, `18px` fintech cards, `Optima` UI & `Didot` editorial serif display.
+    * **`supabase` ("Supabase")**: `2px` neon-bordered terminal buttons (`#090D0B` dark ink on `#3ECF8E` emerald with glow shadow), `3px` console cards, `Monaco` & `DIN Alternate` monospace.
+
+### 6.2 Specialist 2 — Custom Skia Typography & Geometry Engineer (`065986dd-c0a0-47b6-85d6-b2ba79429e95`)
+* **Audited Files**:
+  * [`src/Rhyolite.UI/Controls/KnowledgeGraphControl.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Controls/KnowledgeGraphControl.cs#L42-L433)
+  * [`src/Rhyolite.UI/Controls/SpatialCanvasControl.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Controls/SpatialCanvasControl.cs#L41-L561)
+* **Delivered Capabilities**:
+  * **Dynamic Skia `FontFamily` & `Typeface` Caching**: `KnowledgeGraphControl` and `SpatialCanvasControl` cache `_cachedUiFont`, `_cachedDisplayFont`, and `_cachedMonoFont` plus pre-constructed `Typeface` instances in `EnsureThemeCache`.
+  * **Dynamic Skia Node & Card Geometry**:
+    * `KnowledgeGraphControl` renders **squared / sharp-cornered rounded-rect nodes** when `preset.CardCornerRadius <= 3.0` (**Vercel** `0px`, **Supabase** `3px`), concentric editorial halo rings when `preset.CardCornerRadius >= 14.0` (**Claude**, **Stripe**), and circular nodes otherwise.
+    * `SpatialCanvasControl` applies `preset.CardCornerRadius` (`0px`–`18px`), `preset.PillCornerRadius` (`0px`–`12px`), and `preset.CardBorderThickness` (`1.0px`–`2.0px`) to `.canvas` cards, group frames, and category/edge badges.
+* **Algorithmic Efficiency Justification**:
+  * **$\mathcal{O}(1)$ Per-Frame Font & Geometry Lookup**: `FontFamily`, `Typeface`, `ISolidColorBrush`, and `IPen` objects are instantiated only when `(_cachedPresetId, _cachedDarkTheme)` changes in `EnsureThemeCache`.
+
+### 6.3 Specialist 3 — Authentic Obsidian Desktop Workspace & Component Chrome Engineer (`2e75df26-00e8-4180-bb9b-44dfc35554a3`)
+* **Audited Files**:
+  * [`src/Rhyolite.UI/App.axaml`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/App.axaml) & [`src/Rhyolite.UI/App.axaml.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/App.axaml.cs)
+  * [`src/Rhyolite.UI/ViewModels/MainViewModel.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/ViewModels/MainViewModel.cs)
+  * [`src/Rhyolite.UI/Views/MainView.axaml`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Views/MainView.axaml)
+  * [`src/Rhyolite.Desktop/Program.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Desktop/Program.cs)
+* **Delivered Capabilities**:
+  * **Custom `ControlTemplate` Button Chrome (`Border#PART_ButtonChrome`)**: Replaced `FluentTheme`'s default `Button` template on `Button.apple-btn-primary` and `Button.apple-btn-secondary` with `<Border x:Name="PART_ButtonChrome" ... BoxShadow="{DynamicResource ApplePrimaryBtnShadow}">`, enabling real-time `BoxShadows`, asymmetric 3D bevel `BorderThickness` (`1,1,1,3` Raycast, `1,2,1,1` Linear, `1,1,1,2` GitHub), `CornerRadius` (`0px`–`999px`), and typography switching in `App.ApplyDesignSystem`.
+  * **Authentic Obsidian Desktop Workspace (`https://obsidian.md/`)**:
+    1. **Far-Left Vertical Icon Ribbon (`46px` wide)** with `◧` Toggle Left Sidebar, core plugin icons (`📄` Studio, `🕸️` Graph, `🎨` Canvas, `🗃️` Bases, `📅` Daily Note, `🧠` Study, `🔌` MCP/P2P, `🛡️` DevEx, `📱` Mobile, `⌘` Command Palette), and bottom Design System / Theme cyclers.
+    2. **Persistent Collapsible Obsidian Left Sidebar (`260px` wide)** with `[📁 Files] [🔍 Search] [🔖 Pins]` tabs, Vault File Explorer tree, Bookmarked Notes, and `🗄️ Rhyolite Vault · v1.0` footer.
+    3. **Obsidian Multi-Tab Header Bar & Breadcrumb Bar** with open tabs (`📄 Storage Architecture.md ×`, `🕸️ Graph.view`, `🎨 System.canvas`, `🗃️ Roadmap.base`), `🗄️ Vault › 01 — Architecture › [EditableNoteTitle]` breadcrumb, and `◨` Toggle Right Sidebar.
+    4. **Obsidian 1.4+ Inline `Properties (YAML Frontmatter)` Accordion**, **Collapsible Right Sidebar (`285px` wide)**, and **Obsidian Bottom Status Bar (`28px` tall)**.
+  * **10 High-Resolution Obsidian Multi-Design Mockups**: Generated and verified `01_note_studio_light.png` through `10_obsidian_command_palette_dark.png` in [`docs/mockups/`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/mockups/) and [`docs/screenshots/`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/screenshots/).
+
+
 

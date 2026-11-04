@@ -39,16 +39,25 @@ public sealed class KnowledgeGraphControl : Control
     private Point _panStartPointer;
     private Vector _panStartOffset;
 
-    // Cached palette brushes/pens for O(1) per-frame lookup
+    // Cached palette brushes/pens/fonts for O(1) per-frame lookup
     private string? _cachedPresetId;
     private bool _cachedDarkTheme;
     private ISolidColorBrush? _cachedBgBrush;
+    private ISolidColorBrush? _cachedSurfaceBrush;
     private ISolidColorBrush? _cachedDotBrush;
     private IPen? _cachedBaseEdgePen;
     private IPen? _cachedActiveEdgePen;
     private IPen? _cachedRingPen;
     private IPen? _cachedFocusPen;
+    private IPen? _cachedHudBorderPen;
     private ISolidColorBrush? _cachedTextBrush;
+    private ISolidColorBrush? _cachedMutedTextBrush;
+    private FontFamily _cachedUiFont = FontFamily.Default;
+    private FontFamily _cachedDisplayFont = FontFamily.Default;
+    private FontFamily _cachedMonoFont = FontFamily.Default;
+    private Typeface _cachedDisplayTypeface = new(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);
+    private Typeface _cachedUiTypeface = new(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);
+    private Typeface _cachedMonoTypeface = new(FontFamily.Default, FontStyle.Normal, FontWeight.Medium);
     private readonly Dictionary<string, ISolidColorBrush> _nodeBrushCache = new(StringComparer.OrdinalIgnoreCase);
 
     public event Action<GraphNode2D>? NodeSelected;
@@ -217,6 +226,19 @@ public sealed class KnowledgeGraphControl : Control
         }
     }
 
+    private static double ParseBorderThickness(string? raw, double fallback = 1.2)
+    {
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            var token = raw.Split(',')[0].Trim();
+            if (double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            {
+                return Math.Clamp(parsed, 1.0, 3.0);
+            }
+        }
+        return fallback;
+    }
+
     private void EnsureThemeCache(string presetId, bool dark)
     {
         if (string.Equals(_cachedPresetId, presetId, StringComparison.OrdinalIgnoreCase) &&
@@ -228,16 +250,34 @@ public sealed class KnowledgeGraphControl : Control
 
         var preset = DesignSystemCatalog.GetOrDefault(presetId);
         var palette = dark ? preset.DarkPalette : preset.LightPalette;
+        double borderThickness = ParseBorderThickness(preset.CardBorderThickness, 1.2);
 
         _cachedPresetId = preset.Id;
         _cachedDarkTheme = dark;
         _cachedBgBrush = new SolidColorBrush(Color.Parse(palette.BgHex));
+        _cachedSurfaceBrush = new SolidColorBrush(Color.Parse(palette.SurfaceHex));
         _cachedDotBrush = new SolidColorBrush(Color.Parse(palette.BorderSoftHex));
-        _cachedBaseEdgePen = new Pen(new SolidColorBrush(Color.Parse(palette.BorderHex)), 1.6);
+        _cachedBaseEdgePen = new Pen(new SolidColorBrush(Color.Parse(palette.BorderHex)), Math.Max(1.4, borderThickness));
         _cachedActiveEdgePen = new Pen(new SolidColorBrush(Color.Parse(palette.AccentHex)), 2.6);
-        _cachedRingPen = new Pen(new SolidColorBrush(Color.Parse(palette.BgHex)), 2.5);
+        _cachedRingPen = new Pen(new SolidColorBrush(Color.Parse(palette.BgHex)), Math.Max(2.0, borderThickness + 0.8));
         _cachedFocusPen = new Pen(new SolidColorBrush(Color.Parse(palette.LinkHex)), 3.5);
+        _cachedHudBorderPen = new Pen(new SolidColorBrush(Color.Parse(palette.BorderHex)), borderThickness);
         _cachedTextBrush = new SolidColorBrush(Color.Parse(palette.FgHex));
+        _cachedMutedTextBrush = new SolidColorBrush(Color.Parse(palette.MutedHex));
+
+        _cachedUiFont = string.IsNullOrWhiteSpace(preset.UiFontFamily)
+            ? FontFamily.Default
+            : new FontFamily(preset.UiFontFamily);
+        _cachedDisplayFont = string.IsNullOrWhiteSpace(preset.DisplayFontFamily)
+            ? _cachedUiFont
+            : new FontFamily(preset.DisplayFontFamily);
+        _cachedMonoFont = string.IsNullOrWhiteSpace(preset.MonoFontFamily)
+            ? FontFamily.Default
+            : new FontFamily(preset.MonoFontFamily);
+
+        _cachedDisplayTypeface = new Typeface(_cachedDisplayFont, FontStyle.Normal, FontWeight.SemiBold);
+        _cachedUiTypeface = new Typeface(_cachedUiFont, FontStyle.Normal, FontWeight.SemiBold);
+        _cachedMonoTypeface = new Typeface(_cachedMonoFont, FontStyle.Normal, FontWeight.Medium);
     }
 
     private ISolidColorBrush GetNodeBrush(string colorHex, string fallbackAccentHex)
@@ -264,7 +304,9 @@ public sealed class KnowledgeGraphControl : Control
         var preset = DesignSystemCatalog.GetOrDefault(presetId);
         var palette = dark ? preset.DarkPalette : preset.LightPalette;
 
-        context.FillRectangle(_cachedBgBrush!, new Rect(0, 0, bounds.Width, bounds.Height));
+        double frameCornerRadius = (float)Math.Clamp(preset.CardCornerRadius, 0, 18);
+        var frameRect = new Rect(0, 0, bounds.Width, bounds.Height);
+        context.DrawRectangle(_cachedBgBrush!, _cachedHudBorderPen, new RoundedRect(frameRect, frameCornerRadius));
 
         // Dot grid scaled and translated smoothly with viewport pan/zoom
         double gridStep = Math.Max(14.0, 24.0 * _zoom);
@@ -290,6 +332,9 @@ public sealed class KnowledgeGraphControl : Control
             nodeMap[n.Id] = n;
         }
 
+        bool isSquaredGeometry = preset.CardCornerRadius <= 3.0;
+        double nodeCornerRadius = Math.Clamp(preset.CardCornerRadius, 0.0, 6.0);
+
         var transform = Matrix.CreateScale(_zoom, _zoom) * Matrix.CreateTranslation(_panOffset.X, _panOffset.Y);
         using (context.PushTransform(transform))
         {
@@ -314,8 +359,6 @@ public sealed class KnowledgeGraphControl : Control
                 }
             }
 
-            var typeface = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);
-
             for (int i = 0; i < nodes.Count; i++)
             {
                 var node = nodes[i];
@@ -323,23 +366,68 @@ public sealed class KnowledgeGraphControl : Control
                 double r = ReferenceEquals(node, _hoveredNode) ? node.Radius + 3.0 : node.Radius;
                 var fillBrush = GetNodeBrush(node.ColorHex, palette.AccentHex);
 
-                context.DrawEllipse(
-                    fillBrush,
-                    isFocused ? _cachedFocusPen : _cachedRingPen,
-                    new Point(node.X, node.Y),
-                    r,
-                    r);
+                if (isSquaredGeometry)
+                {
+                    // Vercel / Supabase sharp or micro-radius geometric nodes
+                    var nodeRect = new Rect(node.X - r, node.Y - r, r * 2.0, r * 2.0);
+                    context.DrawRectangle(
+                        fillBrush,
+                        isFocused ? _cachedFocusPen : _cachedRingPen,
+                        new RoundedRect(nodeRect, nodeCornerRadius));
+                }
+                else
+                {
+                    if (preset.CardCornerRadius >= 14.0)
+                    {
+                        context.DrawEllipse(null, _cachedBaseEdgePen, new Point(node.X, node.Y), r + 3.5, r + 3.5);
+                    }
 
-                var formatted = new FormattedText(
-                    $"{node.Title} ({node.PageRank:0.00})",
+                    context.DrawEllipse(
+                        fillBrush,
+                        isFocused ? _cachedFocusPen : _cachedRingPen,
+                        new Point(node.X, node.Y),
+                        r,
+                        r);
+                }
+
+                var titleFormatted = new FormattedText(
+                    node.Title,
                     CultureInfo.CurrentCulture,
                     FlowDirection.LeftToRight,
-                    typeface,
-                    12,
+                    _cachedDisplayTypeface,
+                    12.5,
                     _cachedTextBrush!);
 
-                context.DrawText(formatted, new Point(node.X - (formatted.Width / 2.0), node.Y + r + 5.0));
+                context.DrawText(titleFormatted, new Point(node.X - (titleFormatted.Width / 2.0), node.Y + r + 4.0));
+
+                var rankFormatted = new FormattedText(
+                    $"PR {node.PageRank:0.00}",
+                    CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    _cachedMonoTypeface,
+                    10.5,
+                    _cachedMutedTextBrush!);
+
+                context.DrawText(
+                    rankFormatted,
+                    new Point(node.X - (rankFormatted.Width / 2.0), node.Y + r + 4.0 + titleFormatted.Height + 1.0));
             }
         }
+
+        // Top-Left Theme & Geometry HUD Badge
+        var hudText = new FormattedText(
+            $"{preset.Name.ToUpperInvariant()} · {nodes.Count} NODES · {edges?.Count ?? 0} EDGES · {_zoom * 100:0}%",
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            _cachedMonoTypeface,
+            11,
+            _cachedMutedTextBrush!);
+
+        var hudRect = new Rect(14, 14, hudText.Width + 20, hudText.Height + 10);
+        context.DrawRectangle(
+            _cachedSurfaceBrush,
+            _cachedHudBorderPen,
+            new RoundedRect(hudRect, frameCornerRadius));
+        context.DrawText(hudText, new Point(hudRect.X + 10, hudRect.Y + 5));
     }
 }

@@ -13,54 +13,205 @@
       <ResourceDictionary.MergedDictionaries>
         <ResourceInclude Source="avares://Rhyolite.UI/Themes/AppleDesignTokens.axaml" />
       </ResourceDictionary.MergedDictionaries>
-      <CornerRadius x:Key="AppleCardCornerRadius">12</CornerRadius>
-      <CornerRadius x:Key="AppleBtnCornerRadius">8</CornerRadius>
+      <FontFamily x:Key="AppleUiFont">Inter, -apple-system, BlinkMacSystemFont, Helvetica Neue, Arial</FontFamily>
+      <FontFamily x:Key="AppleDisplayFont">Inter, -apple-system, BlinkMacSystemFont, Helvetica Neue, Arial</FontFamily>
+      <FontFamily x:Key="AppleMonoFont">SF Mono, Menlo, Monaco, Consolas, monospace</FontFamily>
+      <FontWeight x:Key="AppleHeadingFontWeight">SemiBold</FontWeight>
+      <FontWeight x:Key="AppleBtnFontWeight">SemiBold</FontWeight>
+      <x:Double x:Key="AppleBtnFontSize">13</x:Double>
+      <SolidColorBrush x:Key="ApplePrimaryBtnBgBrush" Color="#0071E3" />
+      <SolidColorBrush x:Key="ApplePrimaryBtnFgBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ApplePrimaryBtnBorderBrush" Color="#0071E3" />
+      <CornerRadius x:Key="ApplePrimaryBtnCornerRadius">980</CornerRadius>
+      <CornerRadius x:Key="AppleSecondaryBtnCornerRadius">10</CornerRadius>
+      <CornerRadius x:Key="AppleBtnCornerRadius">10</CornerRadius>
+      <Thickness x:Key="ApplePrimaryBtnBorderThickness">0</Thickness>
+      <Thickness x:Key="AppleSecondaryBtnBorderThickness">1</Thickness>
+      <Thickness x:Key="AppleBtnPadding">15,7</Thickness>
+      <BoxShadows x:Key="ApplePrimaryBtnShadow">0 2 8 0 #260071E3</BoxShadows>
+      <BoxShadows x:Key="AppleSecondaryBtnShadow">0 1 2 0 #0D000000</BoxShadows>
+      <CornerRadius x:Key="AppleCardCornerRadius">14</CornerRadius>
+      <Thickness x:Key="AppleCardBorderThickness">1</Thickness>
+      <Thickness x:Key="AppleCardPadding">16</Thickness>
+      <BoxShadows x:Key="AppleCardShadow">0 4 20 0 #0F000000</BoxShadows>
+      <CornerRadius x:Key="AppleInputCornerRadius">10</CornerRadius>
+      <Thickness x:Key="AppleInputBorderThickness">1</Thickness>
+      <CornerRadius x:Key="ApplePillCornerRadius">980</CornerRadius>
+      <Thickness x:Key="ApplePillBorderThickness">0</Thickness>
     </ResourceDictionary>
   </Application.Resources>
 
   <Application.Styles>
     <FluentTheme />
 
-    <!-- Multi-Design System Reusable Styles (feimacode/open-design-agent-kit) -->
+    <!-- Global Multi-Design Typography & Input Geometry (feimacode/open-design-agent-kit) -->
+    <Style Selector="Window, UserControl, TextBlock, CheckBox, ComboBox, ListBoxItem">
+      <Setter Property="TextElement.FontFamily" Value="{DynamicResource AppleUiFont}" />
+    </Style>
+
+    <Style Selector="TextBlock.display-heading, TextBox.display-heading">
+      <Setter Property="TextElement.FontFamily" Value="{DynamicResource AppleDisplayFont}" />
+      <Setter Property="TextElement.FontWeight" Value="{DynamicResource AppleHeadingFontWeight}" />
+    </Style>
+
+    <Style Selector="TextBlock.mono-code, TextBox.mono-code">
+      <Setter Property="TextElement.FontFamily" Value="{DynamicResource AppleMonoFont}" />
+    </Style>
+
+    <Style Selector="TextBox">
+      <Setter Property="FontFamily" Value="{DynamicResource AppleUiFont}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource AppleInputCornerRadius}" />
+      <Setter Property="BorderThickness" Value="{DynamicResource AppleInputBorderThickness}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppleBorderBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AppleBgBrush}" />
+    </Style>
+
+    <Style Selector="ComboBox">
+      <Setter Property="FontFamily" Value="{DynamicResource AppleUiFont}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource AppleInputCornerRadius}" />
+      <Setter Property="BorderThickness" Value="{DynamicResource AppleInputBorderThickness}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppleBorderBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AppleBgBrush}" />
+    </Style>
+
+    <Style Selector="ListBoxItem">
+      <Setter Property="CornerRadius" Value="{DynamicResource AppleSecondaryBtnCornerRadius}" />
+      <Setter Property="Padding" Value="4,2" />
+      <Setter Property="Margin" Value="0,1" />
+    </Style>
+
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AppleCalloutBgBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppleAccentBrush}" />
+      <Setter Property="BorderThickness" Value="{DynamicResource AppleSecondaryBtnBorderThickness}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource AppleSecondaryBtnCornerRadius}" />
+    </Style>
+
+    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AppleSurfaceWarmBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource AppleSecondaryBtnCornerRadius}" />
+    </Style>
+
+    <!-- Multi-Design System Card & Pill Styles -->
     <Style Selector="Border.apple-card">
       <Setter Property="Background" Value="{DynamicResource AppleBgBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AppleBorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderThickness" Value="{DynamicResource AppleCardBorderThickness}" />
       <Setter Property="CornerRadius" Value="{DynamicResource AppleCardCornerRadius}" />
-      <Setter Property="Padding" Value="14" />
+      <Setter Property="Padding" Value="{DynamicResource AppleCardPadding}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource AppleCardShadow}" />
     </Style>
 
     <Style Selector="Border.apple-surface-card">
       <Setter Property="Background" Value="{DynamicResource AppleSurfaceBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AppleBorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderThickness" Value="{DynamicResource AppleCardBorderThickness}" />
       <Setter Property="CornerRadius" Value="{DynamicResource AppleCardCornerRadius}" />
-      <Setter Property="Padding" Value="14" />
+      <Setter Property="Padding" Value="{DynamicResource AppleCardPadding}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource AppleCardShadow}" />
     </Style>
 
     <Style Selector="Border.apple-pill">
-      <Setter Property="CornerRadius" Value="980" />
+      <Setter Property="CornerRadius" Value="{DynamicResource ApplePillCornerRadius}" />
+      <Setter Property="BorderThickness" Value="{DynamicResource ApplePillBorderThickness}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppleBorderBrush}" />
       <Setter Property="Padding" Value="10,4" />
     </Style>
 
+    <!-- Primary Button with Custom Chrome Border (Supports BoxShadow, 3D Keycap Bevels, 0px–999px CornerRadius & Custom Fonts) -->
     <Style Selector="Button.apple-btn-primary">
-      <Setter Property="Background" Value="{DynamicResource AppleAccentBrush}" />
-      <Setter Property="Foreground" Value="#FFFFFF" />
-      <Setter Property="CornerRadius" Value="{DynamicResource AppleBtnCornerRadius}" />
-      <Setter Property="Padding" Value="14,7" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Background" Value="{DynamicResource ApplePrimaryBtnBgBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ApplePrimaryBtnFgBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ApplePrimaryBtnBorderBrush}" />
+      <Setter Property="BorderThickness" Value="{DynamicResource ApplePrimaryBtnBorderThickness}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource ApplePrimaryBtnCornerRadius}" />
+      <Setter Property="Padding" Value="{DynamicResource AppleBtnPadding}" />
+      <Setter Property="FontFamily" Value="{DynamicResource AppleUiFont}" />
+      <Setter Property="FontWeight" Value="{DynamicResource AppleBtnFontWeight}" />
+      <Setter Property="FontSize" Value="{DynamicResource AppleBtnFontSize}" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border x:Name="PART_ButtonChrome"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}"
+                  TextElement.Foreground="{TemplateBinding Foreground}"
+                  BoxShadow="{DynamicResource ApplePrimaryBtnShadow}">
+            <ContentPresenter x:Name="PART_ContentPresenter"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Foreground="{TemplateBinding Foreground}"
+                              TextElement.Foreground="{TemplateBinding Foreground}"
+                              FontFamily="{TemplateBinding FontFamily}"
+                              FontWeight="{TemplateBinding FontWeight}"
+                              FontSize="{TemplateBinding FontSize}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                              RecognizesAccessKey="True" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
     </Style>
 
+    <Style Selector="Button.apple-btn-primary:pointerover /template/ Border#PART_ButtonChrome">
+      <Setter Property="Background" Value="{DynamicResource AppleAccentHoverBrush}" />
+      <Setter Property="Opacity" Value="0.95" />
+    </Style>
+
+    <Style Selector="Button.apple-btn-primary:pressed /template/ Border#PART_ButtonChrome">
+      <Setter Property="Opacity" Value="0.85" />
+    </Style>
+
+    <!-- Secondary Button with Custom Chrome Border (Supports BoxShadow, 3D Keycap Bevels, 0px–999px CornerRadius & Custom Fonts) -->
     <Style Selector="Button.apple-btn-secondary">
-      <Setter Property="Background" Value="{DynamicResource AppleSurfaceBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AppleSurfaceElevatedBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource AppleFgBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AppleBorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="{DynamicResource AppleBtnCornerRadius}" />
-      <Setter Property="Padding" Value="12,6" />
-      <Setter Property="FontWeight" Value="Medium" />
-      <Setter Property="FontSize" Value="13" />
+      <Setter Property="BorderThickness" Value="{DynamicResource AppleSecondaryBtnBorderThickness}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource AppleSecondaryBtnCornerRadius}" />
+      <Setter Property="Padding" Value="{DynamicResource AppleBtnPadding}" />
+      <Setter Property="FontFamily" Value="{DynamicResource AppleUiFont}" />
+      <Setter Property="FontWeight" Value="{DynamicResource AppleBtnFontWeight}" />
+      <Setter Property="FontSize" Value="{DynamicResource AppleBtnFontSize}" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border x:Name="PART_ButtonChrome"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}"
+                  TextElement.Foreground="{TemplateBinding Foreground}"
+                  BoxShadow="{DynamicResource AppleSecondaryBtnShadow}">
+            <ContentPresenter x:Name="PART_ContentPresenter"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Foreground="{TemplateBinding Foreground}"
+                              TextElement.Foreground="{TemplateBinding Foreground}"
+                              FontFamily="{TemplateBinding FontFamily}"
+                              FontWeight="{TemplateBinding FontWeight}"
+                              FontSize="{TemplateBinding FontSize}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                              RecognizesAccessKey="True" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+
+    <Style Selector="Button.apple-btn-secondary:pointerover /template/ Border#PART_ButtonChrome">
+      <Setter Property="Background" Value="{DynamicResource AppleSurfaceWarmBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AppleAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.apple-btn-secondary:pressed /template/ Border#PART_ButtonChrome">
+      <Setter Property="Opacity" Value="0.85" />
     </Style>
   </Application.Styles>
 </Application>

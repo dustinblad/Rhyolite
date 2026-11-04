@@ -87,6 +87,24 @@ public partial class MainViewModel : ViewModelBase
     private bool _isReadingPreviewVisible = true;
 
     [ObservableProperty]
+    private bool _isLeftSidebarOpen = true;
+
+    [ObservableProperty]
+    private bool _isRightSidebarOpen = true;
+
+    [ObservableProperty]
+    private bool _isPropertiesExpanded = true;
+
+    [ObservableProperty]
+    private string _leftSidebarTab = "Files";
+
+    [ObservableProperty]
+    private string _activeNoteFolderBreadcrumb = "01 — Architecture";
+
+    [ObservableProperty]
+    private string _obsidianBottomRightStatusText = "🔗 3 Backlinks  |  📑 4 Tasks  |  📝 412 words  |  🎨 Apple HIG";
+
+    [ObservableProperty]
     private string _newPropertyKey = string.Empty;
 
     [ObservableProperty]
@@ -234,6 +252,10 @@ public partial class MainViewModel : ViewModelBase
     public bool IsDevExView => ActiveScreen == "DevEx";
     public bool IsMobileView => ActiveScreen == "Mobile";
 
+    public bool IsFilesTabActive => string.Equals(LeftSidebarTab, "Files", StringComparison.OrdinalIgnoreCase);
+    public bool IsSearchTabActive => string.Equals(LeftSidebarTab, "Search", StringComparison.OrdinalIgnoreCase);
+    public bool IsBookmarksTabActive => string.Equals(LeftSidebarTab, "Bookmarks", StringComparison.OrdinalIgnoreCase);
+
     public int SourceEditorColumnSpan => IsSourceEditorVisible && !IsReadingPreviewVisible ? 2 : 1;
     public int ReadingPreviewGridColumn => IsSourceEditorVisible ? 1 : 0;
     public int ReadingPreviewColumnSpan => !IsSourceEditorVisible && IsReadingPreviewVisible ? 2 : 1;
@@ -378,9 +400,11 @@ public partial class MainViewModel : ViewModelBase
         if (note is null) return;
         SelectedNote = note;
         EditableNoteTitle = note.Title;
+        ActiveNoteFolderBreadcrumb = string.IsNullOrWhiteSpace(note.FolderPath) ? "Vault Root" : note.FolderPath;
         EditorMarkdownText = note.RawMarkdown;
         ReadingPreviewBodyText = note.BodyWithoutFrontmatter;
         SaveTelemetryText = $"✓ Flushed to .md in {note.LastWriteMilliseconds:0.00} ms · AST {note.LastParseMilliseconds:0.00} ms · SQLite WAL";
+        UpdateObsidianStatusStrip();
 
         ActiveProperties.Clear();
         foreach (var p in note.Properties) ActiveProperties.Add(p);
@@ -768,6 +792,26 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public void ToggleLeftSidebar() => IsLeftSidebarOpen = !IsLeftSidebarOpen;
+
+    [RelayCommand]
+    public void ToggleRightSidebar() => IsRightSidebarOpen = !IsRightSidebarOpen;
+
+    [RelayCommand]
+    public void TogglePropertiesAccordion() => IsPropertiesExpanded = !IsPropertiesExpanded;
+
+    [RelayCommand]
+    public void SetLeftSidebarTab(string? tab)
+    {
+        if (string.IsNullOrWhiteSpace(tab)) return;
+        LeftSidebarTab = tab;
+        IsLeftSidebarOpen = true;
+        OnPropertyChanged(nameof(IsFilesTabActive));
+        OnPropertyChanged(nameof(IsSearchTabActive));
+        OnPropertyChanged(nameof(IsBookmarksTabActive));
+    }
+
+    [RelayCommand]
     public async Task RenameActiveNoteAsync()
     {
         if (SelectedNote is null || string.IsNullOrWhiteSpace(EditableNoteTitle)) return;
@@ -1064,12 +1108,24 @@ public partial class MainViewModel : ViewModelBase
         string modeLabel = IsDarkTheme ? "Dark" : "Light";
         ThemeButtonLabel = IsDarkTheme ? $"☀️ {preset.Name} Light" : $"🌙 {preset.Name} Dark";
         ActiveDesignBadgeText = $"{preset.Name} · .NET 10";
-        ActiveDesignSubtitleText = $"open-design/{preset.Id} · {preset.Tagline} ({modeLabel})";
+        ActiveDesignSubtitleText = $"{preset.Name} · {modeLabel} · {preset.ComponentStyleSummary}";
+        UpdateObsidianStatusStrip();
 
         if (Application.Current is App app)
         {
             app.ApplyDesignSystem(preset, IsDarkTheme);
         }
+    }
+
+    private void UpdateObsidianStatusStrip()
+    {
+        var preset = SelectedDesignSystem ?? DesignSystemCatalog.GetOrDefault("apple");
+        var note = SelectedNote;
+        int backlinks = note?.Backlinks.Count ?? 0;
+        int tasks = note?.Tasks.Count ?? 0;
+        int words = note?.WordCount ?? 0;
+        int chars = note?.RawMarkdown.Length ?? 0;
+        ObsidianBottomRightStatusText = $"🔗 {backlinks} backlinks  |  📑 {tasks} tasks  |  📝 {words} words ({chars} chars)  |  🎨 {preset.Name} ({preset.PrimaryButtonCornerRadius:0}px btn / {preset.CardCornerRadius:0}px card)";
     }
 
     private async Task PersistDesignPreferencesSafeAsync(string presetId, bool isDark)

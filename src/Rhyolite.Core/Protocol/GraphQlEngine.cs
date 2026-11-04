@@ -229,6 +229,14 @@ public sealed partial class GraphQlEngine
           prefersDarkByDefault: Boolean!
           cardCornerRadius: Float!
           buttonCornerRadius: Float!
+          primaryButtonCornerRadius: Float!
+          secondaryButtonCornerRadius: Float!
+          primaryButtonBorderThickness: String!
+          secondaryButtonBorderThickness: String!
+          uiFontFamily: String!
+          displayFontFamily: String!
+          monoFontFamily: String!
+          componentStyleSummary: String!
           lightAccent: String!
           darkAccent: String!
           isActive: Boolean!
@@ -642,6 +650,14 @@ public sealed partial class GraphQlEngine
                         ["prefersDarkByDefault"] = preset.PrefersDarkByDefault,
                         ["cardCornerRadius"] = preset.CardCornerRadius,
                         ["buttonCornerRadius"] = preset.ButtonCornerRadius,
+                        ["primaryButtonCornerRadius"] = preset.PrimaryButtonCornerRadius,
+                        ["secondaryButtonCornerRadius"] = preset.SecondaryButtonCornerRadius,
+                        ["primaryButtonBorderThickness"] = preset.PrimaryButtonBorderThickness,
+                        ["secondaryButtonBorderThickness"] = preset.SecondaryButtonBorderThickness,
+                        ["uiFontFamily"] = preset.UiFontFamily,
+                        ["displayFontFamily"] = preset.DisplayFontFamily,
+                        ["monoFontFamily"] = preset.MonoFontFamily,
+                        ["componentStyleSummary"] = preset.ComponentStyleSummary,
                         ["lightAccent"] = preset.LightAccent,
                         ["darkAccent"] = preset.DarkAccent,
                         ["isActive"] = string.Equals(preset.Id, activeId, StringComparison.OrdinalIgnoreCase)

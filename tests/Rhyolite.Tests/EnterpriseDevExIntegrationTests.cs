@@ -351,6 +351,33 @@ public sealed class EnterpriseDevExIntegrationTests
             Assert.False(string.IsNullOrWhiteSpace(preset.Category));
             Assert.Contains(preset.Id, preset.DesignMdSourcePath, StringComparison.OrdinalIgnoreCase);
 
+            // Verify component geometry, typography stacks, border bevels, and button hex resolvers
+            Assert.False(string.IsNullOrWhiteSpace(preset.UiFontFamily));
+            Assert.False(string.IsNullOrWhiteSpace(preset.DisplayFontFamily));
+            Assert.False(string.IsNullOrWhiteSpace(preset.MonoFontFamily));
+            Assert.False(string.IsNullOrWhiteSpace(preset.SkiaUiFontName));
+            Assert.False(string.IsNullOrWhiteSpace(preset.SkiaDisplayFontName));
+            Assert.False(string.IsNullOrWhiteSpace(preset.SkiaMonoFontName));
+            Assert.False(string.IsNullOrWhiteSpace(preset.ComponentStyleSummary));
+            Assert.False(string.IsNullOrWhiteSpace(preset.PrimaryButtonBorderThickness));
+            Assert.False(string.IsNullOrWhiteSpace(preset.SecondaryButtonBorderThickness));
+            Assert.False(string.IsNullOrWhiteSpace(preset.ButtonPadding));
+            Assert.False(string.IsNullOrWhiteSpace(preset.CardBorderThickness));
+            Assert.False(string.IsNullOrWhiteSpace(preset.CardPadding));
+
+            foreach (bool isDark in new[] { false, true })
+            {
+                string btnBg = preset.GetPrimaryButtonBgHex(isDark);
+                string btnFg = preset.GetPrimaryButtonFgHex(isDark);
+                string btnBorder = preset.GetPrimaryButtonBorderHex(isDark);
+                Assert.StartsWith("#", btnBg, StringComparison.Ordinal);
+                Assert.StartsWith("#", btnFg, StringComparison.Ordinal);
+                Assert.StartsWith("#", btnBorder, StringComparison.Ordinal);
+                Assert.False(string.IsNullOrWhiteSpace(preset.GetPrimaryButtonShadow(isDark)));
+                Assert.False(string.IsNullOrWhiteSpace(preset.GetSecondaryButtonShadow(isDark)));
+                Assert.False(string.IsNullOrWhiteSpace(preset.GetCardShadow(isDark)));
+            }
+
             foreach (var palette in new[] { preset.LightPalette, preset.DarkPalette })
             {
                 string[] hexTokens =
@@ -381,6 +408,35 @@ public sealed class EnterpriseDevExIntegrationTests
                 }
             }
         }
+
+        // Verify distinct per-preset component geometries & typography stacks
+        var applePreset = DesignSystemCatalog.GetOrDefault("apple");
+        var linearPreset = DesignSystemCatalog.GetOrDefault("linear-app");
+        var notionPreset = DesignSystemCatalog.GetOrDefault("notion");
+        var vercelPreset = DesignSystemCatalog.GetOrDefault("vercel");
+        var claudePreset = DesignSystemCatalog.GetOrDefault("claude");
+        var githubPreset = DesignSystemCatalog.GetOrDefault("github");
+        var raycastPreset = DesignSystemCatalog.GetOrDefault("raycast");
+        var stripePreset = DesignSystemCatalog.GetOrDefault("stripe");
+        var supabasePreset = DesignSystemCatalog.GetOrDefault("supabase");
+
+        Assert.Equal(0.0, vercelPreset.PrimaryButtonCornerRadius);
+        Assert.Equal(0.0, vercelPreset.CardCornerRadius);
+        Assert.Contains("monospace", vercelPreset.UiFontFamily, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("serif", claudePreset.UiFontFamily, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("serif", notionPreset.UiFontFamily, StringComparison.OrdinalIgnoreCase);
+
+        Assert.True(applePreset.PrimaryButtonCornerRadius >= 980.0);
+        Assert.True(stripePreset.PrimaryButtonCornerRadius >= 980.0);
+
+        Assert.Equal("1,2,1,1", linearPreset.PrimaryButtonBorderThickness);
+        Assert.Equal("1,1,1,2", githubPreset.PrimaryButtonBorderThickness);
+        Assert.Equal("#1F883D", githubPreset.GetPrimaryButtonBgHex(isDarkMode: false));
+        Assert.Equal("#238636", githubPreset.GetPrimaryButtonBgHex(isDarkMode: true));
+        Assert.Equal("1,1,1,3", raycastPreset.PrimaryButtonBorderThickness);
+        Assert.Equal("#090D0B", supabasePreset.GetPrimaryButtonFgHex(isDarkMode: true));
+        Assert.Equal("#3ECF8E", supabasePreset.GetPrimaryButtonBgHex(isDarkMode: true));
 
         // 2. Benchmark cycling forward (GetNext) 9 times and backward (GetPrevious) 9 times in < 2 ms
         _ = DesignSystemCatalog.GetNext("apple");

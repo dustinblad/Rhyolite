@@ -750,6 +750,14 @@ public sealed class McpServerEngine
                 ["prefersDarkByDefault"] = preset.PrefersDarkByDefault,
                 ["cardCornerRadius"] = preset.CardCornerRadius,
                 ["buttonCornerRadius"] = preset.ButtonCornerRadius,
+                ["primaryButtonCornerRadius"] = preset.PrimaryButtonCornerRadius,
+                ["secondaryButtonCornerRadius"] = preset.SecondaryButtonCornerRadius,
+                ["primaryButtonBorderThickness"] = preset.PrimaryButtonBorderThickness,
+                ["secondaryButtonBorderThickness"] = preset.SecondaryButtonBorderThickness,
+                ["uiFontFamily"] = preset.UiFontFamily,
+                ["displayFontFamily"] = preset.DisplayFontFamily,
+                ["monoFontFamily"] = preset.MonoFontFamily,
+                ["componentStyleSummary"] = preset.ComponentStyleSummary,
                 ["lightAccent"] = preset.LightAccent,
                 ["darkAccent"] = preset.DarkAccent
             });
@@ -814,6 +822,14 @@ public sealed class McpServerEngine
             ["prefersDarkByDefault"] = preset.PrefersDarkByDefault,
             ["cardCornerRadius"] = preset.CardCornerRadius,
             ["buttonCornerRadius"] = preset.ButtonCornerRadius,
+            ["primaryButtonCornerRadius"] = preset.PrimaryButtonCornerRadius,
+            ["secondaryButtonCornerRadius"] = preset.SecondaryButtonCornerRadius,
+            ["primaryButtonBorderThickness"] = preset.PrimaryButtonBorderThickness,
+            ["secondaryButtonBorderThickness"] = preset.SecondaryButtonBorderThickness,
+            ["uiFontFamily"] = preset.UiFontFamily,
+            ["displayFontFamily"] = preset.DisplayFontFamily,
+            ["monoFontFamily"] = preset.MonoFontFamily,
+            ["componentStyleSummary"] = preset.ComponentStyleSummary,
             ["lightAccent"] = preset.LightAccent,
             ["darkAccent"] = preset.DarkAccent
         };

@@ -38,17 +38,25 @@ public sealed class SpatialCanvasControl : Control
     private Point _panStartPointer;
     private Vector _panStartOffset;
 
-    // Cached palette brushes/pens for O(1) per-frame lookup
+    // Cached palette brushes/pens/fonts for O(1) per-frame lookup
     private string? _cachedPresetId;
     private bool _cachedDarkTheme;
     private ISolidColorBrush? _cachedBgBrush;
     private ISolidColorBrush? _cachedDotBrush;
     private ISolidColorBrush? _cachedCardBgBrush;
+    private ISolidColorBrush? _cachedPillBgBrush;
     private ISolidColorBrush? _cachedGroupBgBrush;
     private IPen? _cachedBorderPen;
     private IPen? _cachedSelectedBorderPen;
     private ISolidColorBrush? _cachedTitleBrush;
     private ISolidColorBrush? _cachedBodyBrush;
+    private ISolidColorBrush? _cachedAccentTextBrush;
+    private FontFamily _cachedUiFont = FontFamily.Default;
+    private FontFamily _cachedDisplayFont = FontFamily.Default;
+    private FontFamily _cachedMonoFont = FontFamily.Default;
+    private Typeface _cachedTitleTypeface = new(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);
+    private Typeface _cachedBodyTypeface = new(FontFamily.Default, FontStyle.Normal, FontWeight.Normal);
+    private Typeface _cachedMonoTypeface = new(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);
     private readonly Dictionary<string, (ISolidColorBrush Brush, IPen Pen)> _colorCache = new(StringComparer.OrdinalIgnoreCase);
 
     public event Action<CanvasNode>? CardClicked;
@@ -235,6 +243,19 @@ public sealed class SpatialCanvasControl : Control
         }
     }
 
+    private static double ParseBorderThickness(string? raw, double fallback = 1.2)
+    {
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            var token = raw.Split(',')[0].Trim();
+            if (double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            {
+                return Math.Clamp(parsed, 1.0, 3.0);
+            }
+        }
+        return fallback;
+    }
+
     private void EnsureThemeCache(string presetId, bool dark)
     {
         if (string.Equals(_cachedPresetId, presetId, StringComparison.OrdinalIgnoreCase) &&
@@ -246,17 +267,34 @@ public sealed class SpatialCanvasControl : Control
 
         var preset = DesignSystemCatalog.GetOrDefault(presetId);
         var palette = dark ? preset.DarkPalette : preset.LightPalette;
+        double cardBorderWidth = ParseBorderThickness(preset.CardBorderThickness, 1.2);
 
         _cachedPresetId = preset.Id;
         _cachedDarkTheme = dark;
         _cachedBgBrush = new SolidColorBrush(Color.Parse(palette.BgHex));
         _cachedDotBrush = new SolidColorBrush(Color.Parse(palette.BorderSoftHex));
         _cachedCardBgBrush = new SolidColorBrush(Color.Parse(palette.SurfaceHex));
+        _cachedPillBgBrush = new SolidColorBrush(Color.Parse(palette.SurfaceElevatedHex));
         _cachedGroupBgBrush = new SolidColorBrush(Color.Parse(palette.CalloutBgHex));
-        _cachedBorderPen = new Pen(new SolidColorBrush(Color.Parse(palette.BorderHex)), 1.2);
-        _cachedSelectedBorderPen = new Pen(new SolidColorBrush(Color.Parse(palette.AccentHex)), 2.5);
+        _cachedBorderPen = new Pen(new SolidColorBrush(Color.Parse(palette.BorderHex)), cardBorderWidth);
+        _cachedSelectedBorderPen = new Pen(new SolidColorBrush(Color.Parse(palette.AccentHex)), Math.Max(2.5, cardBorderWidth + 1.0));
         _cachedTitleBrush = new SolidColorBrush(Color.Parse(palette.FgHex));
         _cachedBodyBrush = new SolidColorBrush(Color.Parse(palette.MutedHex));
+        _cachedAccentTextBrush = new SolidColorBrush(Color.Parse(palette.LinkHex));
+
+        _cachedUiFont = string.IsNullOrWhiteSpace(preset.UiFontFamily)
+            ? FontFamily.Default
+            : new FontFamily(preset.UiFontFamily);
+        _cachedDisplayFont = string.IsNullOrWhiteSpace(preset.DisplayFontFamily)
+            ? _cachedUiFont
+            : new FontFamily(preset.DisplayFontFamily);
+        _cachedMonoFont = string.IsNullOrWhiteSpace(preset.MonoFontFamily)
+            ? FontFamily.Default
+            : new FontFamily(preset.MonoFontFamily);
+
+        _cachedTitleTypeface = new Typeface(_cachedDisplayFont, FontStyle.Normal, FontWeight.SemiBold);
+        _cachedBodyTypeface = new Typeface(_cachedUiFont, FontStyle.Normal, FontWeight.Normal);
+        _cachedMonoTypeface = new Typeface(_cachedMonoFont, FontStyle.Normal, FontWeight.SemiBold);
     }
 
     private (ISolidColorBrush Brush, IPen Pen) GetColorStyle(string? colorHex, string fallbackAccentHex)
@@ -304,7 +342,14 @@ public sealed class SpatialCanvasControl : Control
         var preset = DesignSystemCatalog.GetOrDefault(presetId);
         var palette = dark ? preset.DarkPalette : preset.LightPalette;
 
-        context.FillRectangle(_cachedBgBrush!, new Rect(0, 0, bounds.Width, bounds.Height));
+        double cardCornerRadius = Math.Max(0.0, preset.CardCornerRadius);
+        double pillCornerRadius = Math.Clamp(preset.PillCornerRadius, 0.0, 12.0);
+        double groupCornerRadius = cardCornerRadius <= 3.0 ? cardCornerRadius : cardCornerRadius + 4.0;
+
+        context.DrawRectangle(
+            _cachedBgBrush!,
+            _cachedBorderPen,
+            new RoundedRect(new Rect(0, 0, bounds.Width, bounds.Height), Math.Clamp(cardCornerRadius, 0.0, 18.0)));
 
         double gridStep = Math.Max(12.0, 20.0 * _zoom);
         double offsetX = ((_panOffset.X % gridStep) + gridStep) % gridStep;
@@ -329,9 +374,6 @@ public sealed class SpatialCanvasControl : Control
         }
 
         string? selectedId = SelectedCardId;
-        var titleFace = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);
-        var bodyFace = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Normal);
-        double cardCornerRadius = Math.Max(6.0, preset.CardCornerRadius);
 
         var transform = Matrix.CreateScale(_zoom, _zoom) * Matrix.CreateTranslation(_panOffset.X, _panOffset.Y);
         using (context.PushTransform(transform))
@@ -350,7 +392,7 @@ public sealed class SpatialCanvasControl : Control
                 context.DrawRectangle(
                     _cachedGroupBgBrush,
                     isSelected ? _cachedSelectedBorderPen : _cachedBorderPen,
-                    new RoundedRect(rect, cardCornerRadius + 6.0));
+                    new RoundedRect(rect, groupCornerRadius));
 
                 if (!string.IsNullOrWhiteSpace(group.Label))
                 {
@@ -358,8 +400,8 @@ public sealed class SpatialCanvasControl : Control
                         group.Label.ToUpperInvariant(),
                         CultureInfo.CurrentCulture,
                         FlowDirection.LeftToRight,
-                        titleFace,
-                        12,
+                        _cachedMonoTypeface,
+                        11.5,
                         _cachedBodyBrush!);
                     context.DrawText(labelText, new Point(group.X + 16, group.Y + 12));
                 }
@@ -430,10 +472,17 @@ public sealed class SpatialCanvasControl : Control
                         edge.Label,
                         CultureInfo.CurrentCulture,
                         FlowDirection.LeftToRight,
-                        bodyFace,
-                        11,
+                        _cachedMonoTypeface,
+                        10.5,
                         _cachedBodyBrush!);
-                    context.DrawText(edgeLabel, new Point(midX - (edgeLabel.Width / 2.0), midY - 16.0));
+
+                    var labelPillRect = new Rect(
+                        midX - (edgeLabel.Width / 2.0) - 6.0,
+                        midY - 20.0,
+                        edgeLabel.Width + 12.0,
+                        edgeLabel.Height + 4.0);
+                    context.DrawRectangle(_cachedPillBgBrush, _cachedBorderPen, new RoundedRect(labelPillRect, pillCornerRadius));
+                    context.DrawText(edgeLabel, new Point(midX - (edgeLabel.Width / 2.0), midY - 18.0));
                 }
             }
 
@@ -457,17 +506,39 @@ public sealed class SpatialCanvasControl : Control
                 var (accentBrush, _) = GetColorStyle(card.Color, palette.AccentHex);
                 context.FillRectangle(accentBrush, new Rect(card.X + 12, card.Y + 8, Math.Max(16, card.Width - 24), 3.5));
 
+                // Category Pill Badge inside card (top-right) using preset.PillCornerRadius & MonoFont
+                string badgeLabel = string.Equals(card.Type, "file", StringComparison.OrdinalIgnoreCase)
+                    ? "FILE"
+                    : string.Equals(card.Type, "link", StringComparison.OrdinalIgnoreCase)
+                        ? "LINK"
+                        : "SPEC";
+                var badgeText = new FormattedText(
+                    badgeLabel,
+                    CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    _cachedMonoTypeface,
+                    9.5,
+                    _cachedAccentTextBrush!);
+                double badgeW = badgeText.Width + 10.0;
+                double badgeH = badgeText.Height + 4.0;
+                var badgeRect = new Rect(card.X + card.Width - badgeW - 10.0, card.Y + 16.0, badgeW, badgeH);
+                context.DrawRectangle(
+                    _cachedPillBgBrush,
+                    _cachedBorderPen,
+                    new RoundedRect(badgeRect, pillCornerRadius));
+                context.DrawText(badgeText, new Point(badgeRect.X + 5.0, badgeRect.Y + 2.0));
+
                 var title = new FormattedText(
                     card.Label ?? card.File ?? "Canvas Card",
                     CultureInfo.CurrentCulture,
                     FlowDirection.LeftToRight,
-                    titleFace,
+                    _cachedTitleTypeface,
                     13,
                     _cachedTitleBrush!)
                 {
-                    MaxTextWidth = Math.Max(40, card.Width - 24)
+                    MaxTextWidth = Math.Max(40, card.Width - badgeW - 30)
                 };
-                context.DrawText(title, new Point(card.X + 12, card.Y + 20));
+                context.DrawText(title, new Point(card.X + 12, card.Y + 18));
 
                 if (!string.IsNullOrWhiteSpace(card.Text))
                 {
@@ -475,7 +546,7 @@ public sealed class SpatialCanvasControl : Control
                         card.Text,
                         CultureInfo.CurrentCulture,
                         FlowDirection.LeftToRight,
-                        bodyFace,
+                        _cachedBodyTypeface,
                         12,
                         _cachedBodyBrush!)
                     {
