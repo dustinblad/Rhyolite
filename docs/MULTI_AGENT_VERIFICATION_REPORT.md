@@ -97,9 +97,10 @@ dotnet test tests/Rhyolite.Tests/Rhyolite.Tests.csproj --nologo --verbosity norm
 | 8 | `ProtocolEngine_Auth_Rbac_OAuth_Mcp_GraphQl_AndP2pMesh_WorkEndToEnd` | `RhyoliteAuthEngine`, `McpServerEngine`, `GraphQlEngine`, `PeerSyncEngine` | `157 ms` | ✅ Passed |
 | 9 | `WorkspaceConnectorsEngine_SyncsBladbaseWorkspace_AndDocmostSpace_Bidirectionally` | `WorkspaceConnectorsEngine` | `10 ms` | ✅ Passed |
 | 10 | `EnterpriseDevExEngine_OnePassword_KeePassXc_Runbooks_CodeDrift_Scorecard_AndGitHubPrAnalysis_WorkEndToEnd` | `EnterpriseDevExEngine` | `8 ms` | ✅ Passed |
-| 11 | `MultiDesignSystemCatalog_SqlitePreferences_McpAndGraphQl_WorkEndToEnd` | `DesignSystemCatalog` + `HybridVaultEngine` + `McpServerEngine` + `GraphQlEngine` | `176 ms` (18-cycle lookup `< 0.02 ms`) | ✅ Passed |
+| 11 | `MultiDesignSystemCatalog_SqlitePreferences_McpAndGraphQl_WorkEndToEnd` | `DesignSystemCatalog` + `HybridVaultEngine` + `McpServerEngine` + `GraphQlEngine` | `175 ms` (18-cycle lookup `< 0.02 ms`) | ✅ Passed |
+| 12 | `FullAppUsability_SnapshotRestore_FlashcardPersistence_NoteDelete_AndLivePrFallback_WorkEndToEnd` | `HybridVaultEngine` (`flashcard_reviews`, `note_snapshots`, `DeleteNoteAsync`) + `WorkspaceConnectorsEngine` + `EnterpriseDevExEngine` | `15 ms` | ✅ Passed |
 
-**Total Tests**: `11` · **Passed**: `11` · **Failed**: `0` · **Total Test Runner Time**: `0.5978 Seconds`
+**Total Tests**: `12` · **Passed**: `12` · **Failed**: `0` · **Total Test Runner Time**: `0.6208 Seconds`
 
 ---
 
@@ -168,4 +169,70 @@ flowchart TD
 * **Audited File**: [`tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs#L324-L486)
 * **Delivered Capabilities**:
   * Implemented `MultiDesignSystemCatalog_SqlitePreferences_McpAndGraphQl_WorkEndToEnd` verifying all 9 presets, all 306 hex color tokens across 18 Light/Dark palettes, `< 2 ms` 18-step forward/backward cycling benchmark, SQLite WAL `ui_preferences` persistence, MCP `rhyolite.list_design_systems` & `rhyolite.set_design_system` calls, and GraphQL `designSystems` query execution.
+
+---
+
+## 5. Phase 4 Multi-Agent Verification — Full P0, P1 & P2 Application Usability & Feature Upgrade (`98 / 100`)
+
+```mermaid
+flowchart TD
+    Parent4["Parent Architect Agent (4856753c-95e3-456d-946a-2918b10117ab)"]
+    Lead4["Lead Orchestration & Verification Architect (bff50619-217b-440d-9b0a-7507627932cd)"]
+
+    subgraph Phase4Specialists["Phase 4 Parallel Specialist Implementation Engineers"]
+        P4S1["Specialist 1: Core SQLite WAL & CLI Engineer\n(7f12a07d-f066-48df-b14a-2608d49c4220)\nTarget: HybridVaultEngine.cs & Program.cs"]
+        P4S2["Specialist 2: Custom Skia Controls Engineer\n(065986dd-c0a0-47b6-85d6-b2ba79429e95)\nTarget: KnowledgeGraphControl.cs & SpatialCanvasControl.cs"]
+        P4S3["Specialist 3: Studio, ViewModels & Views Usability Engineer\n(2e75df26-00e8-4180-bb9b-44dfc35554a3)\nTarget: MainViewModel.cs, MainView.axaml, MainView.axaml.cs, MainWindow.axaml"]
+        P4S4["Specialist 4: Protocol/DevEx Connectors & Test Engineer\n(469ca988-685c-4714-8409-dfe185fe9ec7)\nTarget: WorkspaceConnectorsEngine.cs, EnterpriseDevExEngine.cs, EnterpriseDevExIntegrationTests.cs"]
+    end
+
+    Parent4 -->|"Spawns 4 Specialists with Disjoint Scopes"| P4S1 & P4S2 & P4S3 & P4S4
+    P4S1 <-->|"Method Signature Sync"| P4S4
+    P4S1 & P4S2 & P4S3 & P4S4 -->|"Completion Reports + Complexity Justifications"| Lead4
+    Lead4 -->|"Audit + dotnet build + dotnet test (12/12 Pass) + --mcp-stdio Check"| Verified4["Phase 4 Verified & Signed Off (98/100)"]
+```
+
+### 5.1 Specialist 1 — Core SQLite WAL & `--mcp-stdio` CLI Engineer (`7f12a07d-f066-48df-b14a-2608d49c4220`)
+* **Audited Files**:
+  * [`src/Rhyolite.Core/Storage/HybridVaultEngine.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Storage/HybridVaultEngine.cs#L285-L955)
+  * [`src/Rhyolite.Desktop/Program.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Desktop/Program.cs#L38-L88)
+* **Delivered Capabilities**:
+  * **FSRS v4 SQLite WAL Persistence (`flashcard_reviews`)**: Added `SaveFlashcardReview` / `SaveFlashcardReviewAsync`, `GetFlashcardReview` / `GetFlashcardReviewAsync`, and automatic flashcard hydration (`HydrateFlashcardReviewsForNote`) on vault boot and note save.
+  * **Snapshot Time-Machine SQLite WAL Persistence & Restore (`note_snapshots`)**: Upgraded `note_snapshots (snapshot_id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, created_utc TEXT NOT NULL, content TEXT NOT NULL, label TEXT NOT NULL)` with composite index `idx_note_snapshots_path ON note_snapshots(path, snapshot_id DESC)`, automatic 25-snapshot retention pruning, `SaveMilestoneSnapshot`, and `RestoreSnapshotAsync`.
+  * **Note Deletion & Atomic Mutation Version**: Added `DeleteNoteAsync` / `DeleteNote` (deleting the `.md` file on disk, removing from `_notesByRelativePath` and `note_cache`, rebuilding graph backlinks & PageRank, and incrementing `MutationVersion`).
+  * **Headless `--mcp-stdio` CLI Server**: Added `--mcp-stdio [vaultDir]` support in `Program.Main` (`RunMcpStdioServer`), verified end-to-end responding to `tools/list` in `334 µs` (`0.334 ms`).
+* **Algorithmic Efficiency Justification**:
+  * **$\mathcal{O}(1)$ Primary Key B-Tree Upserts & Reads**: `flashcard_reviews.card_id` is a `TEXT PRIMARY KEY` executing single-statement `ON CONFLICT(card_id) DO UPDATE` upserts.
+  * **$\mathcal{O}(\log N)$ Forward Index Scan for Snapshots**: `idx_note_snapshots_path ON note_snapshots(path, snapshot_id DESC)` satisfies `WHERE path = $path ORDER BY snapshot_id DESC LIMIT 25` without a sort pass.
+
+### 5.2 Specialist 2 — Custom Skia Controls Engineer (`065986dd-c0a0-47b6-85d6-b2ba79429e95`)
+* **Audited Files**:
+  * [`src/Rhyolite.UI/Controls/KnowledgeGraphControl.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Controls/KnowledgeGraphControl.cs)
+  * [`src/Rhyolite.UI/Controls/SpatialCanvasControl.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Controls/SpatialCanvasControl.cs)
+* **Delivered Capabilities**:
+  * **Dynamic Multi-Design System Skia Rendering (`DesignPresetIdProperty`)**: Both custom Skia controls resolve palettes from `DesignSystemCatalog.GetOrDefault(DesignPresetId)` so switching among all 9 `feimacode/open-design-agent-kit` presets immediately re-themes graph backgrounds, nodes, badges, dot grids, cards, and Bezier edges.
+  * **Interactive Zoom, Pan, Node Double-Click & Card Selection**: Added scroll-wheel zoom (`0.40x`–`2.60x` / `0.35x`–`2.50x` anchored around cursor), background drag panning (`_panOffset`), `NodeDoubleClicked` event on `KnowledgeGraphControl`, and `SelectedCardIdProperty`, cubic Bezier arrowheads, and `CanvasMutated` event on `SpatialCanvasControl`.
+* **Algorithmic Efficiency Justification**:
+  * **$\mathcal{O}(1)$ Cached Brush/Pen Allocation (`EnsureThemeCache`)**: `SolidColorBrush` and `Pen` instances are cached by `(presetId, isDark)` and reused across every 60fps `Render(DrawingContext)` frame with zero per-frame brush allocations.
+
+### 5.3 Specialist 3 — Studio, ViewModels & Views Usability Engineer (`2e75df26-00e8-4180-bb9b-44dfc35554a3`)
+* **Audited Files**:
+  * [`src/Rhyolite.UI/ViewModels/MainViewModel.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/ViewModels/MainViewModel.cs)
+  * [`src/Rhyolite.UI/Views/MainView.axaml`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Views/MainView.axaml)
+  * [`src/Rhyolite.UI/Views/MainView.axaml.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Views/MainView.axaml.cs)
+  * [`src/Rhyolite.UI/Views/MainWindow.axaml`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Views/MainWindow.axaml)
+* **Delivered Capabilities**:
+  * **P0 Studio & Navigation Wiring**: Added `OnSearchFilterChanged`, `RenameActiveNoteCommand`, `DeleteActiveNoteCommand`, `TogglePinActiveNoteCommand`, `SwitchVaultDirectoryCommand`, 3-Mode Hybrid Editor (`Source | Split | Reading`), clickable Pinned Bookmarks, Document Outline, Outgoing `[[WikiLinks]]`, Backlinks, Unlinked Mentions (`🔗 Link [[]]`), Semantic Related Notes, visual YAML frontmatter property editor (`UpsertFrontmatterPropertyCommand`), and persistent task checkboxes (`ToggleTaskCompletionCommand`).
+  * **P1 & P2 Screens 2–8 & `⌘P` Command Palette**: Added `<KeyBindings>` (`Ctrl/Meta+P`, `Ctrl/Meta+S`, `Ctrl/Meta+N`, `Escape`), searchable Command Palette (`CommandPaletteFilter`, `FilteredCommandPaletteNotes`), live Graph physics sliders (`OnGraphRepulsionChanged`, `OnGraphLinkDistanceChanged`) & node open, Canvas card inspector & drag persistence (`SaveCanvasLayout`), Bases row open & status cycling (`CycleRowStatusCommand`), FSRS answer flip (`ToggleFlashcardAnswerCommand`) & Snapshot milestone/restore (`SaveMilestoneSnapshotCommand`, `RestorePreviousSnapshotCommand`), Screen 6 Bladbase/Docmost sync buttons (`SyncBladbaseCommand`, `SyncDocmostCommand`), Screen 7 live PR fetch & guardrail override (`RefreshGitHubPrPreviewCommand`, `OverrideRunbookGuardrailCommand`), and Screen 8 Mobile note selection.
+
+### 5.4 Specialist 4 — Protocol/DevEx Connectors & Test Engineer (`469ca988-685c-4714-8409-dfe185fe9ec7`)
+* **Audited Files**:
+  * [`src/Rhyolite.Core/Protocol/WorkspaceConnectorsEngine.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Protocol/WorkspaceConnectorsEngine.cs#L130-L569)
+  * [`src/Rhyolite.Core/Enterprise/EnterpriseDevExEngine.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Enterprise/EnterpriseDevExEngine.cs#L352-L883)
+  * [`tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs#L622-L725)
+* **Delivered Capabilities**:
+  * **Live HTTP + Offline Fallback Workspace Sync with SQLite WAL Bindings**: Added `FetchBladbaseRemotePagesOrFallbackAsync`, `FetchDocmostRemotePagesOrFallbackAsync`, and `RecordSyncBinding` persisting `external_sync_bindings` in `.rhyolite/cache.db`.
+  * **Live Single-RTT GitHub GraphQL v4 PR Fetcher + Guardrail Override**: Added `FetchAndAnalyzePullRequestLiveOrFallbackAsync` / `TryFetchGitHubPrGraphQlLiveAsync` (`https://api.github.com/graphql` with SQLite WAL `github_pr_cache`) and `allowDestructiveOverride` support in `ExecuteRunbookCellAsync`.
+  * **End-to-End Usability Verification Test (`FullAppUsability_SnapshotRestore_FlashcardPersistence_NoteDelete_AndLivePrFallback_WorkEndToEnd`)**: Verified all 6 Phase 4 workflows in `15 ms` (`12/12` xUnit tests passing).
+
 

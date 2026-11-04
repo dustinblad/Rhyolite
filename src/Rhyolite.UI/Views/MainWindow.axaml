@@ -8,6 +8,15 @@
         MinWidth="960" MinHeight="640"
         x:Class="Rhyolite.Views.MainWindow"
         Icon="avares://Rhyolite.UI/Assets/Rhyolite.ico"
-        Title="Rhyolite — Local-First Knowledge Studio (Apple Design System)">
+        Title="Rhyolite — Local-First Knowledge Studio (Open-Design Multi-Theme)">
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+P" Command="{Binding ToggleCommandPaletteCommand}" />
+    <KeyBinding Gesture="Meta+P" Command="{Binding ToggleCommandPaletteCommand}" />
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveActiveNoteCommand}" />
+    <KeyBinding Gesture="Meta+S" Command="{Binding SaveActiveNoteCommand}" />
+    <KeyBinding Gesture="Ctrl+N" Command="{Binding CreateNewNoteCommand}" />
+    <KeyBinding Gesture="Meta+N" Command="{Binding CreateNewNoteCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding CloseCommandPaletteCommand}" />
+  </Window.KeyBindings>
   <views:MainView />
 </Window>

@@ -16,7 +16,35 @@ public partial class MainView : UserControl
             {
                 if (DataContext is MainViewModel vm)
                 {
-                    vm.SelectedGraphNodeInfo = $"Selected: {node.Title} (PageRank: {node.PageRank:0.00} · Folder: {node.Folder})";
+                    vm.OnGraphNodeSelected(node);
+                }
+            };
+
+            GraphCanvas.NodeDoubleClicked += (_, node) =>
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.OnGraphNodeSelected(node);
+                    vm.OpenSelectedGraphNote();
+                }
+            };
+        }
+
+        if (CanvasBoard is not null)
+        {
+            CanvasBoard.CardClicked += card =>
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.SelectCanvasCard(card);
+                }
+            };
+
+            CanvasBoard.CanvasMutated += (_, doc) =>
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.SaveCanvasLayout(doc);
                 }
             };
         }

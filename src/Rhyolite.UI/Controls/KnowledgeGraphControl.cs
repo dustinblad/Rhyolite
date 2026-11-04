@@ -3,13 +3,15 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Rhyolite.Core.Design;
 using Rhyolite.Core.Graph;
 
 namespace Rhyolite.Controls;
 
 /// <summary>
 /// Hardware-accelerated Skia interactive 2D force-directed Knowledge Graph control.
-/// Supports node dragging, neighborhood hover spotlighting, and click selection.
+/// Supports multi-design system palettes, scroll-wheel zoom, background pan, node dragging,
+/// neighborhood hover spotlighting, click selection, and double-click note activation.
 /// </summary>
 public sealed class KnowledgeGraphControl : Control
 {
@@ -22,14 +24,43 @@ public sealed class KnowledgeGraphControl : Control
     public static readonly StyledProperty<bool> IsDarkThemeProperty =
         AvaloniaProperty.Register<KnowledgeGraphControl, bool>(nameof(IsDarkTheme));
 
+    public static readonly StyledProperty<string> DesignPresetIdProperty =
+        AvaloniaProperty.Register<KnowledgeGraphControl, string>(nameof(DesignPresetId), "apple");
+
     private GraphNode2D? _hoveredNode;
     private GraphNode2D? _draggingNode;
+    private GraphNode2D? _selectedNode;
+    private GraphNode2D? _lastClickedNode;
+    private long _lastClickTimestampMs;
+
+    private double _zoom = 1.0;
+    private Vector _panOffset = Vector.Zero;
+    private bool _isPanning;
+    private Point _panStartPointer;
+    private Vector _panStartOffset;
+
+    // Cached palette brushes/pens for O(1) per-frame lookup
+    private string? _cachedPresetId;
+    private bool _cachedDarkTheme;
+    private ISolidColorBrush? _cachedBgBrush;
+    private ISolidColorBrush? _cachedDotBrush;
+    private IPen? _cachedBaseEdgePen;
+    private IPen? _cachedActiveEdgePen;
+    private IPen? _cachedRingPen;
+    private IPen? _cachedFocusPen;
+    private ISolidColorBrush? _cachedTextBrush;
+    private readonly Dictionary<string, ISolidColorBrush> _nodeBrushCache = new(StringComparer.OrdinalIgnoreCase);
 
     public event Action<GraphNode2D>? NodeSelected;
+    public event EventHandler<GraphNode2D>? NodeDoubleClicked;
 
     static KnowledgeGraphControl()
     {
-        AffectsRender<KnowledgeGraphControl>(NodesProperty, EdgesProperty, IsDarkThemeProperty);
+        AffectsRender<KnowledgeGraphControl>(
+            NodesProperty,
+            EdgesProperty,
+            IsDarkThemeProperty,
+            DesignPresetIdProperty);
     }
 
     public KnowledgeGraphControl()
@@ -55,24 +86,83 @@ public sealed class KnowledgeGraphControl : Control
         set => SetValue(IsDarkThemeProperty, value);
     }
 
+    public string DesignPresetId
+    {
+        get => GetValue(DesignPresetIdProperty);
+        set => SetValue(DesignPresetIdProperty, value);
+    }
+
+    public void ResetViewport()
+    {
+        _zoom = 1.0;
+        _panOffset = Vector.Zero;
+        InvalidateVisual();
+    }
+
+    private Point ScreenToWorld(Point screenPos) =>
+        new((screenPos.X - _panOffset.X) / _zoom, (screenPos.Y - _panOffset.Y) / _zoom);
+
+    private GraphNode2D? HitTestNode(Point worldPos)
+    {
+        var nodes = Nodes;
+        if (nodes is null || nodes.Count == 0) return null;
+
+        double hitPadding = 6.0 / _zoom;
+        for (int i = nodes.Count - 1; i >= 0; i--)
+        {
+            var n = nodes[i];
+            double dx = n.X - worldPos.X;
+            double dy = n.Y - worldPos.Y;
+            double maxDist = n.Radius + hitPadding;
+            if ((dx * dx) + (dy * dy) <= maxDist * maxDist)
+            {
+                return n;
+            }
+        }
+
+        return null;
+    }
+
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        base.OnPointerWheelChanged(e);
+        if (Math.Abs(e.Delta.Y) < 0.001) return;
+
+        var pointerPos = e.GetPosition(this);
+        var worldBefore = ScreenToWorld(pointerPos);
+
+        double factor = e.Delta.Y > 0 ? 1.12 : (1.0 / 1.12);
+        _zoom = Math.Clamp(_zoom * factor, 0.45, 2.75);
+        _panOffset = new Vector(
+            pointerPos.X - (worldBefore.X * _zoom),
+            pointerPos.Y - (worldBefore.Y * _zoom));
+
+        e.Handled = true;
+        InvalidateVisual();
+    }
+
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
         var pos = e.GetPosition(this);
-        var nodes = Nodes;
-        if (nodes is null || nodes.Count == 0) return;
 
         if (_draggingNode is not null)
         {
-            _draggingNode.X = Math.Clamp(pos.X, 40, Math.Max(80, Bounds.Width - 40));
-            _draggingNode.Y = Math.Clamp(pos.Y, 40, Math.Max(80, Bounds.Height - 40));
+            var worldPos = ScreenToWorld(pos);
+            _draggingNode.X = worldPos.X;
+            _draggingNode.Y = worldPos.Y;
             InvalidateVisual();
             return;
         }
 
-        var hit = nodes.FirstOrDefault(n =>
-            Math.Sqrt(Math.Pow(n.X - pos.X, 2) + Math.Pow(n.Y - pos.Y, 2)) <= n.Radius + 6);
+        if (_isPanning)
+        {
+            _panOffset = _panStartOffset + (pos - _panStartPointer);
+            InvalidateVisual();
+            return;
+        }
 
+        var hit = HitTestNode(ScreenToWorld(pos));
         if (!ReferenceEquals(hit, _hoveredNode))
         {
             _hoveredNode = hit;
@@ -84,11 +174,35 @@ public sealed class KnowledgeGraphControl : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        if (_hoveredNode is not null)
+        var pos = e.GetPosition(this);
+        var hit = HitTestNode(ScreenToWorld(pos));
+
+        if (hit is not null)
         {
-            _draggingNode = _hoveredNode;
-            NodeSelected?.Invoke(_hoveredNode);
+            long nowMs = Environment.TickCount64;
+            bool isDoubleClick = e.ClickCount >= 2 ||
+                (ReferenceEquals(hit, _lastClickedNode) && (nowMs - _lastClickTimestampMs) <= 400);
+
+            _lastClickedNode = hit;
+            _lastClickTimestampMs = nowMs;
+            _selectedNode = hit;
+            _hoveredNode = hit;
+            _draggingNode = hit;
+
+            NodeSelected?.Invoke(hit);
+            if (isDoubleClick)
+            {
+                NodeDoubleClicked?.Invoke(this, hit);
+            }
+
             InvalidateVisual();
+        }
+        else
+        {
+            _isPanning = true;
+            _panStartPointer = pos;
+            _panStartOffset = _panOffset;
+            Cursor = new Cursor(StandardCursorType.SizeAll);
         }
     }
 
@@ -96,6 +210,45 @@ public sealed class KnowledgeGraphControl : Control
     {
         base.OnPointerReleased(e);
         _draggingNode = null;
+        if (_isPanning)
+        {
+            _isPanning = false;
+            Cursor = _hoveredNode is not null ? new Cursor(StandardCursorType.Hand) : Cursor.Default;
+        }
+    }
+
+    private void EnsureThemeCache(string presetId, bool dark)
+    {
+        if (string.Equals(_cachedPresetId, presetId, StringComparison.OrdinalIgnoreCase) &&
+            _cachedDarkTheme == dark &&
+            _cachedBgBrush is not null)
+        {
+            return;
+        }
+
+        var preset = DesignSystemCatalog.GetOrDefault(presetId);
+        var palette = dark ? preset.DarkPalette : preset.LightPalette;
+
+        _cachedPresetId = preset.Id;
+        _cachedDarkTheme = dark;
+        _cachedBgBrush = new SolidColorBrush(Color.Parse(palette.BgHex));
+        _cachedDotBrush = new SolidColorBrush(Color.Parse(palette.BorderSoftHex));
+        _cachedBaseEdgePen = new Pen(new SolidColorBrush(Color.Parse(palette.BorderHex)), 1.6);
+        _cachedActiveEdgePen = new Pen(new SolidColorBrush(Color.Parse(palette.AccentHex)), 2.6);
+        _cachedRingPen = new Pen(new SolidColorBrush(Color.Parse(palette.BgHex)), 2.5);
+        _cachedFocusPen = new Pen(new SolidColorBrush(Color.Parse(palette.LinkHex)), 3.5);
+        _cachedTextBrush = new SolidColorBrush(Color.Parse(palette.FgHex));
+    }
+
+    private ISolidColorBrush GetNodeBrush(string colorHex, string fallbackAccentHex)
+    {
+        string key = string.IsNullOrWhiteSpace(colorHex) ? fallbackAccentHex : colorHex;
+        if (!_nodeBrushCache.TryGetValue(key, out var brush))
+        {
+            brush = new SolidColorBrush(Color.Parse(key));
+            _nodeBrushCache[key] = brush;
+        }
+        return brush;
     }
 
     public override void Render(DrawingContext context)
@@ -105,16 +258,24 @@ public sealed class KnowledgeGraphControl : Control
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
         bool dark = IsDarkTheme;
-        var bgBrush = new SolidColorBrush(Color.Parse(dark ? "#000000" : "#FFFFFF"));
-        context.FillRectangle(bgBrush, new Rect(0, 0, bounds.Width, bounds.Height));
+        string presetId = DesignPresetId ?? DesignSystemCatalog.DefaultPresetId;
+        EnsureThemeCache(presetId, dark);
 
-        // Subtle Apple dot grid
-        var dotBrush = new SolidColorBrush(Color.Parse(dark ? "#2C2C2E" : "#E8E8ED"));
-        for (double gx = 24; gx < bounds.Width; gx += 24)
+        var preset = DesignSystemCatalog.GetOrDefault(presetId);
+        var palette = dark ? preset.DarkPalette : preset.LightPalette;
+
+        context.FillRectangle(_cachedBgBrush!, new Rect(0, 0, bounds.Width, bounds.Height));
+
+        // Dot grid scaled and translated smoothly with viewport pan/zoom
+        double gridStep = Math.Max(14.0, 24.0 * _zoom);
+        double offsetX = ((_panOffset.X % gridStep) + gridStep) % gridStep;
+        double offsetY = ((_panOffset.Y % gridStep) + gridStep) % gridStep;
+
+        for (double gx = offsetX; gx < bounds.Width; gx += gridStep)
         {
-            for (double gy = 24; gy < bounds.Height; gy += 24)
+            for (double gy = offsetY; gy < bounds.Height; gy += gridStep)
             {
-                context.DrawEllipse(dotBrush, null, new Point(gx, gy), 1.2, 1.2);
+                context.DrawEllipse(_cachedDotBrush!, null, new Point(gx, gy), 1.2, 1.2);
             }
         }
 
@@ -122,47 +283,63 @@ public sealed class KnowledgeGraphControl : Control
         var edges = Edges;
         if (nodes is null || nodes.Count == 0) return;
 
-        var nodeMap = nodes.ToDictionary(n => n.Id, StringComparer.OrdinalIgnoreCase);
-        var defaultEdgePen = new Pen(new SolidColorBrush(Color.Parse(dark ? "#44EBEBF5" : "#331D1D1F")), 1.6);
-        var activeEdgePen = new Pen(new SolidColorBrush(Color.Parse("#0071E3")), 2.6);
-
-        if (edges is not null)
+        var nodeMap = new Dictionary<string, GraphNode2D>(nodes.Count, StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < nodes.Count; i++)
         {
-            foreach (var edge in edges)
-            {
-                if (!nodeMap.TryGetValue(edge.SourceId, out var a) || !nodeMap.TryGetValue(edge.TargetId, out var b))
-                    continue;
-
-                bool highlighted = _hoveredNode is not null &&
-                    (string.Equals(_hoveredNode.Id, a.Id, StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(_hoveredNode.Id, b.Id, StringComparison.OrdinalIgnoreCase));
-
-                context.DrawLine(highlighted ? activeEdgePen : defaultEdgePen, new Point(a.X, a.Y), new Point(b.X, b.Y));
-            }
+            var n = nodes[i];
+            nodeMap[n.Id] = n;
         }
 
-        var ringPen = new Pen(new SolidColorBrush(Color.Parse(dark ? "#000000" : "#FFFFFF")), 2.5);
-        var focusPen = new Pen(new SolidColorBrush(Color.Parse("#0071E3")), 3.5);
-        var textBrush = new SolidColorBrush(Color.Parse(dark ? "#FFFFFF" : "#1D1D1F"));
-        var typeface = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);
-
-        foreach (var node in nodes)
+        var transform = Matrix.CreateScale(_zoom, _zoom) * Matrix.CreateTranslation(_panOffset.X, _panOffset.Y);
+        using (context.PushTransform(transform))
         {
-            bool isHovered = ReferenceEquals(node, _hoveredNode);
-            double r = isHovered ? node.Radius + 3.0 : node.Radius;
-            var fillBrush = new SolidColorBrush(Color.Parse(node.ColorHex));
+            var focusTarget = _hoveredNode ?? _selectedNode;
 
-            context.DrawEllipse(fillBrush, isHovered ? focusPen : ringPen, new Point(node.X, node.Y), r, r);
+            if (edges is not null)
+            {
+                for (int i = 0; i < edges.Count; i++)
+                {
+                    var edge = edges[i];
+                    if (!nodeMap.TryGetValue(edge.SourceId, out var a) || !nodeMap.TryGetValue(edge.TargetId, out var b))
+                        continue;
 
-            var formatted = new FormattedText(
-                $"{node.Title} ({node.PageRank:0.00})",
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                typeface,
-                12,
-                textBrush);
+                    bool highlighted = focusTarget is not null &&
+                        (string.Equals(focusTarget.Id, a.Id, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(focusTarget.Id, b.Id, StringComparison.OrdinalIgnoreCase));
 
-            context.DrawText(formatted, new Point(node.X - formatted.Width / 2.0, node.Y + r + 5.0));
+                    context.DrawLine(
+                        highlighted ? _cachedActiveEdgePen! : _cachedBaseEdgePen!,
+                        new Point(a.X, a.Y),
+                        new Point(b.X, b.Y));
+                }
+            }
+
+            var typeface = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);
+
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                var node = nodes[i];
+                bool isFocused = ReferenceEquals(node, _hoveredNode) || ReferenceEquals(node, _selectedNode);
+                double r = ReferenceEquals(node, _hoveredNode) ? node.Radius + 3.0 : node.Radius;
+                var fillBrush = GetNodeBrush(node.ColorHex, palette.AccentHex);
+
+                context.DrawEllipse(
+                    fillBrush,
+                    isFocused ? _cachedFocusPen : _cachedRingPen,
+                    new Point(node.X, node.Y),
+                    r,
+                    r);
+
+                var formatted = new FormattedText(
+                    $"{node.Title} ({node.PageRank:0.00})",
+                    CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    typeface,
+                    12,
+                    _cachedTextBrush!);
+
+                context.DrawText(formatted, new Point(node.X - (formatted.Width / 2.0), node.Y + r + 5.0));
+            }
         }
     }
 }

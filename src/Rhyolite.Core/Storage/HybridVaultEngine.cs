@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
@@ -23,10 +25,12 @@ public sealed class HybridVaultEngine : IDisposable
     private readonly ConcurrentDictionary<string, List<NoteSnapshot>> _snapshotsByPath = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _sqliteDbPath;
     private readonly string _canvasFilePath;
+    private long _mutationVersion;
 
     public string VaultRootPath { get; }
     public GraphTopologyMetrics LatestMetrics { get; private set; } = new(0, 0, 0, 0, 1.0, "None", 0.0);
     public double LastColdBootMilliseconds { get; private set; }
+    public long MutationVersion => Interlocked.Read(ref _mutationVersion);
 
     public HybridVaultEngine(string vaultRootPath)
     {
@@ -63,6 +67,36 @@ public sealed class HybridVaultEngine : IDisposable
     public void EnsureSqliteSchema()
     {
         using var conn = OpenConnection();
+
+        // Migrate legacy note_snapshots table if it was created before the (path, content) schema upgrade
+        bool hasLegacyNoteSnapshots = false;
+        using (var checkCmd = conn.CreateCommand())
+        {
+            checkCmd.CommandText = "PRAGMA table_info(note_snapshots);";
+            using var reader = checkCmd.ExecuteReader();
+            bool hasTable = false;
+            bool hasPathColumn = false;
+            while (reader.Read())
+            {
+                hasTable = true;
+                if (string.Equals(reader.GetString(1), "path", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasPathColumn = true;
+                }
+            }
+            if (hasTable && !hasPathColumn)
+            {
+                hasLegacyNoteSnapshots = true;
+            }
+        }
+
+        if (hasLegacyNoteSnapshots)
+        {
+            using var dropCmd = conn.CreateCommand();
+            dropCmd.CommandText = "DROP TABLE IF EXISTS note_snapshots;";
+            dropCmd.ExecuteNonQuery();
+        }
+
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             PRAGMA journal_mode = WAL;
@@ -79,14 +113,24 @@ public sealed class HybridVaultEngine : IDisposable
                 tags_json TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS note_snapshots (
-                snapshot_id TEXT PRIMARY KEY,
-                relative_path TEXT NOT NULL,
-                created_utc TEXT NOT NULL,
-                label TEXT NOT NULL,
-                content_sha256 TEXT NOT NULL,
-                raw_markdown TEXT NOT NULL
+            CREATE TABLE IF NOT EXISTS flashcard_reviews (
+                card_id TEXT PRIMARY KEY,
+                stability_days REAL NOT NULL,
+                difficulty REAL NOT NULL,
+                reps INTEGER NOT NULL,
+                next_review_utc TEXT NOT NULL,
+                updated_utc TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS note_snapshots (
+                snapshot_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT NOT NULL,
+                created_utc TEXT NOT NULL,
+                content TEXT NOT NULL,
+                label TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_note_snapshots_path ON note_snapshots(path, snapshot_id DESC);
 
             CREATE TABLE IF NOT EXISTS github_pr_cache (
                 cache_key TEXT PRIMARY KEY,
@@ -159,17 +203,25 @@ public sealed class HybridVaultEngine : IDisposable
             };
 
             MarkdownAstEngine.ParseNoteMetadata(note);
+            HydrateFlashcardReviewsForNote(note);
             _notesByRelativePath[relPath] = note;
 
             // Ensure baseline snapshot exists for Time-Machine diffing
-            RecordSnapshotInternal(note, "Initial Baseline");
+            RecordSnapshotInternal(note.RelativePath, note.RawMarkdown, "Initial Baseline");
             UpsertSqliteCacheRow(note);
         }
 
         LatestMetrics = KnowledgeGraphEngine.RebuildGraphRelationships(_notesByRelativePath.Values.ToList());
+        Interlocked.Increment(ref _mutationVersion);
         sw.Stop();
         LastColdBootMilliseconds = Math.Round(sw.Elapsed.TotalMilliseconds, 2);
     }
+
+    public Task<VaultNote> SaveNoteAsync(
+        string relativePath,
+        string updatedMarkdown,
+        CancellationToken ct) =>
+        SaveNoteAsync(relativePath, updatedMarkdown, null, ct);
 
     /// <summary>
     /// Updates a note in-memory immediately (&lt; 0.5 ms AST delta), flushes the plain .md file atomically to disk,
@@ -214,15 +266,76 @@ public sealed class HybridVaultEngine : IDisposable
 
         // Incremental single-note AST re-parse
         MarkdownAstEngine.ParseNoteMetadata(note);
+        HydrateFlashcardReviewsForNote(note);
 
         // Update bidirectional links & PageRank
         LatestMetrics = KnowledgeGraphEngine.RebuildGraphRelationships(_notesByRelativePath.Values.ToList());
+        Interlocked.Increment(ref _mutationVersion);
 
         // Persist snapshot & SQLite WAL sidecar
-        RecordSnapshotInternal(note, snapshotLabel ?? $"Saved at {DateTime.Now:HH:mm:ss}");
+        RecordSnapshotInternal(note.RelativePath, note.RawMarkdown, snapshotLabel ?? $"Saved at {DateTime.Now:HH:mm:ss}");
         UpsertSqliteCacheRow(note);
 
         return note;
+    }
+
+    /// <summary>
+    /// Deletes a note from disk, in-memory dictionary, and SQLite WAL cache, then rebuilds graph backlinks and increments MutationVersion.
+    /// </summary>
+    public Task<bool> DeleteNoteAsync(string relativePath, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(DeleteNote(relativePath));
+    }
+
+    /// <summary>
+    /// Synchronously deletes a note from disk, in-memory dictionary, and SQLite WAL cache, then rebuilds graph backlinks and increments MutationVersion.
+    /// </summary>
+    public bool DeleteNote(string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return false;
+        }
+
+        string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
+        VaultNote? removedNote = null;
+
+        if (!_notesByRelativePath.TryRemove(normalizedRel, out removedNote))
+        {
+            var match = _notesByRelativePath.Values.FirstOrDefault(n =>
+                string.Equals(n.RelativePath, normalizedRel, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(n.Title, Path.GetFileNameWithoutExtension(normalizedRel), StringComparison.OrdinalIgnoreCase));
+
+            if (match is not null)
+            {
+                normalizedRel = match.RelativePath;
+                _notesByRelativePath.TryRemove(normalizedRel, out removedNote);
+            }
+        }
+
+        string fullPath = removedNote?.FullPath
+            ?? Path.Combine(VaultRootPath, normalizedRel.Replace('/', Path.DirectorySeparatorChar));
+
+        bool fileExisted = false;
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+            fileExisted = true;
+        }
+
+        using (var conn = OpenConnection())
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "DELETE FROM note_cache WHERE relative_path = $path;";
+            cmd.Parameters.AddWithValue("$path", normalizedRel);
+            cmd.ExecuteNonQuery();
+        }
+
+        LatestMetrics = KnowledgeGraphEngine.RebuildGraphRelationships(_notesByRelativePath.Values.ToList());
+        Interlocked.Increment(ref _mutationVersion);
+
+        return removedNote is not null || fileExisted;
     }
 
     /// <summary>
@@ -264,21 +377,110 @@ public sealed class HybridVaultEngine : IDisposable
 
                 await File.WriteAllTextAsync(other.FullPath, other.RawMarkdown, Encoding.UTF8, ct);
                 MarkdownAstEngine.ParseNoteMetadata(other);
+                HydrateFlashcardReviewsForNote(other);
                 UpsertSqliteCacheRow(other);
             }
         }
 
         LatestMetrics = KnowledgeGraphEngine.RebuildGraphRelationships(_notesByRelativePath.Values.ToList());
+        Interlocked.Increment(ref _mutationVersion);
         return note;
     }
 
-    public List<NoteSnapshot> GetSnapshotsForNote(string relativePath)
+    public List<NoteSnapshot> GetSnapshotsForNote(string relativePath) => GetSnapshots(relativePath);
+
+    /// <summary>
+    /// Returns snapshots for a note ordered newest-first (snapshot_id DESC), hydrating from SQLite WAL if needed.
+    /// </summary>
+    public List<NoteSnapshot> GetSnapshots(string relativePath)
     {
-        if (_snapshotsByPath.TryGetValue(relativePath.Replace('\\', '/'), out var list))
+        string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
+        var dbSnapshots = QuerySnapshotsFromSqlite(normalizedRel);
+
+        if (!_snapshotsByPath.TryGetValue(normalizedRel, out var memList) || memList.Count == 0)
         {
-            return list.OrderByDescending(s => s.CreatedUtc).ToList();
+            if (dbSnapshots.Count > 0)
+            {
+                var chronological = dbSnapshots.AsEnumerable().Reverse().ToList();
+                _snapshotsByPath[normalizedRel] = chronological;
+            }
+            return dbSnapshots;
         }
-        return [];
+
+        if (dbSnapshots.Count > memList.Count)
+        {
+            var chronological = dbSnapshots.AsEnumerable().Reverse().ToList();
+            _snapshotsByPath[normalizedRel] = chronological;
+            return dbSnapshots;
+        }
+
+        return memList.AsEnumerable().Reverse().ToList();
+    }
+
+    /// <summary>
+    /// Records a manual milestone snapshot for the specified note in both memory and SQLite WAL sidecar.
+    /// </summary>
+    public NoteSnapshot SaveMilestoneSnapshot(string relativePath, string label = "Manual Milestone")
+    {
+        string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
+        string rawMarkdown = string.Empty;
+
+        if (_notesByRelativePath.TryGetValue(normalizedRel, out var note))
+        {
+            rawMarkdown = note.RawMarkdown;
+        }
+        else
+        {
+            var match = _notesByRelativePath.Values.FirstOrDefault(n =>
+                string.Equals(n.RelativePath, normalizedRel, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(n.Title, Path.GetFileNameWithoutExtension(normalizedRel), StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                normalizedRel = match.RelativePath;
+                rawMarkdown = match.RawMarkdown;
+            }
+            else
+            {
+                string fullPath = Path.Combine(VaultRootPath, normalizedRel.Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(fullPath))
+                {
+                    rawMarkdown = File.ReadAllText(fullPath, Encoding.UTF8);
+                }
+            }
+        }
+
+        return RecordSnapshotInternal(normalizedRel, rawMarkdown, string.IsNullOrWhiteSpace(label) ? "Manual Milestone" : label, forceInsert: true);
+    }
+
+    /// <summary>
+    /// Restores a note from a recorded snapshot matching timestampUtc (or the snapshot prior to latest when timestampUtc is null).
+    /// </summary>
+    public async Task<VaultNote?> RestoreSnapshotAsync(
+        string relativePath,
+        DateTimeOffset? timestampUtc = null,
+        CancellationToken ct = default)
+    {
+        string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
+        var snapshots = GetSnapshots(normalizedRel);
+        if (snapshots.Count == 0)
+        {
+            return null;
+        }
+
+        NoteSnapshot target;
+        if (timestampUtc is not null)
+        {
+            var requestedUtc = timestampUtc.Value.UtcDateTime;
+            target = snapshots
+                .OrderBy(s => Math.Abs((s.CreatedUtc.ToUniversalTime() - requestedUtc).TotalMilliseconds))
+                .First();
+        }
+        else
+        {
+            target = snapshots.Count >= 2 ? snapshots[1] : snapshots[0];
+        }
+
+        return await SaveNoteAsync(normalizedRel, target.RawMarkdown, $"Restored ({target.Label})", ct);
     }
 
     public CanvasDocument LoadCanvasDocument()
@@ -407,6 +609,169 @@ public sealed class HybridVaultEngine : IDisposable
         $"{connectorKind.Trim()}:{workspaceOrSpaceId.Trim()}:{normalizedPath}";
 
     /// <summary>
+    /// Lists external sync bindings from SQLite WAL, optionally filtered by connectorKind.
+    /// </summary>
+    public List<(string BindingKey, string ConnectorKind, string WorkspaceOrSpaceId, string RelativePath, string LastSyncedSha256, string UpdatedUtc)> GetExternalSyncBindings(string? connectorKind = null)
+    {
+        var results = new List<(string, string, string, string, string, string)>();
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        if (string.IsNullOrWhiteSpace(connectorKind))
+        {
+            cmd.CommandText = """
+                SELECT binding_key, connector_kind, workspace_or_space_id, relative_path, last_synced_sha256, updated_utc
+                FROM external_sync_bindings
+                ORDER BY binding_key ASC;
+                """;
+        }
+        else
+        {
+            cmd.CommandText = """
+                SELECT binding_key, connector_kind, workspace_or_space_id, relative_path, last_synced_sha256, updated_utc
+                FROM external_sync_bindings
+                WHERE connector_kind = $kind
+                ORDER BY binding_key ASC;
+                """;
+            cmd.Parameters.AddWithValue("$kind", connectorKind.Trim());
+        }
+
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            results.Add((
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.GetString(5)));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Persists an FSRS v4 flashcard review state in O(1) to the SQLite WAL flashcard_reviews table.
+    /// </summary>
+    public void SaveFlashcardReview(string cardId, double stabilityDays, double difficulty, int reps, DateTimeOffset nextReviewUtc)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO flashcard_reviews (card_id, stability_days, difficulty, reps, next_review_utc, updated_utc)
+            VALUES ($cardId, $stability, $difficulty, $reps, $nextUtc, $updatedUtc)
+            ON CONFLICT(card_id) DO UPDATE SET
+                stability_days = excluded.stability_days,
+                difficulty = excluded.difficulty,
+                reps = excluded.reps,
+                next_review_utc = excluded.next_review_utc,
+                updated_utc = excluded.updated_utc;
+            """;
+        cmd.Parameters.AddWithValue("$cardId", cardId);
+        cmd.Parameters.AddWithValue("$stability", stabilityDays);
+        cmd.Parameters.AddWithValue("$difficulty", difficulty);
+        cmd.Parameters.AddWithValue("$reps", reps);
+        cmd.Parameters.AddWithValue("$nextUtc", nextReviewUtc.UtcDateTime.ToString("O"));
+        cmd.Parameters.AddWithValue("$updatedUtc", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.ExecuteNonQuery();
+
+        // Keep in-memory FlashcardItem instances synchronized if loaded
+        foreach (var note in _notesByRelativePath.Values)
+        {
+            foreach (var card in note.Flashcards)
+            {
+                if (string.Equals(card.Id, cardId, StringComparison.Ordinal))
+                {
+                    card.StabilityDays = stabilityDays;
+                    card.Difficulty = difficulty;
+                    card.Reps = reps;
+                    card.NextReviewUtc = nextReviewUtc.UtcDateTime;
+                    card.LastReviewUtc = DateTime.UtcNow;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Asynchronously persists an FSRS v4 flashcard review state to the SQLite WAL flashcard_reviews table.
+    /// </summary>
+    public Task SaveFlashcardReviewAsync(
+        string cardId,
+        double stabilityDays,
+        double difficulty,
+        int reps,
+        DateTimeOffset nextReviewUtc,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        SaveFlashcardReview(cardId, stabilityDays, difficulty, reps, nextReviewUtc);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Reads a persisted FSRS v4 flashcard review state in O(1) via the card_id PRIMARY KEY B-tree index.
+    /// </summary>
+    public (double StabilityDays, double Difficulty, int Reps, DateTimeOffset NextReviewUtc)? GetFlashcardReview(string cardId)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT stability_days, difficulty, reps, next_review_utc
+            FROM flashcard_reviews
+            WHERE card_id = $cardId
+            LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("$cardId", cardId);
+
+        using var reader = cmd.ExecuteReader();
+        if (reader.Read())
+        {
+            double stability = reader.GetDouble(0);
+            double difficulty = reader.GetDouble(1);
+            int reps = reader.GetInt32(2);
+            string nextUtcStr = reader.GetString(3);
+            var nextReview = DateTimeOffset.TryParse(nextUtcStr, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dto)
+                ? dto
+                : DateTimeOffset.UtcNow;
+
+            return (stability, difficulty, reps, nextReview);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Asynchronously reads a persisted FSRS v4 flashcard review state in O(1) via the card_id PRIMARY KEY B-tree index.
+    /// </summary>
+    public Task<(double StabilityDays, double Difficulty, int Reps, DateTimeOffset NextReviewUtc)?> GetFlashcardReviewAsync(
+        string cardId,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(GetFlashcardReview(cardId));
+    }
+
+    private void HydrateFlashcardReviewsForNote(VaultNote note)
+    {
+        if (note.Flashcards.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var card in note.Flashcards)
+        {
+            var review = GetFlashcardReview(card.Id);
+            if (review is { } r)
+            {
+                card.StabilityDays = r.StabilityDays;
+                card.Difficulty = r.Difficulty;
+                card.Reps = r.Reps;
+                card.NextReviewUtc = r.NextReviewUtc.UtcDateTime;
+            }
+        }
+    }
+
+    /// <summary>
     /// Persists a UI preference key-value pair (e.g. "design_system_id", "dark_mode") to the SQLite WAL sidecar in O(1) time.
     /// </summary>
     public async Task SaveUiPreferenceAsync(string key, string value, CancellationToken ct = default)
@@ -483,21 +848,109 @@ public sealed class HybridVaultEngine : IDisposable
         return cmd.ExecuteScalar() as string;
     }
 
-    private void RecordSnapshotInternal(VaultNote note, string label)
+    private NoteSnapshot RecordSnapshotInternal(VaultNote note, string label = "Auto-Snapshot") =>
+        RecordSnapshotInternal(note.RelativePath, note.RawMarkdown, label, forceInsert: false);
+
+    private NoteSnapshot RecordSnapshotInternal(string relativePath, string content, string label = "Auto-Snapshot", bool forceInsert = false)
     {
-        var list = _snapshotsByPath.GetOrAdd(note.RelativePath, _ => []);
-        if (list.Count > 0 && list[^1].ContentSha256 == note.ContentSha256)
-            return;
+        string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
+        string sha256 = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(content ?? string.Empty)));
+        var list = _snapshotsByPath.GetOrAdd(normalizedRel, _ => []);
+
+        if (!forceInsert && list.Count > 0 && list[^1].ContentSha256 == sha256)
+        {
+            return list[^1];
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        string nowIso = nowUtc.ToString("O");
+        string effectiveLabel = string.IsNullOrWhiteSpace(label) ? "Auto-Snapshot" : label;
+        long insertedId;
+
+        using (var conn = OpenConnection())
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                INSERT INTO note_snapshots (path, created_utc, content, label)
+                VALUES ($path, $utc, $content, $label);
+                SELECT last_insert_rowid();
+                """;
+            cmd.Parameters.AddWithValue("$path", normalizedRel);
+            cmd.Parameters.AddWithValue("$utc", nowIso);
+            cmd.Parameters.AddWithValue("$content", content ?? string.Empty);
+            cmd.Parameters.AddWithValue("$label", effectiveLabel);
+            insertedId = Convert.ToInt64(cmd.ExecuteScalar() ?? 0L, CultureInfo.InvariantCulture);
+
+            using var trimCmd = conn.CreateCommand();
+            trimCmd.CommandText = """
+                DELETE FROM note_snapshots
+                WHERE path = $path
+                  AND snapshot_id NOT IN (
+                      SELECT snapshot_id
+                      FROM note_snapshots
+                      WHERE path = $path
+                      ORDER BY snapshot_id DESC
+                      LIMIT 25
+                  );
+                """;
+            trimCmd.Parameters.AddWithValue("$path", normalizedRel);
+            trimCmd.ExecuteNonQuery();
+        }
 
         var snap = new NoteSnapshot(
-            Guid.NewGuid().ToString("N")[..10],
-            note.RelativePath,
-            DateTime.UtcNow,
-            label,
-            note.RawMarkdown,
-            note.ContentSha256);
+            insertedId > 0 ? insertedId.ToString(CultureInfo.InvariantCulture) : Guid.NewGuid().ToString("N")[..10],
+            normalizedRel,
+            nowUtc,
+            effectiveLabel,
+            content ?? string.Empty,
+            sha256);
 
         list.Add(snap);
+        while (list.Count > 25)
+        {
+            list.RemoveAt(0);
+        }
+
+        return snap;
+    }
+
+    private List<NoteSnapshot> QuerySnapshotsFromSqlite(string normalizedRel)
+    {
+        var results = new List<NoteSnapshot>();
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT snapshot_id, path, created_utc, content, label
+            FROM note_snapshots
+            WHERE path = $path
+            ORDER BY snapshot_id DESC
+            LIMIT 25;
+            """;
+        cmd.Parameters.AddWithValue("$path", normalizedRel);
+
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            long id = reader.GetInt64(0);
+            string path = reader.GetString(1);
+            string createdStr = reader.GetString(2);
+            string content = reader.GetString(3);
+            string label = reader.GetString(4);
+            var createdUtc = DateTime.TryParse(createdStr, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt)
+                ? dt.ToUniversalTime()
+                : DateTime.UtcNow;
+            string sha256 = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
+
+            results.Add(new NoteSnapshot(
+                id.ToString(CultureInfo.InvariantCulture),
+                path,
+                createdUtc,
+                label,
+                content,
+                sha256));
+        }
+
+        return results;
     }
 
     private void UpsertSqliteCacheRow(VaultNote note)

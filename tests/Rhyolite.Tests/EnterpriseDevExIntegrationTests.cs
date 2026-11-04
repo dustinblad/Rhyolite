@@ -618,4 +618,109 @@ public sealed class EnterpriseDevExIntegrationTests
             }
         }
     }
+
+    [Fact]
+    public async Task FullAppUsability_SnapshotRestore_FlashcardPersistence_NoteDelete_AndLivePrFallback_WorkEndToEnd()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "RhyoliteFullUsabilityTest_" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            using var vault = new HybridVaultEngine(tempDir);
+            await vault.LoadOrSeedVaultAsync();
+
+            // 1. Verify SaveFlashcardReview & GetFlashcardReview round-trip in SQLite WAL
+            var nextReview = DateTimeOffset.UtcNow.AddDays(7);
+            vault.SaveFlashcardReview("fc-usability-card-01", stabilityDays: 14.5, difficulty: 4.2, reps: 3, nextReviewUtc: nextReview);
+            var loadedReview = vault.GetFlashcardReview("fc-usability-card-01");
+            Assert.NotNull(loadedReview);
+            Assert.Equal(14.5, loadedReview!.Value.StabilityDays, 3);
+            Assert.Equal(4.2, loadedReview.Value.Difficulty, 3);
+            Assert.Equal(3, loadedReview.Value.Reps);
+            Assert.True(Math.Abs((loadedReview.Value.NextReviewUtc - nextReview).TotalSeconds) < 2.0);
+
+            // 2. Verify SaveMilestoneSnapshot & RestoreSnapshotAsync restore previous note content on disk
+            const string snapNotePath = "01 — Architecture/Snapshot TimeMachine Spec.md";
+            const string v1Content = "# Snapshot TimeMachine Spec\nVersion 1: Canonical baseline architecture.";
+            await vault.SaveNoteAsync(snapNotePath, v1Content, "Baseline v1");
+            var milestoneSnap = vault.SaveMilestoneSnapshot(snapNotePath, "Milestone v1 Golden");
+            Assert.Equal("Milestone v1 Golden", milestoneSnap.Label);
+
+            const string v2Content = "# Snapshot TimeMachine Spec\nVersion 2: Experimental draft mutation.";
+            await vault.SaveNoteAsync(snapNotePath, v2Content, "Draft v2");
+            string diskV2 = await File.ReadAllTextAsync(Path.Combine(tempDir, snapNotePath));
+            Assert.Contains("Version 2: Experimental draft mutation.", diskV2);
+
+            var restoredNote = await vault.RestoreSnapshotAsync(
+                snapNotePath,
+                new DateTimeOffset(DateTime.SpecifyKind(milestoneSnap.CreatedUtc, DateTimeKind.Utc)));
+            Assert.NotNull(restoredNote);
+            Assert.Contains("Version 1: Canonical baseline architecture.", restoredNote!.RawMarkdown);
+            string diskRestored = await File.ReadAllTextAsync(Path.Combine(tempDir, snapNotePath));
+            Assert.Contains("Version 1: Canonical baseline architecture.", diskRestored);
+
+            // 3. Verify DeleteNoteAsync deletes a note from disk and SQLite WAL
+            const string deleteNotePath = "02 — Daily Notes/Ephemeral Scratchpad.md";
+            var createdToDelete = await vault.SaveNoteAsync(deleteNotePath, "# Ephemeral Scratchpad\nTo be deleted.", "Create Scratch");
+            Assert.True(File.Exists(createdToDelete.FullPath));
+            bool deleted = await vault.DeleteNoteAsync(deleteNotePath);
+            Assert.True(deleted);
+            Assert.False(File.Exists(createdToDelete.FullPath));
+            Assert.DoesNotContain(vault.Notes, n => string.Equals(n.RelativePath, deleteNotePath, StringComparison.OrdinalIgnoreCase));
+
+            // 4. Verify SyncWithBladbaseWorkspaceAsync persists external_sync_bindings in SQLite WAL
+            var connectors = new WorkspaceConnectorsEngine();
+            var bbConfig = WorkspaceConnectorsEngine.CreateDefaultBladbaseConfig("ws-bladbase-live-test");
+            var syncSummary = await connectors.SyncWithBladbaseWorkspaceAsync(vault, bbConfig);
+            Assert.True(syncSummary.PulledCount + syncSummary.PushedCount + syncSummary.MergedCount > 0);
+
+            var persistedBindings = vault.GetExternalSyncBindings("Bladbase");
+            Assert.NotEmpty(persistedBindings);
+            Assert.Contains(persistedBindings, b => b.WorkspaceOrSpaceId == "ws-bladbase-live-test" && !string.IsNullOrWhiteSpace(b.LastSyncedSha256));
+
+            // 5. Verify FetchAndAnalyzePullRequestLiveOrFallbackAsync populates github_pr_cache and analyzes PR blast radius
+            var prReport = await EnterpriseDevExEngine.FetchAndAnalyzePullRequestLiveOrFallbackAsync(
+                "dustinblad/rhyolite",
+                142,
+                githubToken: null,
+                vault);
+            Assert.Equal("dustinblad/rhyolite", prReport.Repository);
+            Assert.Equal(142, prReport.PrNumber);
+            Assert.True(prReport.TotalAdditions > 0);
+            Assert.Contains("PR #142", prReport.GeneratedReviewMarkdown);
+
+            var walPrHit = vault.TryGetGitHubPrCache(prReport.SqliteWalCacheKey);
+            Assert.True(walPrHit.Found);
+            Assert.Contains("PR #142", walPrHit.AnalysisMarkdown);
+
+            // 6. Verify ExecuteRunbookCellAsync(..., allowDestructiveOverride: true) allows confirmed execution of guarded runbook cells
+            const string destructiveRunbookMd = """
+                # Production Emergency Remediation
+                ```bash env=prod
+                kubectl delete pod -l app=rhyolite-sync --force
+                ```
+                """;
+            var cells = EnterpriseDevExEngine.ExtractRunbookCells(destructiveRunbookMd);
+            Assert.Single(cells);
+            var guardedCell = cells[0];
+            Assert.True(guardedCell.RequiresConfirmation);
+            Assert.False(guardedCell.IsReadOnlySafe);
+
+            var blockedResult = await EnterpriseDevExEngine.ExecuteRunbookCellAsync(guardedCell, allowDestructiveOverride: false);
+            Assert.False(blockedResult.Executed);
+            Assert.True(blockedResult.BlockedByGuardrail);
+            Assert.Contains("[GUARDRAIL BLOCKED]", blockedResult.Output);
+
+            var overriddenResult = await EnterpriseDevExEngine.ExecuteRunbookCellAsync(guardedCell, allowDestructiveOverride: true);
+            Assert.True(overriddenResult.Executed);
+            Assert.False(overriddenResult.BlockedByGuardrail);
+            Assert.Contains("[GUARDRAIL OVERRIDDEN BY USER]", overriddenResult.Output);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
 }

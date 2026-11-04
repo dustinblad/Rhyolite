@@ -1,11 +1,14 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Rhyolite.Core.Protocol;
+using Rhyolite.Core.Storage;
 using Rhyolite.ViewModels;
 using Rhyolite.Views;
 
@@ -32,12 +35,56 @@ sealed class Program
             }
         }
 
+        if (args.Length >= 1 && string.Equals(args[0], "--mcp-stdio", StringComparison.OrdinalIgnoreCase))
+        {
+            string vaultDir = args.Length >= 2
+                ? args[1]
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "RhyoliteVault");
+            return RunMcpStdioServer(vaultDir).GetAwaiter().GetResult();
+        }
+
         if (args.Length >= 2 && args[0] == "--export-mockups")
         {
             return ExportAllScreenMockups(args[1]);
         }
 
         return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    }
+
+    private static async Task<int> RunMcpStdioServer(string vaultDir)
+    {
+        using var vault = new HybridVaultEngine(vaultDir);
+        await vault.LoadOrSeedVaultAsync().ConfigureAwait(false);
+
+        var authEngine = new RhyoliteAuthEngine();
+        var ownerAccount = authEngine.RegisterAccount(
+            email: "stdio-agent@rhyolite.local",
+            displayName: "MCP Stdio Agent",
+            password: "Rhyolite-Stdio-Session-Key-2026!",
+            role: VaultRole.VaultOwner);
+        var token = authEngine.IssueBearerToken(ownerAccount);
+
+        var peerSync = new PeerSyncEngine("rhyolite-stdio-node");
+        foreach (var note in vault.Notes)
+        {
+            peerSync.UpsertNote(note.RelativePath, note.RawMarkdown, note.Tags);
+        }
+
+        var mcp = new McpServerEngine(authEngine, peerSync, vault);
+
+        while (await Console.In.ReadLineAsync().ConfigureAwait(false) is { } line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            string responseJson = mcp.HandleJsonRpc(line, token.RawBearerToken);
+            await Console.Out.WriteLineAsync(responseJson).ConfigureAwait(false);
+            await Console.Out.FlushAsync().ConfigureAwait(false);
+        }
+
+        return 0;
     }
 
     private static int ExportAllScreenMockups(string outputDir)

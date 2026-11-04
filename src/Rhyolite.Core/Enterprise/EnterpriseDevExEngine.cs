@@ -1,7 +1,11 @@
 using System.Diagnostics;
+using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Rhyolite.Core.Models;
+using Rhyolite.Core.Storage;
 
 namespace Rhyolite.Core.Enterprise;
 
@@ -51,7 +55,10 @@ public sealed record ExecutableRunbookCell(
     string CommandBody,
     int StartLine,
     bool IsReadOnlySafe,
-    IReadOnlyList<string> ReferencedSecretUris);
+    IReadOnlyList<string> ReferencedSecretUris)
+{
+    public bool RequiresConfirmation => !IsReadOnlySafe;
+}
 
 public sealed record RunbookExecutionResult(
     int CellIndex,
@@ -62,7 +69,11 @@ public sealed record RunbookExecutionResult(
     int ExitCode,
     double DurationMilliseconds,
     int InjectedSecretsCount,
-    string OutputLog);
+    string OutputLog)
+{
+    public bool BlockedByGuardrail => BlockedBySafetyGuardrail;
+    public string Output => OutputLog;
+}
 
 public sealed record CodeAnchorDriftResult(
     string NotePath,
@@ -136,7 +147,17 @@ public sealed record GitHubPrAnalysisReport(
     IReadOnlyList<string> ImpactedVaultNotes,
     IReadOnlyList<string> ExtractedReviewTasks,
     bool PassedDiffSecretScan,
-    string GeneratedReviewMarkdown);
+    string GeneratedReviewMarkdown)
+{
+    public string Repository => PullRequest.Repository;
+    public int Number => PullRequest.Number;
+    public int PrNumber => PullRequest.Number;
+    public string Title => PullRequest.Title;
+    public string HeadSha => PullRequest.HeadSha;
+    public string SqliteWalCacheKey => EnterpriseDevExEngine.ComputePrSqliteWalCacheKey(PullRequest.Repository, PullRequest.Number, PullRequest.HeadSha);
+    public bool LoadedFromWalCache { get; init; }
+    public bool LoadedFromLiveGitHub { get; init; }
+}
 
 /// <summary>
 /// Enterprise Developer Experience (DevEx) Engine:
@@ -330,12 +351,12 @@ public static partial class EnterpriseDevExEngine
     /// </summary>
     public static async Task<RunbookExecutionResult> ExecuteRunbookCellAsync(
         ExecutableRunbookCell cell,
-        bool allowDestructiveExecution = false,
+        bool allowDestructiveOverride = false,
         CancellationToken ct = default)
     {
         var sw = Stopwatch.StartNew();
 
-        if (!cell.IsReadOnlySafe && !allowDestructiveExecution)
+        if (!cell.IsReadOnlySafe && !allowDestructiveOverride)
         {
             sw.Stop();
             return new RunbookExecutionResult(
@@ -351,6 +372,11 @@ public static partial class EnterpriseDevExEngine
         }
 
         var resolvedLog = new StringBuilder();
+        if (!cell.IsReadOnlySafe && allowDestructiveOverride)
+        {
+            resolvedLog.AppendLine($"[GUARDRAIL OVERRIDDEN BY USER] Explicit confirmation granted for cell #{cell.CellIndex} ({cell.Language} @ {cell.EnvironmentProfile}).");
+        }
+
         foreach (var secretUri in cell.ReferencedSecretUris)
         {
             var res = await ResolveSecretReferenceAsync(secretUri, allowLiveCliExecution: false, ct: ct).ConfigureAwait(false);
@@ -695,6 +721,165 @@ public static partial class EnterpriseDevExEngine
               }
             }
             """;
+    }
+
+    private static readonly HttpClient GitHubHttpClient = new()
+    {
+        Timeout = TimeSpan.FromSeconds(3)
+    };
+
+    /// <summary>
+    /// Fetches a GitHub Pull Request via the Single-RTT GraphQL v4 query against https://api.github.com/graphql
+    /// (when a token is provided or GITHUB_TOKEN is set), caches the result in SQLite WAL (.rhyolite/cache.db),
+    /// and falls back cleanly to the sample enterprise PR when offline or unauthenticated.
+    /// </summary>
+    public static async Task<GitHubPrAnalysisReport> FetchAndAnalyzePullRequestLiveOrFallbackAsync(
+        string repoFullName,
+        int prNumber,
+        string? githubToken,
+        HybridVaultEngine vault,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(vault);
+        string normalizedRepo = string.IsNullOrWhiteSpace(repoFullName) ? "dustinblad/rhyolite" : repoFullName.Trim();
+        int normalizedNumber = prNumber > 0 ? prNumber : 142;
+
+        var fallbackPr = CreateSampleEnterprisePullRequest() with
+        {
+            Repository = normalizedRepo,
+            Number = normalizedNumber
+        };
+
+        string fallbackCacheKey = ComputePrSqliteWalCacheKey(normalizedRepo, normalizedNumber, fallbackPr.HeadSha);
+        var cached = vault.TryGetGitHubPrCache(fallbackCacheKey);
+
+        string? effectiveToken = !string.IsNullOrWhiteSpace(githubToken)
+            ? githubToken.Trim()
+            : Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+
+        GitHubPullRequestSnapshot? liveSnapshot = null;
+        if (!cached.Found && !string.IsNullOrWhiteSpace(effectiveToken))
+        {
+            liveSnapshot = await TryFetchGitHubPrGraphQlLiveAsync(normalizedRepo, normalizedNumber, effectiveToken, ct).ConfigureAwait(false);
+        }
+
+        var activeSnapshot = liveSnapshot ?? fallbackPr;
+        var report = AnalyzeGitHubPullRequest(activeSnapshot, vault.Notes);
+        string activeCacheKey = ComputePrSqliteWalCacheKey(activeSnapshot.Repository, activeSnapshot.Number, activeSnapshot.HeadSha);
+
+        vault.UpsertGitHubPrCache(
+            activeCacheKey,
+            activeSnapshot.Repository,
+            activeSnapshot.Number,
+            activeSnapshot.HeadSha,
+            liveSnapshot is not null ? "W/\"etag-live-graphql\"" : "W/\"etag-wal-fallback\"",
+            report.GeneratedReviewMarkdown);
+
+        return report with
+        {
+            LoadedFromWalCache = cached.Found,
+            LoadedFromLiveGitHub = liveSnapshot is not null
+        };
+    }
+
+    private static async Task<GitHubPullRequestSnapshot?> TryFetchGitHubPrGraphQlLiveAsync(
+        string repoFullName,
+        int prNumber,
+        string token,
+        CancellationToken ct)
+    {
+        try
+        {
+            int slash = repoFullName.IndexOf('/');
+            string owner = slash > 0 ? repoFullName[..slash] : "dustinblad";
+            string repo = slash > 0 && slash + 1 < repoFullName.Length ? repoFullName[(slash + 1)..] : repoFullName;
+
+            string query = BuildSingleRttPullRequestGraphQlQuery(owner, repo, prNumber);
+            string payloadJson = JsonSerializer.Serialize(new { query });
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.github.com/graphql")
+            {
+                Content = new StringContent(payloadJson, Encoding.UTF8, "application/json")
+            };
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            req.Headers.UserAgent.ParseAdd("Rhyolite-EnterpriseDevEx/1.0");
+
+            using var resp = await GitHubHttpClient.SendAsync(req, ct).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            string rawJson = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            var prNode = JsonNode.Parse(rawJson)?["data"]?["repository"]?["pullRequest"];
+            if (prNode is null)
+            {
+                return null;
+            }
+
+            var files = new List<GitHubPrChangedFile>();
+            if (prNode["files"]?["nodes"] is JsonArray filesArr)
+            {
+                foreach (var f in filesArr)
+                {
+                    if (f is null) continue;
+                    files.Add(new GitHubPrChangedFile(
+                        f["path"]?.GetValue<string>() ?? "Unknown",
+                        f["additions"]?.GetValue<int>() ?? 0,
+                        f["deletions"]?.GetValue<int>() ?? 0,
+                        f["changeType"]?.GetValue<string>() ?? "Modified"));
+                }
+            }
+
+            var comments = new List<GitHubPrReviewComment>();
+            if (prNode["reviewThreads"]?["nodes"] is JsonArray threadsArr)
+            {
+                foreach (var thread in threadsArr)
+                {
+                    if (thread is null) continue;
+                    bool isResolved = thread["isResolved"]?.GetValue<bool>() ?? false;
+                    string? path = thread["path"]?.GetValue<string>();
+                    int? line = thread["line"]?.GetValue<int>();
+                    if (thread["comments"]?["nodes"] is JsonArray commArr)
+                    {
+                        foreach (var c in commArr)
+                        {
+                            if (c is null) continue;
+                            string body = c["body"]?.GetValue<string>() ?? string.Empty;
+                            comments.Add(new GitHubPrReviewComment(
+                                CommentId: c["id"]?.GetValue<string>() ?? Guid.NewGuid().ToString("N")[..8],
+                                AuthorLogin: c["author"]?["login"]?.GetValue<string>() ?? "reviewer",
+                                AuthorRole: "GitHub Reviewer",
+                                FilePath: path,
+                                LineNumber: line,
+                                DiffHunk: c["diffHunk"]?.GetValue<string>(),
+                                Body: body,
+                                IsResolved: isResolved,
+                                IsActionableBlocker: body.Contains("blocker", StringComparison.OrdinalIgnoreCase) || body.Contains("security", StringComparison.OrdinalIgnoreCase),
+                                CreatedAtUtc: DateTimeOffset.UtcNow));
+                        }
+                    }
+                }
+            }
+
+            return new GitHubPullRequestSnapshot(
+                Repository: repoFullName,
+                Number: prNode["number"]?.GetValue<int>() ?? prNumber,
+                Title: prNode["title"]?.GetValue<string>() ?? $"PR #{prNumber}",
+                AuthorLogin: prNode["author"]?["login"]?.GetValue<string>() ?? owner,
+                HeadBranch: prNode["headRefName"]?.GetValue<string>() ?? "feature",
+                BaseBranch: prNode["baseRefName"]?.GetValue<string>() ?? "main",
+                HeadSha: prNode["headRefOid"]?.GetValue<string>() ?? "0000000",
+                State: prNode["state"]?.GetValue<string>() ?? "OPEN",
+                CiCheckStatus: prNode["commits"]?["nodes"]?[0]?["commit"]?["statusCheckRollup"]?["state"]?.GetValue<string>() ?? "SUCCESS",
+                ReviewDecision: prNode["reviewDecision"]?.GetValue<string>() ?? "REVIEW_REQUIRED",
+                ChangedFiles: files,
+                Comments: comments);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public static GitHubPullRequestSnapshot CreateSampleEnterprisePullRequest()

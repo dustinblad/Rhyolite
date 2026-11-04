@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,16 +18,20 @@ namespace Rhyolite.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
-    private readonly HybridVaultEngine _vaultEngine;
+    private HybridVaultEngine _vaultEngine;
     private readonly RhyoliteAuthEngine _authEngine;
     private readonly PeerSyncEngine _peerSyncEngine;
-    private readonly McpServerEngine _mcpServer;
-    private readonly GraphQlEngine _graphQlEngine;
+    private McpServerEngine _mcpServer;
+    private GraphQlEngine _graphQlEngine;
+    private readonly WorkspaceConnectorsEngine _connectorsEngine = new();
     private string _ownerBearerToken = string.Empty;
     private readonly List<FlashcardItem> _allFlashcards = [];
     private int _currentFlashcardIndex;
     private bool _isApplyingDesignSystem;
     private bool _hasExplicitDesignSelection;
+    private string? _selectedGraphNodeTitle;
+
+    public HybridVaultEngine VaultEngine => _vaultEngine;
 
     public ObservableCollection<DesignSystemPreset> DesignSystems { get; } = new(DesignSystemCatalog.All);
 
@@ -52,19 +57,46 @@ public partial class MainViewModel : ViewModelBase
     private bool _isCommandPaletteOpen;
 
     [ObservableProperty]
+    private string _commandPaletteFilter = string.Empty;
+
+    [ObservableProperty]
     private string _searchFilter = string.Empty;
+
+    [ObservableProperty]
+    private string _vaultPathInput = string.Empty;
 
     [ObservableProperty]
     private VaultNote? _selectedNote;
 
     [ObservableProperty]
+    private string _editableNoteTitle = string.Empty;
+
+    [ObservableProperty]
     private string _editorMarkdownText = string.Empty;
 
     [ObservableProperty]
-    private string _editorMode = "Reading"; // Reading, Live, Source
+    private string _readingPreviewBodyText = string.Empty;
+
+    [ObservableProperty]
+    private string _editorMode = "Split"; // Source, Split, Reading
+
+    [ObservableProperty]
+    private bool _isSourceEditorVisible = true;
+
+    [ObservableProperty]
+    private bool _isReadingPreviewVisible = true;
+
+    [ObservableProperty]
+    private string _newPropertyKey = string.Empty;
+
+    [ObservableProperty]
+    private string _newPropertyValue = string.Empty;
 
     [ObservableProperty]
     private string _saveTelemetryText = "✓ Flushed to .md in 0.14 ms · SQLite WAL synced";
+
+    [ObservableProperty]
+    private string _statusBarRightText = "MCP JSON-RPC 2.0 + GraphQL + HLC P2P Active · RBAC: VaultOwner";
 
     [ObservableProperty]
     private string _vaultSummaryText = "7 Notes · 14 Links · SQLite WAL";
@@ -108,6 +140,15 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private CanvasDocument _canvasDoc = new();
 
+    [ObservableProperty]
+    private string? _selectedCanvasCardId;
+
+    [ObservableProperty]
+    private string _selectedCanvasCardTitle = string.Empty;
+
+    [ObservableProperty]
+    private string _selectedCanvasCardBody = string.Empty;
+
     // Bases State
     [ObservableProperty]
     private bool _isBasesTableMode = true;
@@ -124,6 +165,9 @@ public partial class MainViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _flashcardMeta = "Stability: 4.0d · Difficulty: 5.0";
+
+    [ObservableProperty]
+    private bool _isFlashcardAnswerRevealed = true;
 
     [ObservableProperty]
     private int _dueFlashcardsCount;
@@ -143,6 +187,12 @@ public partial class MainViewModel : ViewModelBase
 
     // Enterprise DevEx & GitHub PR Studio State
     [ObservableProperty]
+    private string _gitHubRepoInput = "dustinblad/Rhyolite";
+
+    [ObservableProperty]
+    private int _gitHubPrNumberInput = 142;
+
+    [ObservableProperty]
     private string _gitHubPrHeaderText = "dustinblad/rhyolite #142 — feat(storage): Zero-latency SQLite WAL sidecar & 1Password/KeePassXC secret redactor";
 
     [ObservableProperty]
@@ -159,9 +209,12 @@ public partial class MainViewModel : ViewModelBase
 
     public ObservableCollection<VaultNote> VaultNotes { get; } = [];
     public ObservableCollection<VaultNote> PinnedNotes { get; } = [];
+    public ObservableCollection<VaultNote> FilteredCommandPaletteNotes { get; } = [];
     public ObservableCollection<FrontmatterProperty> ActiveProperties { get; } = [];
     public ObservableCollection<string> ActiveTags { get; } = [];
     public ObservableCollection<MarkdownHeading> ActiveHeadings { get; } = [];
+    public ObservableCollection<MarkdownCallout> ActiveCallouts { get; } = [];
+    public ObservableCollection<WikiLinkRef> ActiveOutgoingLinks { get; } = [];
     public ObservableCollection<VaultTaskItem> ActiveTasks { get; } = [];
     public ObservableCollection<WikiLinkRef> ActiveBacklinks { get; } = [];
     public ObservableCollection<UnlinkedMentionRef> ActiveUnlinkedMentions { get; } = [];
@@ -181,7 +234,11 @@ public partial class MainViewModel : ViewModelBase
     public bool IsDevExView => ActiveScreen == "DevEx";
     public bool IsMobileView => ActiveScreen == "Mobile";
 
-    public Task InitializationTask { get; }
+    public int SourceEditorColumnSpan => IsSourceEditorVisible && !IsReadingPreviewVisible ? 2 : 1;
+    public int ReadingPreviewGridColumn => IsSourceEditorVisible ? 1 : 0;
+    public int ReadingPreviewColumnSpan => !IsSourceEditorVisible && IsReadingPreviewVisible ? 2 : 1;
+
+    public Task InitializationTask { get; private set; }
 
     public MainViewModel()
         : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "RhyoliteVault"))
@@ -190,11 +247,12 @@ public partial class MainViewModel : ViewModelBase
 
     public MainViewModel(string customVaultPath)
     {
+        _vaultPathInput = customVaultPath;
         _vaultEngine = new HybridVaultEngine(customVaultPath);
         _authEngine = new RhyoliteAuthEngine();
         _peerSyncEngine = new PeerSyncEngine("rhyolite-macbook-pro");
-        _mcpServer = new McpServerEngine(_authEngine, _peerSyncEngine);
-        _graphQlEngine = new GraphQlEngine(_authEngine, _peerSyncEngine, _mcpServer);
+        _mcpServer = new McpServerEngine(_authEngine, _peerSyncEngine, _vaultEngine);
+        _graphQlEngine = new GraphQlEngine(_authEngine, _peerSyncEngine, _mcpServer, _vaultEngine);
 
         var owner = _authEngine.RegisterAccount(
             "architect@rhyolite.dev",
@@ -238,11 +296,31 @@ public partial class MainViewModel : ViewModelBase
         }
 
         CanvasDoc = _vaultEngine.LoadCanvasDocument();
+        var firstCard = CanvasDoc.Nodes.FirstOrDefault(n => !string.Equals(n.Type, "group", StringComparison.OrdinalIgnoreCase));
+        if (firstCard is not null)
+        {
+            SelectCanvasCard(firstCard);
+        }
+
         RebuildGraphLayout();
         RebuildFlashcardDeck();
         ExecuteAskCopilot();
         InitializeProtocolPreview();
     }
+
+    partial void OnSearchFilterChanged(string value) => RefreshCollectionsFromEngine();
+
+    partial void OnCommandPaletteFilterChanged(string value) => RefreshCommandPaletteNotes();
+
+    partial void OnEditorMarkdownTextChanged(string value)
+    {
+        var (_, body, _) = MarkdownAstEngine.ExtractFrontmatter(value ?? string.Empty);
+        ReadingPreviewBodyText = body;
+    }
+
+    partial void OnGraphRepulsionChanged(double value) => RebuildGraphVisuals();
+
+    partial void OnGraphLinkDistanceChanged(double value) => RebuildGraphVisuals();
 
     private void RefreshCollectionsFromEngine()
     {
@@ -251,18 +329,20 @@ public partial class MainViewModel : ViewModelBase
 
         foreach (var note in _vaultEngine.Notes)
         {
+            if (note.IsPinned)
+            {
+                PinnedNotes.Add(note);
+            }
+
             if (!string.IsNullOrWhiteSpace(SearchFilter) &&
                 !note.Title.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase) &&
-                !note.RawMarkdown.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase))
+                !note.RawMarkdown.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase) &&
+                !note.Tags.Any(t => t.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
 
             VaultNotes.Add(note);
-            if (note.IsPinned)
-            {
-                PinnedNotes.Add(note);
-            }
         }
 
         var metrics = _vaultEngine.LatestMetrics;
@@ -273,13 +353,33 @@ public partial class MainViewModel : ViewModelBase
         TopologyGhostCount = metrics.GhostLinkCount;
 
         RefreshBasesViews();
+        RefreshCommandPaletteNotes();
+    }
+
+    private void RefreshCommandPaletteNotes()
+    {
+        FilteredCommandPaletteNotes.Clear();
+        var query = CommandPaletteFilter?.Trim() ?? string.Empty;
+        var matches = string.IsNullOrWhiteSpace(query)
+            ? _vaultEngine.Notes.Take(4)
+            : _vaultEngine.Notes
+                .Where(n => n.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                            n.RelativePath.Contains(query, StringComparison.OrdinalIgnoreCase))
+                .Take(5);
+
+        foreach (var n in matches)
+        {
+            FilteredCommandPaletteNotes.Add(n);
+        }
     }
 
     public void SelectNote(VaultNote? note)
     {
         if (note is null) return;
         SelectedNote = note;
+        EditableNoteTitle = note.Title;
         EditorMarkdownText = note.RawMarkdown;
+        ReadingPreviewBodyText = note.BodyWithoutFrontmatter;
         SaveTelemetryText = $"✓ Flushed to .md in {note.LastWriteMilliseconds:0.00} ms · AST {note.LastParseMilliseconds:0.00} ms · SQLite WAL";
 
         ActiveProperties.Clear();
@@ -290,6 +390,12 @@ public partial class MainViewModel : ViewModelBase
 
         ActiveHeadings.Clear();
         foreach (var h in note.Headings) ActiveHeadings.Add(h);
+
+        ActiveCallouts.Clear();
+        foreach (var c in note.Callouts) ActiveCallouts.Add(c);
+
+        ActiveOutgoingLinks.Clear();
+        foreach (var ol in note.OutgoingLinks) ActiveOutgoingLinks.Add(ol);
 
         ActiveTasks.Clear();
         foreach (var task in note.Tasks) ActiveTasks.Add(task);
@@ -314,10 +420,10 @@ public partial class MainViewModel : ViewModelBase
         ActiveDiffLines.Clear();
         var snaps = _vaultEngine.GetSnapshotsForNote(note.RelativePath);
         string baseline = snaps.Count > 1
-            ? snaps[^1].RawMarkdown
+            ? snaps[1].RawMarkdown
             : note.RawMarkdown.Replace("SQLite WAL", "In-Memory Cache");
 
-        foreach (var line in SnapshotDiffEngine.ComputeLineDiff(baseline, note.RawMarkdown).Take(14))
+        foreach (var line in SnapshotDiffEngine.ComputeLineDiff(baseline, note.RawMarkdown).Take(16))
         {
             ActiveDiffLines.Add(line);
         }
@@ -338,8 +444,11 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    public void RebuildGraphVisuals() => RebuildGraphLayout();
+
     private void RebuildGraphLayout()
     {
+        if (_vaultEngine?.Notes is null) return;
         var (nodes, edges) = KnowledgeGraphEngine.CreateForceLayout(
             _vaultEngine.Notes,
             width: 1020,
@@ -353,12 +462,48 @@ public partial class MainViewModel : ViewModelBase
         GraphEdges = edges;
     }
 
+    public void OnGraphNodeSelected(GraphNode2D node)
+    {
+        if (node is null) return;
+        _selectedGraphNodeTitle = node.Title;
+        SelectedGraphNodeInfo = $"Selected: {node.Title} (PageRank: {node.PageRank:0.00} · Folder: {node.Folder})";
+    }
+
+    [RelayCommand]
+    public void OpenSelectedGraphNote()
+    {
+        string targetTitle = _selectedGraphNodeTitle ?? _vaultEngine.LatestMetrics.TopHubTitle;
+        if (string.IsNullOrWhiteSpace(targetTitle)) return;
+
+        var match = _vaultEngine.Notes.FirstOrDefault(n =>
+            string.Equals(n.Title, targetTitle, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(n.RelativePath, targetTitle, StringComparison.OrdinalIgnoreCase))
+            ?? VaultNotes.FirstOrDefault();
+
+        if (match is not null)
+        {
+            SelectNote(match);
+            SwitchScreen("Studio");
+        }
+    }
+
     private void RebuildFlashcardDeck()
     {
         _allFlashcards.Clear();
         foreach (var n in _vaultEngine.Notes)
         {
-            _allFlashcards.AddRange(n.Flashcards);
+            foreach (var card in n.Flashcards)
+            {
+                var savedReview = _vaultEngine.GetFlashcardReview(card.Id);
+                if (savedReview is { } review)
+                {
+                    card.StabilityDays = review.StabilityDays;
+                    card.Difficulty = review.Difficulty;
+                    card.Reps = review.Reps;
+                    card.NextReviewUtc = review.NextReviewUtc.UtcDateTime;
+                }
+                _allFlashcards.Add(card);
+            }
         }
 
         if (_allFlashcards.Count == 0)
@@ -384,7 +529,13 @@ public partial class MainViewModel : ViewModelBase
         var card = _allFlashcards[_currentFlashcardIndex % _allFlashcards.Count];
         FlashcardQuestion = card.Question;
         FlashcardAnswer = card.Answer;
-        FlashcardMeta = $"Source: {card.NoteTitle}.md · Stability: {card.StabilityDays:0.0}d · Difficulty: {card.Difficulty:0.0}";
+        FlashcardMeta = $"Source: {card.NoteTitle}.md · Stability: {card.StabilityDays:0.0}d · Difficulty: {card.Difficulty:0.0} · Reps: {card.Reps}";
+    }
+
+    [RelayCommand]
+    public void ToggleFlashcardAnswer()
+    {
+        IsFlashcardAnswerRevealed = !IsFlashcardAnswerRevealed;
     }
 
     private void InitializeProtocolPreview()
@@ -396,26 +547,56 @@ public partial class MainViewModel : ViewModelBase
     private void InitializeEnterpriseDevExStudio()
     {
         var samplePr = EnterpriseDevExEngine.CreateSampleEnterprisePullRequest();
-        var analysis = EnterpriseDevExEngine.AnalyzeGitHubPullRequest(samplePr, _vaultEngine.Notes);
+        ApplyGitHubPrAnalysisToView(EnterpriseDevExEngine.AnalyzeGitHubPullRequest(samplePr, _vaultEngine.Notes));
+        RunOnePasswordScan();
+    }
 
-        GitHubPrHeaderText = $"{samplePr.Repository} #{samplePr.Number} — {samplePr.Title}";
-        GitHubPrMetaText = $"Branch: {samplePr.HeadBranch} → {samplePr.BaseBranch} ({samplePr.HeadSha[..7]}) · CI: {samplePr.CiCheckStatus} · Delta: +{analysis.TotalAdditions} / -{analysis.TotalDeletions} · Risk: {analysis.RiskLevel}";
+    private void ApplyGitHubPrAnalysisToView(GitHubPrAnalysisReport analysis)
+    {
+        var pr = analysis.PullRequest;
+        string shortSha = pr.HeadSha.Length >= 7 ? pr.HeadSha[..7] : pr.HeadSha;
+        GitHubPrHeaderText = $"{pr.Repository} #{pr.Number} — {pr.Title}";
+        GitHubPrMetaText = $"Branch: {pr.HeadBranch} → {pr.BaseBranch} ({shortSha}) · CI: {pr.CiCheckStatus} · Delta: +{analysis.TotalAdditions} / -{analysis.TotalDeletions} · Risk: {analysis.RiskLevel}";
         GitHubPrImpactedNotesText = analysis.ImpactedVaultNotes.Count > 0
             ? $"Impacted Vault Docs & ADRs: {string.Join(" · ", analysis.ImpactedVaultNotes.Select(t => $"[[{t}]]"))}"
             : "Impacted Vault Docs & ADRs: None";
 
         ActivePrComments.Clear();
-        foreach (var c in samplePr.Comments) ActivePrComments.Add(c);
+        foreach (var c in pr.Comments) ActivePrComments.Add(c);
 
         ActivePrFiles.Clear();
-        foreach (var f in samplePr.ChangedFiles) ActivePrFiles.Add(f);
+        foreach (var f in pr.ChangedFiles) ActivePrFiles.Add(f);
+    }
 
-        RunOnePasswordScan();
+    [RelayCommand]
+    public async Task RefreshGitHubPrPreviewAsync()
+    {
+        var report = await EnterpriseDevExEngine.FetchAndAnalyzePullRequestLiveOrFallbackAsync(
+            GitHubRepoInput,
+            GitHubPrNumberInput,
+            githubToken: null,
+            _vaultEngine);
+
+        ApplyGitHubPrAnalysisToView(report);
+        StatusBarRightText = $"✓ Analyzed GitHub PR {report.Repository}#{report.Number} (WAL Key: {report.SqliteWalCacheKey})";
+        DevExTerminalOutput = $"✓ Refreshed GitHub PR {report.Repository}#{report.Number} (+{report.TotalAdditions}/-{report.TotalDeletions}, {report.UnresolvedThreadsCount} unresolved threads, Risk: {report.RiskLevel}).";
     }
 
     [RelayCommand]
     public void RunOnePasswordScan()
     {
+        string activeMd = !string.IsNullOrWhiteSpace(EditorMarkdownText) ? EditorMarkdownText : string.Empty;
+        var activeScan = EnterpriseDevExEngine.ScanAndRedactSecrets(
+            SelectedNote?.RelativePath ?? "ActiveNote.md",
+            activeMd,
+            SecretVaultBackend.OnePasswordCli);
+
+        if (!activeScan.IsClean && SelectedNote is not null)
+        {
+            EditorMarkdownText = activeScan.RedactedMarkdown;
+            SaveActiveNote();
+        }
+
         string sampleWithSecrets = """
             # Incident Runbook — Payment Gateway
             Links to [[Storage Architecture]] and [[code:src/Rhyolite.Core/Storage/HybridVaultEngine.cs#SaveNoteAsync]]
@@ -424,8 +605,12 @@ public partial class MainViewModel : ViewModelBase
             curl -H "Authorization: Bearer {{ op://Engineering/GitHub-Enterprise/GITHUB_TOKEN }}" https://api.github.com/rate_limit
             ```
             """;
-        var scan = EnterpriseDevExEngine.ScanAndRedactSecrets("Runbooks/PaymentGateway.md", sampleWithSecrets, SecretVaultBackend.OnePasswordCli);
+        var scan = !activeScan.IsClean ? activeScan : EnterpriseDevExEngine.ScanAndRedactSecrets("Runbooks/PaymentGateway.md", sampleWithSecrets, SecretVaultBackend.OnePasswordCli);
         var cells = EnterpriseDevExEngine.ExtractRunbookCells(scan.RedactedMarkdown);
+        if (cells.Count == 0)
+        {
+            cells = EnterpriseDevExEngine.ExtractRunbookCells(sampleWithSecrets);
+        }
         var runRes = EnterpriseDevExEngine.ExecuteRunbookCellAsync(cells[0]).GetAwaiter().GetResult();
 
         DevExTerminalOutput = $"""
@@ -446,6 +631,18 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     public void RunKeePassScan()
     {
+        string activeMd = !string.IsNullOrWhiteSpace(EditorMarkdownText) ? EditorMarkdownText : string.Empty;
+        var activeScan = EnterpriseDevExEngine.ScanAndRedactSecrets(
+            SelectedNote?.RelativePath ?? "ActiveNote.md",
+            activeMd,
+            SecretVaultBackend.KeePassXcCli);
+
+        if (!activeScan.IsClean && SelectedNote is not null)
+        {
+            EditorMarkdownText = activeScan.RedactedMarkdown;
+            SaveActiveNote();
+        }
+
         string sampleWithSecrets = """
             # Staging Cluster Triage
             Linear Token: lin_api_1234567890abcdefghijklmnopqrstuv
@@ -453,8 +650,12 @@ public partial class MainViewModel : ViewModelBase
             curl -H "Authorization: {{ keepassxc://Engineering/Linear-Workspace/LINEAR_API_KEY }}" https://api.linear.app/graphql
             ```
             """;
-        var scan = EnterpriseDevExEngine.ScanAndRedactSecrets("Runbooks/StagingTriage.md", sampleWithSecrets, SecretVaultBackend.KeePassXcCli);
+        var scan = !activeScan.IsClean ? activeScan : EnterpriseDevExEngine.ScanAndRedactSecrets("Runbooks/StagingTriage.md", sampleWithSecrets, SecretVaultBackend.KeePassXcCli);
         var cells = EnterpriseDevExEngine.ExtractRunbookCells(scan.RedactedMarkdown);
+        if (cells.Count == 0)
+        {
+            cells = EnterpriseDevExEngine.ExtractRunbookCells(sampleWithSecrets);
+        }
         var runRes = EnterpriseDevExEngine.ExecuteRunbookCellAsync(cells[0]).GetAwaiter().GetResult();
 
         DevExTerminalOutput = $"""
@@ -468,15 +669,40 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public void OverrideRunbookGuardrail()
+    {
+        string destructiveSample = """
+            ```sql env=prod-maintenance
+            DROP TABLE IF EXISTS stale_pr_preview_cache;
+            ```
+            """;
+        var cells = EnterpriseDevExEngine.ExtractRunbookCells(EditorMarkdownText);
+        var targetCell = cells.FirstOrDefault(c => !c.IsReadOnlySafe)
+                         ?? EnterpriseDevExEngine.ExtractRunbookCells(destructiveSample)[0];
+
+        var res = EnterpriseDevExEngine.ExecuteRunbookCellAsync(targetCell, allowDestructiveOverride: true).GetAwaiter().GetResult();
+        DevExTerminalOutput = $"""
+            [Production Runbook Safety Guardrail Override]
+            {res.OutputLog}
+            """;
+        StatusBarRightText = $"⚠️ Executed runbook cell #{targetCell.CellIndex} with explicit guardrail override";
+    }
+
+    [RelayCommand]
     public async Task ImportGitHubPrToVaultAsync()
     {
-        var samplePr = EnterpriseDevExEngine.CreateSampleEnterprisePullRequest();
-        var analysis = EnterpriseDevExEngine.AnalyzeGitHubPullRequest(samplePr, _vaultEngine.Notes);
-        string relPath = $"01 — Architecture/PR-{samplePr.Number} Review & Comments.md";
-        var saved = await _vaultEngine.SaveNoteAsync(relPath, analysis.GeneratedReviewMarkdown, $"Pulled GitHub PR #{samplePr.Number}");
+        var report = await EnterpriseDevExEngine.FetchAndAnalyzePullRequestLiveOrFallbackAsync(
+            GitHubRepoInput,
+            GitHubPrNumberInput,
+            githubToken: null,
+            _vaultEngine);
+
+        ApplyGitHubPrAnalysisToView(report);
+        string relPath = $"01 — Architecture/PR-{report.Number} Review & Comments.md";
+        var saved = await _vaultEngine.SaveNoteAsync(relPath, report.GeneratedReviewMarkdown, $"Pulled GitHub PR #{report.Number}");
         RefreshCollectionsFromEngine();
         SelectNote(saved);
-        DevExTerminalOutput = $"✓ Materialized GitHub PR #{samplePr.Number} ({analysis.UnresolvedThreadsCount} unresolved review threads, +{analysis.TotalAdditions}/-{analysis.TotalDeletions}) into '{relPath}' and extracted {analysis.ExtractedReviewTasks.Count} tasks.";
+        DevExTerminalOutput = $"✓ Materialized GitHub PR #{report.Number} ({report.UnresolvedThreadsCount} unresolved review threads, +{report.TotalAdditions}/-{report.TotalDeletions}) into '{relPath}' and extracted {report.ExtractedReviewTasks.Count} tasks.";
     }
 
     [RelayCommand]
@@ -495,9 +721,30 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public async Task SyncBladbaseAsync()
+    {
+        var summary = await _connectorsEngine.SyncBladbaseWorkspaceAsync(_vaultEngine, "ws-bladbase-core");
+        RefreshCollectionsFromEngine();
+        RebuildGraphLayout();
+        StatusBarRightText = $"✓ Bladbase Sync: Pushed {summary.PushedCount}, Pulled {summary.PulledCount}, Merged {summary.MergedCount}";
+        ProtocolConsoleOutput = System.Text.Json.JsonSerializer.Serialize(summary, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    }
+
+    [RelayCommand]
+    public async Task SyncDocmostAsync()
+    {
+        var summary = await _connectorsEngine.SyncDocmostSpaceAsync(_vaultEngine, "spc-docmost-arch");
+        RefreshCollectionsFromEngine();
+        RebuildGraphLayout();
+        StatusBarRightText = $"✓ Docmost Sync: Pushed {summary.PushedCount}, Pulled {summary.PulledCount}, Merged {summary.MergedCount}";
+        ProtocolConsoleOutput = System.Text.Json.JsonSerializer.Serialize(summary, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    }
+
+    [RelayCommand]
     public void SwitchScreen(string screenName)
     {
         ActiveScreen = screenName;
+        IsCommandPaletteOpen = false;
         OnPropertyChanged(nameof(IsStudioView));
         OnPropertyChanged(nameof(IsGraphView));
         OnPropertyChanged(nameof(IsCanvasView));
@@ -506,6 +753,248 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsProtocolView));
         OnPropertyChanged(nameof(IsDevExView));
         OnPropertyChanged(nameof(IsMobileView));
+    }
+
+    [RelayCommand]
+    public void SetEditorMode(string mode)
+    {
+        if (string.IsNullOrWhiteSpace(mode)) return;
+        EditorMode = mode;
+        IsSourceEditorVisible = !string.Equals(mode, "Reading", StringComparison.OrdinalIgnoreCase);
+        IsReadingPreviewVisible = !string.Equals(mode, "Source", StringComparison.OrdinalIgnoreCase);
+        OnPropertyChanged(nameof(SourceEditorColumnSpan));
+        OnPropertyChanged(nameof(ReadingPreviewGridColumn));
+        OnPropertyChanged(nameof(ReadingPreviewColumnSpan));
+    }
+
+    [RelayCommand]
+    public async Task RenameActiveNoteAsync()
+    {
+        if (SelectedNote is null || string.IsNullOrWhiteSpace(EditableNoteTitle)) return;
+        string cleanTitle = EditableNoteTitle.Trim();
+        if (string.Equals(SelectedNote.Title, cleanTitle, StringComparison.Ordinal)) return;
+
+        var renamed = await _vaultEngine.RenameNoteAndRefactorLinksAsync(SelectedNote.RelativePath, cleanTitle);
+        if (renamed is not null)
+        {
+            foreach (var note in _vaultEngine.Notes)
+            {
+                _peerSyncEngine.UpsertNote(note.RelativePath, note.RawMarkdown);
+            }
+            RefreshCollectionsFromEngine();
+            SelectNote(renamed);
+            RebuildGraphLayout();
+            StatusBarRightText = $"✓ Renamed to '{renamed.Title}' & refactored WikiLinks across vault";
+        }
+    }
+
+    [RelayCommand]
+    public async Task DeleteActiveNoteAsync()
+    {
+        if (SelectedNote is null) return;
+        string deletedTitle = SelectedNote.Title;
+        await _vaultEngine.DeleteNoteAsync(SelectedNote.RelativePath);
+        RefreshCollectionsFromEngine();
+
+        var nextNote = VaultNotes.FirstOrDefault();
+        if (nextNote is not null)
+        {
+            SelectNote(nextNote);
+        }
+        else
+        {
+            SelectedNote = null;
+            EditableNoteTitle = string.Empty;
+            EditorMarkdownText = string.Empty;
+        }
+
+        RebuildGraphLayout();
+        RebuildFlashcardDeck();
+        StatusBarRightText = $"✓ Deleted '{deletedTitle}.md' from vault & SQLite WAL";
+    }
+
+    [RelayCommand]
+    public void TogglePinActiveNote()
+    {
+        if (SelectedNote is null) return;
+        bool isCurrentlyPinned = SelectedNote.IsPinned;
+        EditorMarkdownText = MarkdownAstEngine.UpsertFrontmatterProperty(
+            EditorMarkdownText,
+            "pinned",
+            isCurrentlyPinned ? "false" : "true");
+        SaveActiveNote();
+        StatusBarRightText = isCurrentlyPinned
+            ? $"✓ Unpinned '{SelectedNote.Title}' from bookmarks"
+            : $"📌 Pinned '{SelectedNote.Title}' to bookmarks";
+    }
+
+    [RelayCommand]
+    public async Task SwitchVaultDirectoryAsync()
+    {
+        if (string.IsNullOrWhiteSpace(VaultPathInput)) return;
+        string targetPath = VaultPathInput.Trim();
+        _vaultEngine = new HybridVaultEngine(targetPath);
+        _mcpServer = new McpServerEngine(_authEngine, _peerSyncEngine, _vaultEngine);
+        _graphQlEngine = new GraphQlEngine(_authEngine, _peerSyncEngine, _mcpServer, _vaultEngine);
+        InitializationTask = InitializeVaultAsync();
+        await InitializationTask;
+        StatusBarRightText = $"✓ Switched active vault to {_vaultEngine.VaultRootPath}";
+    }
+
+    [RelayCommand]
+    public void UpsertFrontmatterProperty()
+    {
+        if (SelectedNote is null || string.IsNullOrWhiteSpace(NewPropertyKey)) return;
+        string key = NewPropertyKey.Trim();
+        string val = string.IsNullOrWhiteSpace(NewPropertyValue) ? "true" : NewPropertyValue.Trim();
+
+        EditorMarkdownText = MarkdownAstEngine.UpsertFrontmatterProperty(EditorMarkdownText, key, val);
+        NewPropertyKey = string.Empty;
+        NewPropertyValue = string.Empty;
+        SaveActiveNote();
+        StatusBarRightText = $"✓ Updated YAML frontmatter '{key}: {val}'";
+    }
+
+    [RelayCommand]
+    public void ToggleTaskCompletion(VaultTaskItem? task)
+    {
+        if (SelectedNote is null || task is null) return;
+        var lines = EditorMarkdownText.Replace("\r\n", "\n").Split('\n');
+        int targetIdx = task.LineNumber - 1;
+
+        if (targetIdx >= 0 && targetIdx < lines.Length && lines[targetIdx].Contains('['))
+        {
+            lines[targetIdx] = ToggleCheckboxOnLine(lines[targetIdx]);
+        }
+        else
+        {
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (lines[i].Contains(task.Text, StringComparison.OrdinalIgnoreCase) && lines[i].Contains('['))
+                {
+                    lines[i] = ToggleCheckboxOnLine(lines[i]);
+                    break;
+                }
+            }
+        }
+
+        EditorMarkdownText = string.Join('\n', lines);
+        SaveActiveNote();
+    }
+
+    private static string ToggleCheckboxOnLine(string line)
+    {
+        if (line.Contains("- [ ]", StringComparison.Ordinal))
+            return line.Replace("- [ ]", "- [x]", StringComparison.Ordinal);
+        if (line.Contains("- [x]", StringComparison.OrdinalIgnoreCase))
+            return Regex.Replace(line, @"-\s*\[[xX]\]", "- [ ]");
+        return line;
+    }
+
+    [RelayCommand]
+    public void OpenWikiLink(object? parameter)
+    {
+        if (parameter is null) return;
+        if (parameter is VaultNote directNote)
+        {
+            SelectNote(directNote);
+            SwitchScreen("Studio");
+            return;
+        }
+
+        string target = parameter switch
+        {
+            WikiLinkRef wl => wl.TargetTitle,
+            RelatedNoteSuggestion rel => rel.RelativePath,
+            string s => s,
+            _ => parameter.ToString() ?? string.Empty
+        };
+
+        OpenNoteByTitleOrPath(target);
+    }
+
+    [RelayCommand]
+    public void OpenNoteByTitleOrPath(string? target)
+    {
+        if (string.IsNullOrWhiteSpace(target)) return;
+        string clean = target.Trim();
+        int hashIdx = clean.IndexOf('#');
+        if (hashIdx > 0) clean = clean[..hashIdx];
+        int pipeIdx = clean.IndexOf('|');
+        if (pipeIdx > 0) clean = clean[..pipeIdx];
+
+        var existing = _vaultEngine.Notes.FirstOrDefault(n =>
+            string.Equals(n.RelativePath, clean, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(n.Title, clean, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(n.Title, Path.GetFileNameWithoutExtension(clean), StringComparison.OrdinalIgnoreCase));
+
+        if (existing is not null)
+        {
+            SelectNote(existing);
+            SwitchScreen("Studio");
+            return;
+        }
+
+        // Materialize ghost WikiLink note on the fly
+        string relPath = clean.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+            ? clean
+            : $"01 — Architecture/{clean}.md";
+        string title = Path.GetFileNameWithoutExtension(relPath);
+        string initialMd = $$"""
+            ---
+            status: Planned
+            subsystem: Rhyolite.Core
+            priority: P2 Normal
+            tags: [architecture]
+            ---
+            # {{title}}
+
+            Created from `[[{{title}}]]` WikiLink navigation in **Rhyolite**. Connected to [[Storage Architecture]].
+            """;
+
+        var created = _vaultEngine.SaveNoteAsync(relPath, initialMd, "Created from WikiLink").GetAwaiter().GetResult();
+        RefreshCollectionsFromEngine();
+        SelectNote(created);
+        RebuildGraphLayout();
+        SwitchScreen("Studio");
+    }
+
+    [RelayCommand]
+    public void JumpToHeading(MarkdownHeading? heading)
+    {
+        if (heading is null) return;
+        SaveTelemetryText = $"✓ Jumped to § {heading.Text} (Line {heading.LineNumber})";
+        StatusBarRightText = $"Outline Section: {heading.Text} (H{heading.Level} · Line {heading.LineNumber})";
+    }
+
+    [RelayCommand]
+    public async Task ConvertUnlinkedMentionAsync(UnlinkedMentionRef? mention)
+    {
+        if (mention is null || SelectedNote is null) return;
+        var sourceNote = _vaultEngine.Notes.FirstOrDefault(n =>
+            string.Equals(n.RelativePath, mention.SourceNotePath, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(n.Title, mention.SourceNoteTitle, StringComparison.OrdinalIgnoreCase));
+
+        if (sourceNote is null) return;
+
+        string targetTitle = SelectedNote.Title;
+        string pattern = $@"(?<!\[\[)\b{Regex.Escape(targetTitle)}\b(?!\]\])";
+        var regex = new Regex(pattern, RegexOptions.IgnoreCase);
+        string updatedSource = regex.Replace(sourceNote.RawMarkdown, $"[[{targetTitle}]]", 1);
+
+        if (!string.Equals(updatedSource, sourceNote.RawMarkdown, StringComparison.Ordinal))
+        {
+            await _vaultEngine.SaveNoteAsync(sourceNote.RelativePath, updatedSource, $"Linked [[{targetTitle}]]");
+            RefreshCollectionsFromEngine();
+            var refreshedActive = _vaultEngine.Notes.FirstOrDefault(n =>
+                string.Equals(n.RelativePath, SelectedNote.RelativePath, StringComparison.OrdinalIgnoreCase));
+            if (refreshedActive is not null)
+            {
+                SelectNote(refreshedActive);
+            }
+            RebuildGraphLayout();
+            StatusBarRightText = $"✓ Linked '{targetTitle}' in '{sourceNote.Title}.md'";
+        }
     }
 
     partial void OnSelectedDesignSystemChanged(DesignSystemPreset value)
@@ -531,6 +1020,7 @@ public partial class MainViewModel : ViewModelBase
     {
         var next = DesignSystemCatalog.GetNext(SelectedDesignSystem?.Id);
         ApplyDesignSystemInternal(next, forceDark: null);
+        IsCommandPaletteOpen = false;
     }
 
     [RelayCommand]
@@ -548,6 +1038,7 @@ public partial class MainViewModel : ViewModelBase
         var preset = SelectedDesignSystem ?? DesignSystemCatalog.GetOrDefault("apple");
         UpdateDesignSystemLabelsAndApply(preset);
         _ = PersistDesignPreferencesSafeAsync(preset.Id, IsDarkTheme);
+        IsCommandPaletteOpen = false;
     }
 
     private void ApplyDesignSystemInternal(DesignSystemPreset preset, bool? forceDark)
@@ -599,6 +1090,58 @@ public partial class MainViewModel : ViewModelBase
     public void ToggleCommandPalette()
     {
         IsCommandPaletteOpen = !IsCommandPaletteOpen;
+        if (IsCommandPaletteOpen)
+        {
+            RefreshCommandPaletteNotes();
+        }
+    }
+
+    [RelayCommand]
+    public void CloseCommandPalette()
+    {
+        IsCommandPaletteOpen = false;
+    }
+
+    [RelayCommand]
+    public void ExecuteFirstCommandPaletteMatch()
+    {
+        string q = CommandPaletteFilter?.Trim() ?? string.Empty;
+        if (FilteredCommandPaletteNotes.Count > 0 && !string.IsNullOrWhiteSpace(q))
+        {
+            SelectNote(FilteredCommandPaletteNotes[0]);
+            SwitchScreen("Studio");
+            IsCommandPaletteOpen = false;
+            return;
+        }
+
+        if (q.Contains("daily", StringComparison.OrdinalIgnoreCase))
+        {
+            _ = OpenDailyNoteAsync();
+        }
+        else if (q.Contains("graph", StringComparison.OrdinalIgnoreCase))
+        {
+            SwitchScreen("Graph");
+        }
+        else if (q.Contains("theme", StringComparison.OrdinalIgnoreCase) || q.Contains("dark", StringComparison.OrdinalIgnoreCase))
+        {
+            ToggleAppleTheme();
+        }
+        else if (q.Contains("design", StringComparison.OrdinalIgnoreCase))
+        {
+            NextDesignSystem();
+        }
+        else if (FilteredCommandPaletteNotes.Count > 0)
+        {
+            SelectNote(FilteredCommandPaletteNotes[0]);
+            SwitchScreen("Studio");
+        }
+
+        IsCommandPaletteOpen = false;
+    }
+
+    public void SaveActiveNote()
+    {
+        _ = SaveActiveNoteAsync();
     }
 
     [RelayCommand]
@@ -610,6 +1153,7 @@ public partial class MainViewModel : ViewModelBase
             EditorMarkdownText,
             $"Edited at {DateTime.Now:HH:mm:ss}");
 
+        _peerSyncEngine.UpsertNote(updated.RelativePath, updated.RawMarkdown);
         RefreshCollectionsFromEngine();
         SelectNote(updated);
         RebuildGraphLayout();
@@ -630,12 +1174,13 @@ public partial class MainViewModel : ViewModelBase
             ---
             # Untitled Note {{timestamp}}
 
-            Created in **Rhyolite** using the Apple Design System. Linked to [[Storage Architecture]].
+            Created in **Rhyolite** using the {{SelectedDesignSystem.Name}} Design System. Linked to [[Storage Architecture]].
 
             - [ ] Add architectural notes 📅 {{DateTime.Now:yyyy-MM-dd}}
             """;
 
         var created = await _vaultEngine.SaveNoteAsync(relPath, template, "Created New Note");
+        _peerSyncEngine.UpsertNote(created.RelativePath, created.RawMarkdown);
         RefreshCollectionsFromEngine();
         SelectNote(created);
         RebuildGraphLayout();
@@ -672,6 +1217,7 @@ public partial class MainViewModel : ViewModelBase
             """;
 
         var created = await _vaultEngine.SaveNoteAsync(relPath, content, "Daily Note Created");
+        _peerSyncEngine.UpsertNote(created.RelativePath, created.RawMarkdown);
         RefreshCollectionsFromEngine();
         SelectNote(created);
         SwitchScreen("Studio");
@@ -690,25 +1236,82 @@ public partial class MainViewModel : ViewModelBase
         RebuildGraphLayout();
     }
 
+    public void SelectCanvasCard(CanvasNode? card)
+    {
+        if (card is null) return;
+        SelectedCanvasCardId = card.Id;
+        SelectedCanvasCardTitle = card.Label ?? card.File ?? string.Empty;
+        SelectedCanvasCardBody = card.Text ?? string.Empty;
+    }
+
+    public void SaveCanvasLayout(CanvasDocument? doc = null)
+    {
+        var target = doc ?? CanvasDoc;
+        if (target is null) return;
+        _vaultEngine.SaveCanvasDocument(target);
+        SaveTelemetryText = "✓ Persisted spatial card layout to System Map.canvas";
+    }
+
+    [RelayCommand]
+    public void UpdateSelectedCanvasCard()
+    {
+        var doc = CanvasDoc;
+        if (doc is null || string.IsNullOrWhiteSpace(SelectedCanvasCardId)) return;
+
+        var card = doc.Nodes.FirstOrDefault(n => string.Equals(n.Id, SelectedCanvasCardId, StringComparison.OrdinalIgnoreCase));
+        if (card is null) return;
+
+        card.Label = SelectedCanvasCardTitle;
+        card.Text = SelectedCanvasCardBody;
+        _vaultEngine.SaveCanvasDocument(doc);
+        CanvasDoc = JsonCanvasEngine.Parse(JsonCanvasEngine.Serialize(doc));
+        StatusBarRightText = $"✓ Updated spatial card '{card.Label}' in System Map.canvas";
+    }
+
+    [RelayCommand]
+    public void DeleteSelectedCanvasCard()
+    {
+        var doc = CanvasDoc;
+        if (doc is null || string.IsNullOrWhiteSpace(SelectedCanvasCardId)) return;
+
+        doc.Nodes.RemoveAll(n => string.Equals(n.Id, SelectedCanvasCardId, StringComparison.OrdinalIgnoreCase));
+        doc.Edges.RemoveAll(e =>
+            string.Equals(e.FromNode, SelectedCanvasCardId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(e.ToNode, SelectedCanvasCardId, StringComparison.OrdinalIgnoreCase));
+
+        _vaultEngine.SaveCanvasDocument(doc);
+        CanvasDoc = JsonCanvasEngine.Parse(JsonCanvasEngine.Serialize(doc));
+
+        var nextCard = CanvasDoc.Nodes.FirstOrDefault(n => !string.Equals(n.Type, "group", StringComparison.OrdinalIgnoreCase));
+        SelectedCanvasCardId = nextCard?.Id;
+        SelectedCanvasCardTitle = nextCard?.Label ?? string.Empty;
+        SelectedCanvasCardBody = nextCard?.Text ?? string.Empty;
+        StatusBarRightText = "✓ Removed card from System Map.canvas";
+    }
+
     [RelayCommand]
     public void AddCanvasCard()
     {
         var doc = CanvasDoc;
         int idx = doc.Nodes.Count;
-        doc.Nodes.Add(new CanvasNode
+        var newCard = new CanvasNode
         {
             Id = $"card-{Guid.NewGuid():N}"[..12],
             Type = "text",
-            Label = $"Apple Spec Node #{idx}",
-            Text = "Created on interactive JSON Canvas 1.0 board.\nLinked to [[Storage Architecture]].",
+            Label = string.IsNullOrWhiteSpace(SelectedCanvasCardTitle) ? $"Spec Node #{idx}" : SelectedCanvasCardTitle,
+            Text = string.IsNullOrWhiteSpace(SelectedCanvasCardBody)
+                ? "Created on interactive JSON Canvas 1.0 board.\nLinked to [[Storage Architecture]]."
+                : SelectedCanvasCardBody,
             X = 80 + (idx * 35) % 420,
             Y = 90 + (idx * 30) % 260,
             Width = 210,
             Height = 120,
-            Color = "#0071e3"
-        });
+            Color = SelectedDesignSystem.LightPalette.AccentHex
+        };
+        doc.Nodes.Add(newCard);
         _vaultEngine.SaveCanvasDocument(doc);
         CanvasDoc = JsonCanvasEngine.Parse(JsonCanvasEngine.Serialize(doc));
+        SelectCanvasCard(newCard);
     }
 
     [RelayCommand]
@@ -726,6 +1329,35 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public async Task CycleRowStatusAsync(BaseDatabaseRow? row)
+    {
+        if (row is null) return;
+        var note = _vaultEngine.Notes.FirstOrDefault(n =>
+            string.Equals(n.RelativePath, row.NoteRelativePath, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(n.Title, row.Title, StringComparison.OrdinalIgnoreCase));
+
+        if (note is null) return;
+
+        string current = row.Status ?? "Planned";
+        string nextStatus = current switch
+        {
+            var s when s.Contains("Plan", StringComparison.OrdinalIgnoreCase) => "In Progress",
+            var s when s.Contains("Progress", StringComparison.OrdinalIgnoreCase) || s.Contains("Active", StringComparison.OrdinalIgnoreCase) => "In Review",
+            var s when s.Contains("Review", StringComparison.OrdinalIgnoreCase) => "Shipped",
+            _ => "Planned"
+        };
+
+        string updatedMd = MarkdownAstEngine.UpsertFrontmatterProperty(note.RawMarkdown, "status", nextStatus);
+        var saved = await _vaultEngine.SaveNoteAsync(note.RelativePath, updatedMd, $"Bases Status -> {nextStatus}");
+        RefreshCollectionsFromEngine();
+        if (SelectedNote is not null && string.Equals(SelectedNote.RelativePath, saved.RelativePath, StringComparison.OrdinalIgnoreCase))
+        {
+            SelectNote(saved);
+        }
+        StatusBarRightText = $"✓ Updated '{saved.Title}' status to '{nextStatus}'";
+    }
+
+    [RelayCommand]
     public void RateFlashcard(string ratingName)
     {
         if (_allFlashcards.Count == 0) return;
@@ -733,9 +1365,39 @@ public partial class MainViewModel : ViewModelBase
         var rating = Enum.TryParse<FsrsRating>(ratingName, true, out var parsed) ? parsed : FsrsRating.Good;
 
         FsrsStudyEngine.ApplyReview(card, rating);
+        _vaultEngine.SaveFlashcardReview(
+            card.Id,
+            card.StabilityDays,
+            card.Difficulty,
+            card.Reps,
+            new DateTimeOffset(DateTime.SpecifyKind(card.NextReviewUtc, DateTimeKind.Utc)));
+
         DueFlashcardsCount = Math.Max(0, DueFlashcardsCount - 1);
         _currentFlashcardIndex = (_currentFlashcardIndex + 1) % _allFlashcards.Count;
         ShowCurrentFlashcard();
+        StatusBarRightText = $"✓ Saved FSRS review ({rating}) for '{card.NoteTitle}' to SQLite WAL";
+    }
+
+    [RelayCommand]
+    public void SaveMilestoneSnapshot()
+    {
+        if (SelectedNote is null) return;
+        var snap = _vaultEngine.SaveMilestoneSnapshot(SelectedNote.RelativePath, $"Milestone {DateTime.Now:HH:mm:ss}");
+        RefreshDiffPreview(SelectedNote);
+        StatusBarRightText = $"📸 Saved milestone snapshot #{snap.SnapshotId} for '{SelectedNote.Title}'";
+    }
+
+    [RelayCommand]
+    public async Task RestorePreviousSnapshotAsync()
+    {
+        if (SelectedNote is null) return;
+        var restored = await _vaultEngine.RestoreSnapshotAsync(SelectedNote.RelativePath);
+        if (restored is not null)
+        {
+            RefreshCollectionsFromEngine();
+            SelectNote(restored);
+            StatusBarRightText = $"⏪ Restored previous snapshot for '{restored.Title}'";
+        }
     }
 
     [RelayCommand]
