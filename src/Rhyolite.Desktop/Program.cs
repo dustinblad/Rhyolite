@@ -149,6 +149,8 @@ sealed class Program
             root.RequestedThemeVariant = darkMode ? ThemeVariant.Dark : ThemeVariant.Light;
             vm.SelectDesignSystem(designId, darkMode);
             vm.SwitchScreen(screen);
+            vm.IsNoteMenuOpen = fileName == "02_note_studio_dark.png";
+            vm.IsFolderStudioOpen = fileName == "12_capacities_wall_calendar_light.png";
             if (basesMode == "Table")
             {
                 vm.ShowBasesTable();

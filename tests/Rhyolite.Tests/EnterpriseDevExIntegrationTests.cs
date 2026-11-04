@@ -886,6 +886,61 @@ public sealed class EnterpriseDevExIntegrationTests
                 e.ObjectType == "Engineering RFC" &&
                 e.ObjectIconEmoji == "📐" &&
                 e.FolderIconEmoji == "💎");
+
+            // 5. Verify Unified Hierarchical Folder & File Explorer Tree (DESIGN.md Pre-Order Specification)
+            var movedStorageNote = await vault.MoveNoteToFolderAsync(
+                "01 — Architecture/Avalonia Rendering Pipeline.md",
+                "01 — Architecture/Storage");
+            Assert.NotNull(movedStorageNote);
+            Assert.Equal("01 — Architecture/Storage/Avalonia Rendering Pipeline.md", movedStorageNote!.RelativePath);
+
+            var unifiedTree = vault.GetUnifiedExplorerTree(
+                selectedNotePath: createdRfcNote.RelativePath,
+                selectedFolderPath: "01 — Architecture/Storage");
+            Assert.NotEmpty(unifiedTree);
+
+            int idxArchRoot = unifiedTree.ToList().FindIndex(i => i.IsFolder && i.RelativePath == "01 — Architecture");
+            int idxStorageSubfolder = unifiedTree.ToList().FindIndex(i => i.IsFolder && i.RelativePath == "01 — Architecture/Storage");
+            int idxReplicationSubfolder = unifiedTree.ToList().FindIndex(i => i.IsFolder && i.RelativePath == nestedFolderPath);
+            int idxDeepNote = unifiedTree.ToList().FindIndex(i => i.IsNote && i.RelativePath == createdRfcNote.RelativePath);
+            int idxNestedStorageNote = unifiedTree.ToList().FindIndex(i => i.IsNote && i.RelativePath == movedStorageNote.RelativePath);
+            int idxParentArchNote = unifiedTree.ToList().FindIndex(i => i.IsNote && i.RelativePath == "01 — Architecture/Apple Design Tokens.md");
+
+            Assert.True(idxArchRoot >= 0);
+            Assert.True(idxStorageSubfolder > idxArchRoot);
+            Assert.True(idxReplicationSubfolder > idxStorageSubfolder);
+            Assert.True(idxDeepNote > idxReplicationSubfolder);
+            Assert.True(idxNestedStorageNote > idxDeepNote);
+            Assert.True(idxParentArchNote > idxNestedStorageNote);
+
+            Assert.Equal(0, unifiedTree[idxArchRoot].Depth);
+            Assert.Equal(1, unifiedTree[idxStorageSubfolder].Depth);
+            Assert.True(unifiedTree[idxStorageSubfolder].IsSelected);
+            Assert.Equal(2, unifiedTree[idxReplicationSubfolder].Depth);
+            Assert.Equal(3, unifiedTree[idxDeepNote].Depth);
+            Assert.True(unifiedTree[idxDeepNote].IsSelected);
+            Assert.Equal("📐", unifiedTree[idxDeepNote].IconEmoji);
+            Assert.Equal(2, unifiedTree[idxNestedStorageNote].Depth);
+            Assert.False(unifiedTree[idxNestedStorageNote].IsSelected);
+            Assert.Equal(1, unifiedTree[idxParentArchNote].Depth);
+
+            // Collapsing "01 — Architecture/Storage" hides both its child subfolders and child notes from GetUnifiedExplorerTree
+            Assert.False(vault.ToggleFolderExpanded("01 — Architecture/Storage"));
+            var collapsedTree = vault.GetUnifiedExplorerTree(selectedNotePath: createdRfcNote.RelativePath);
+            var collapsedStorageFolder = Assert.Single(collapsedTree, i => i.IsFolder && i.RelativePath == "01 — Architecture/Storage");
+            Assert.False(collapsedStorageFolder.IsExpanded);
+            Assert.Equal("▸", collapsedStorageFolder.ChevronGlyph);
+            Assert.DoesNotContain(collapsedTree, i => i.RelativePath == nestedFolderPath);
+            Assert.DoesNotContain(collapsedTree, i => i.RelativePath == createdRfcNote.RelativePath);
+            Assert.DoesNotContain(collapsedTree, i => i.RelativePath == movedStorageNote.RelativePath);
+            Assert.Contains(collapsedTree, i => i.IsNote && i.RelativePath == "01 — Architecture/Apple Design Tokens.md");
+
+            // Re-expanding restores the nested subfolder and child notes
+            Assert.True(vault.ToggleFolderExpanded("01 — Architecture/Storage"));
+            var restoredTree = vault.GetUnifiedExplorerTree(selectedNotePath: createdRfcNote.RelativePath);
+            Assert.Contains(restoredTree, i => i.IsFolder && i.RelativePath == nestedFolderPath);
+            Assert.Contains(restoredTree, i => i.IsNote && i.RelativePath == createdRfcNote.RelativePath && i.IsSelected);
+            Assert.Contains(restoredTree, i => i.IsNote && i.RelativePath == movedStorageNote.RelativePath);
         }
         finally
         {

@@ -215,10 +215,35 @@ public sealed class VaultFolderNode
     public int TotalNoteCount { get; set; }
     public List<VaultFolderNode> Subfolders { get; init; } = [];
     public List<VaultNote> Notes { get; init; } = [];
-    public string IndentMargin => $"{Depth * 14},1,0,1";
+    public string IndentMargin => $"{Depth * 16},0,0,0";
     public string IndentedLabel => $"{new string(' ', Depth * 3)}{(IsExpanded ? "▾" : "▸")} {IconEmoji} {DisplayName}";
     public string ChevronGlyph => IsExpanded ? "▾" : "▸";
     public override string ToString() => $"{IconEmoji} {DisplayName} ({TotalNoteCount})";
+}
+
+public sealed class VaultTreeItem
+{
+    public required string Id { get; init; }
+    public required string DisplayName { get; init; }
+    public required string RelativePath { get; init; }
+    public string? ParentFolderPath { get; init; }
+    public int Depth { get; init; }
+    public bool IsFolder { get; init; }
+    public bool IsNote => !IsFolder;
+    public bool IsExpanded { get; set; } = true;
+    public bool IsSelected { get; set; }
+    public bool IsPinned { get; init; }
+    public string IconEmoji { get; init; } = "📄";
+    public string AccentColorHex { get; init; } = "#0071E3";
+    public string RightBadgeText { get; init; } = string.Empty;
+    public bool HasRightBadge => !string.IsNullOrEmpty(RightBadgeText);
+    public string ChevronGlyph => IsFolder ? (IsExpanded ? "▾" : "▸") : " ";
+    public string IndentMargin => $"{Depth * 16},0,0,0";
+    public string GuideLineMargin => Depth > 0 ? $"{(Depth - 1) * 16 + 7},0,0,0" : "0";
+    public bool HasTreeGuideLine => Depth > 0;
+    public VaultFolderNode? FolderNode { get; init; }
+    public VaultNote? Note { get; init; }
+    public override string ToString() => IsFolder ? $"{ChevronGlyph} {IconEmoji} {DisplayName} ({RightBadgeText})" : $"{IconEmoji} {DisplayName}";
 }
 
 public sealed record CapacitiesObjectTypeSchema(

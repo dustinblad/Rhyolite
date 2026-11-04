@@ -54,7 +54,7 @@
 | :--- | :--- | :--- |
 | **Runtime & Language** | ![.NET 10](https://img.shields.io/badge/.NET_10-512BD4?style=flat-square&logo=dotnet&logoColor=white) ![C# 14](https://img.shields.io/badge/C%23_14-239120?style=flat-square&logo=csharp&logoColor=white) | Native cross-platform execution, source-generated regexes (`[GeneratedRegex]`), zero-allocation spans |
 | **UI & Rendering** | ![Avalonia UI](https://img.shields.io/badge/Avalonia_12.1.3-8B44AC?style=flat-square&logo=avaloniaui&logoColor=white) ![Skia](https://img.shields.io/badge/SkiaSharp-0071E3?style=flat-square&logo=googlechrome&logoColor=white) | Hardware-accelerated 60fps 2D Knowledge Graph, Spatial Canvas, and cross-platform UI |
-| **Design System** | ![Apple HIG](https://img.shields.io/badge/open--design--agent--kit-000000?style=flat-square&logo=apple&logoColor=white) | `apple` & `apple-music-ios` design tokens (`#FFFFFF`/`#F5F5F7` Light & `#000000`/`#1C1C1E` OLED Dark) |
+| **Design System** | ![Apple HIG](https://img.shields.io/badge/open--design--agent--kit-000000?style=flat-square&logo=apple&logoColor=white) | 9 live design systems (`apple`, `linear-app`, `notion`, `vercel`, `claude`, `github`, `raycast`, `stripe`, `supabase`) & [`DESIGN.md`](DESIGN.md) UI specification |
 | **Storage Engine** | ![Markdown](https://img.shields.io/badge/Plain_.md-000000?style=flat-square&logo=markdown&logoColor=white) ![SQLite](https://img.shields.io/badge/SQLite_WAL-003B57?style=flat-square&logo=sqlite&logoColor=white) | 3-Tier Hybrid Engine: Plain `.md` (`~0.14 ms` atomic writes) + In-Memory Markdig AST + `.rhyolite/cache.db` |
 | **AI & Mesh Protocols** | ![MCP](https://img.shields.io/badge/MCP_2.0-0071E3?style=flat-square&logo=anthropic&logoColor=white) ![GraphQL](https://img.shields.io/badge/GraphQL-E10098?style=flat-square&logo=graphql&logoColor=white) | Sub-millisecond JSON-RPC 2.0 MCP server, GraphQL engine, and HLC + SHA-256 Merkle Tree P2P Sync |
 | **Secret Management** | ![1Password](https://img.shields.io/badge/1Password_CLI-0094F5?style=flat-square&logo=1password&logoColor=white) ![KeePassXC](https://img.shields.io/badge/KeePassXC_CLI-6CAC4D?style=flat-square&logo=keepassxc&logoColor=white) | Shift-left DLP secret scanner/redactor with runtime `op read` and `keepassxc-cli show` injection |
@@ -69,7 +69,10 @@
 - **Tier 2 — Hot In-Memory AST & Graph Index**: Incremental Markdig + YAML frontmatter + `[[WikiLink]]` parser (`< 0.3 ms`) with automatic vault-wide link refactoring on note rename.
 - **Tier 3 — SQLite WAL Sidecar Cache (`.rhyolite/cache.db`)**: Pre-indexed metadata, backlinks, snapshots, `github_pr_cache` (`ETag`/`headRefOid`), and `external_sync_bindings` for `< 25 ms` cold startup.
 
-### 2. Obsidian Parity + Native Knowledge Expansions
+### 2. Obsidian Parity, Capacities Object Studio & Unified Explorer (`DESIGN.md`)
+- **Unified Hierarchical Folder & File Explorer ([`DESIGN.md`](DESIGN.md) & `GetUnifiedExplorerTree`)**: Pre-order Obsidian/Craft-grade sidebar tree combining root folders, nested subfolders (`Depth * 16px` indentation + tree guide lines), custom folder icon/emoji & color badges persisted in SQLite WAL (`folder_metadata`), and inline child notes (`Depth + 1`) with single-click expand/collapse.
+- **Capacities.io Object Studio, Collections & Multi-View Switcher ([`docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md`](docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md))**: Built-in and custom typed object schemas (`Page`, `Daily Note`, `Person`, `Project`, `Meeting`, `Architecture ADR`, `Flashcard Deck`), Collections, and 5 database views (`Table`, `Kanban`, `Gallery`, `Wall`, and `Calendar`).
+- **UI Architecture & Multi-Design System Engine ([`DESIGN.md`](DESIGN.md) & `DesignSystemCatalog`)**: Real-time switching across 9 `open-design-agent-kit` design systems (`apple`, `linear-app`, `notion`, `vercel`, `claude`, `github`, `raycast`, `stripe`, `supabase`) with live typography stacks, button/card/pill geometry tokens, border bevels, and GPU composited transitions.
 - **60fps Force-Directed Knowledge Graph (`KnowledgeGraphControl`)**: Interactive Fruchterman-Reingold physics with iterative **PageRank centrality**, clustering density, orphan detection, and unresolved ghost-link diagnostics.
 - **Infinite Spatial Canvas (`.canvas` JSON Canvas 1.0)**: Drag-and-drop cards, group regions, and Bezier connectors persisted directly to `.canvas` files.
 - **Bases Live Frontmatter Database (`BasesQueryEngine`)**: Projects YAML frontmatter across all notes into **Table Views** and **Kanban Boards**.
@@ -214,6 +217,8 @@ Rhyolite uses a deterministic release pipeline controlled by [`VERSION`](VERSION
 ---
 
 ## Architecture & Verification Docs
+- [UI Architecture, Unified Hierarchical Explorer & Multi-Design System Specification (`DESIGN.md`)](DESIGN.md)
+- [Obsidian 1.8+ & Capacities.io Feature & Architectural Comparison (`docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md`)](docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md)
 - [Master Architectural & Implementation Plan (`PLAN.md`)](PLAN.md) ([`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md))
 - [Claude Code Replication Specification & Prompt Log (`docs/CLAUDE_CODE_REPLICATION_SPEC.md`)](docs/CLAUDE_CODE_REPLICATION_SPEC.md)
 - [MCP, GraphQL, P2P & Bladbase/Docmost Protocol Specification](docs/MCP_GRAPHQL_P2P_AUTH_SPEC.md)

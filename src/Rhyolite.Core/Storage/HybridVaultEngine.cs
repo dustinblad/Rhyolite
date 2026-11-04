@@ -1379,6 +1379,184 @@ public sealed class HybridVaultEngine : IDisposable
         return visible;
     }
 
+    /// <summary>
+    /// Builds the unified hierarchical folder, subfolder, and Markdown note explorer tree (Obsidian/Craft standard:
+    /// folders first at each level, followed by direct notes indented at Depth + 1).
+    /// </summary>
+    public IReadOnlyList<VaultTreeItem> GetUnifiedExplorerTree(
+        string? searchFilter = null,
+        string? objectTypeFilter = null,
+        string? selectedNotePath = null,
+        string? selectedFolderPath = null)
+    {
+        var roots = GetFolderHierarchyTree();
+        var items = new List<VaultTreeItem>();
+
+        bool hasSearch = !string.IsNullOrWhiteSpace(searchFilter);
+        bool hasTypeFilter = !string.IsNullOrWhiteSpace(objectTypeFilter) &&
+                             !string.Equals(objectTypeFilter, "All", StringComparison.OrdinalIgnoreCase);
+        bool hasActiveFilter = hasSearch || hasTypeFilter;
+
+        string? normalizedSelectedNote = string.IsNullOrWhiteSpace(selectedNotePath)
+            ? null
+            : selectedNotePath.Replace('\\', '/').TrimStart('/');
+        string? normalizedSelectedFolder = string.IsNullOrWhiteSpace(selectedFolderPath)
+            ? null
+            : NormalizeFolderPath(selectedFolderPath);
+
+        bool NoteMatches(VaultNote note)
+        {
+            if (hasTypeFilter &&
+                !string.Equals(note.ObjectType, objectTypeFilter, StringComparison.OrdinalIgnoreCase) &&
+                !note.ObjectType.Contains(objectTypeFilter!, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (hasSearch &&
+                !note.Title.Contains(searchFilter!, StringComparison.OrdinalIgnoreCase) &&
+                !note.RawMarkdown.Contains(searchFilter!, StringComparison.OrdinalIgnoreCase) &&
+                !note.ObjectType.Contains(searchFilter!, StringComparison.OrdinalIgnoreCase) &&
+                !note.FolderPath.Contains(searchFilter!, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        bool SubtreeMatches(VaultFolderNode node)
+        {
+            if (!hasActiveFilter)
+            {
+                return true;
+            }
+
+            if (hasSearch && !hasTypeFilter &&
+                node.DisplayName.Contains(searchFilter!, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (node.Notes.Any(NoteMatches))
+            {
+                return true;
+            }
+
+            foreach (var sub in node.Subfolders)
+            {
+                if (SubtreeMatches(sub))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        void TraverseFolder(VaultFolderNode node)
+        {
+            if (!SubtreeMatches(node))
+            {
+                return;
+            }
+
+            bool effectiveExpanded = node.IsExpanded || hasActiveFilter;
+            items.Add(new VaultTreeItem
+            {
+                Id = "folder:" + node.FolderPath,
+                DisplayName = node.DisplayName,
+                RelativePath = node.FolderPath,
+                ParentFolderPath = node.ParentFolderPath,
+                Depth = node.Depth,
+                IsFolder = true,
+                IsExpanded = effectiveExpanded,
+                IsSelected = normalizedSelectedFolder is not null &&
+                             string.Equals(node.FolderPath, normalizedSelectedFolder, StringComparison.OrdinalIgnoreCase),
+                IconEmoji = node.IconEmoji,
+                AccentColorHex = node.AccentColorHex,
+                RightBadgeText = node.TotalNoteCount.ToString(CultureInfo.InvariantCulture),
+                FolderNode = node
+            });
+
+            if (!effectiveExpanded)
+            {
+                return;
+            }
+
+            // 1. Subfolders first (Obsidian / Craft hierarchy convention)
+            foreach (var sub in node.Subfolders)
+            {
+                TraverseFolder(sub);
+            }
+
+            // 2. Direct notes inside this folder at Depth = node.Depth + 1
+            bool folderNameMatchedDirectly = hasSearch && !hasTypeFilter &&
+                                             node.DisplayName.Contains(searchFilter!, StringComparison.OrdinalIgnoreCase);
+            foreach (var note in node.Notes)
+            {
+                if (!folderNameMatchedDirectly && !NoteMatches(note))
+                {
+                    continue;
+                }
+
+                items.Add(new VaultTreeItem
+                {
+                    Id = "note:" + note.RelativePath,
+                    DisplayName = note.Title,
+                    RelativePath = note.RelativePath,
+                    ParentFolderPath = node.FolderPath,
+                    Depth = node.Depth + 1,
+                    IsFolder = false,
+                    IsExpanded = false,
+                    IsSelected = normalizedSelectedNote is not null &&
+                                 string.Equals(note.RelativePath, normalizedSelectedNote, StringComparison.OrdinalIgnoreCase),
+                    IsPinned = note.IsPinned,
+                    IconEmoji = note.ObjectIconEmoji,
+                    AccentColorHex = note.CoverColorHex,
+                    RightBadgeText = note.IsPinned ? "📌" : string.Empty,
+                    Note = note
+                });
+            }
+        }
+
+        foreach (var root in roots)
+        {
+            TraverseFolder(root);
+        }
+
+        // 3. Root-level notes (outside any folder) at Depth = 0
+        foreach (var rootNote in _notesByRelativePath.Values
+                     .Where(n => string.IsNullOrEmpty(NormalizeFolderPath(n.FolderPath)))
+                     .OrderBy(n => n.Title, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!NoteMatches(rootNote))
+            {
+                continue;
+            }
+
+            items.Add(new VaultTreeItem
+            {
+                Id = "note:" + rootNote.RelativePath,
+                DisplayName = rootNote.Title,
+                RelativePath = rootNote.RelativePath,
+                ParentFolderPath = null,
+                Depth = 0,
+                IsFolder = false,
+                IsExpanded = false,
+                IsSelected = normalizedSelectedNote is not null &&
+                             string.Equals(rootNote.RelativePath, normalizedSelectedNote, StringComparison.OrdinalIgnoreCase),
+                IsPinned = rootNote.IsPinned,
+                IconEmoji = rootNote.ObjectIconEmoji,
+                AccentColorHex = rootNote.CoverColorHex,
+                RightBadgeText = rootNote.IsPinned ? "📌" : string.Empty,
+                Note = rootNote
+            });
+        }
+
+        return items;
+    }
+
     private List<VaultFolderNode> GetFlattenedAllFolders()
     {
         var roots = GetFolderHierarchyTree();

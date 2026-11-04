@@ -1,256 +1,170 @@
-> Consumer electronics. Premium white space, SF Pro, cinematic imagery.
+---
+product: Rhyolite
+version: "0.1.6"
+architecture: "Local-First Hybrid Markdown (.md) + SQLite WAL + Capacities Object Studio"
+platforms: ["macOS", "Windows", "Linux", "iOS", "Android"]
+breakpoints:
+  mobile: "390px - 767px"
+  tablet: "768px - 1199px"
+  desktop: "1200px - 2560px+"
+sidebar:
+  ribbon_width: "42px"
+  left_explorer_width: "268px"
+  right_inspector_width: "280px"
+  tree_row_height: "28px"
+  tree_indent_step: "16px"
+motion:
+  hover_duration: "140ms"
+  easing: "CubicEaseOut (0.22, 1.0, 0.36, 1.0)"
+  compositor_only_properties: ["Opacity", "RenderTransform"]
+---
 
-## 1. Visual Theme & Atmosphere
+# DESIGN.md — Rhyolite Design System & Folder/Workspace Architecture
 
-Apple's web language is a precision editorial system that alternates between gallery-like calm and retail-density information blocks. The visual tone stays restrained: broad neutral canvases, quiet chrome, and product imagery given almost all of the expressive weight. The interface is engineered to disappear so hardware, materials, and finish options become the narrative foreground.
+> Structured following the [AI UX Playground `create-design-md` Specification](https://aiuxplayground.com/prompts/create-design-md) and benchmarked against **Obsidian 1.8**, **Capacities.io**, **Craft.do**, **Bear**, **Apple Notes**, and **Linear**.
 
-Across the five analyzed pages, the rhythm is consistent but not monolithic. Marketing surfaces (homepage and Environment) use cinematic black-and-light chaptering, while commerce surfaces (Store and Shop flows) introduce tighter spacing, more utility controls, and denser card stacks without breaking the core brand grammar. The result is one system with two gears: showcase mode and transaction mode.
+---
 
-Typography is the stabilizer. SF Pro Display carries hero and merchandising hierarchy with compact line heights and controlled tracking, while SF Pro Text handles product metadata, navigation, filters, and dense selection UI. The typography stays understated, but the scale range is wide enough to support both billboard hero messaging and micro utility labels.
+## 1. Purpose and Scope
+This document is the canonical source of truth for Rhyolite's visual hierarchy, folder/file navigation architecture, Capacities Object Studio layouts, and multi-design token system (`feimacode/open-design-agent-kit`). Every UI view, sidebar tree, and component must adhere strictly to the rules and anti-patterns defined here.
 
-**Key Characteristics:**
-- Binary section rhythm: deep black scenes (`#000000`) alternating with pale neutral fields (`#f5f5f7`)
-- Single blue accent family for action and link semantics (`#0071e3`, `#0066cc`, `#2997ff`)
-- Dual operating modes in one system: cinematic showcase modules and dense commerce configurators
-- Heavy reliance on imagery and material finishes; UI chrome remains visually thin
-- Tight headline metrics (SF Pro Display, semibold) paired with compact body/link typography (SF Pro Text)
-- Pill and capsule geometry as signature action language (`18px` to `980px` and circular controls)
-- Depth used sparingly; contrast and surface separation do most of the layering work
-- Multi-page color-block rhythm: black hero chapters -> pale neutral merchandising fields -> utility white retail surfaces -> dark micro-surfaces for controls
+---
 
-## 2. Color Palette & Roles
+## 2. Product and User Principles
+- **Target Users**: Staff/Principal engineers, systems architects, researchers, and knowledge workers who demand local file sovereignty (`.md` + `.canvas` on disk) paired with structured object thinking.
+- **Main Jobs to Be Done**:
+  1. Navigate nested folders, subfolders, and notes effortlessly without visual clutter.
+  2. Personalize folders, subfolders, and typed objects (`ADR`, `Project`, `Meeting`, `Daily Note`, `Study Card`) with meaningful icons/emojis and color accents.
+  3. Switch seamlessly between prose writing (Source / Split / Reading), spatial thinking (Graph / Canvas), and structured databases (Capacities Gallery, Wall/Kanban, Bases Table, Calendar).
+- **Core Design Principles**:
+  1. **Calm Spatial Hierarchy over Toolbar Clutter**: Never stack multiple competing lists or permanent form inputs inside narrow sidebars.
+  2. **Unified Tree Mental Model (Obsidian + Craft + Notion)**: Subfolders and notes belong *inside* their parent folders in a single unified tree with subtle vertical indentation guide lines — never split into a separate "Folders" list and a disconnected "Notes" list in the same column.
+  3. **Progressive Disclosure**: Creation forms (New Folder/Subfolder) and customization palettes (Folder Icon/Emoji Picker) appear in a clean collapsible popover/drawer when invoked, staying tucked away during normal reading and browsing.
+  4. **Zero-Layout-Thrash Motion**: Animate only GPU compositor properties (`Opacity`, `RenderTransform`).
 
-> **Source Pages:** `https://www.apple.com/`, `https://www.apple.com/environment/`, `https://www.apple.com/store`, `https://www.apple.com/shop/buy-iphone/iphone-17-pro`, `https://www.apple.com/shop/accessories/all`
+---
 
-### Primary
-- **Absolute Black** (`#000000`): Immersive hero canvases, high-drama product chapters, deep UI anchors.
-- **Pale Apple Gray** (`#f5f5f7`): Main light surface for feature bands, comparison blocks, and editorial transitions.
-- **Near-Black Ink** (`#1d1d1f`): Primary text and dark-fill control color on light canvases.
+## 3. Visual Hierarchy and Layout Rules
 
-### Secondary & Accent
-- **Apple Action Blue** (`#0071e3`): Primary action fill and focus-signaling brand accent.
-- **Body Link Blue** (`#0066cc`): Inline link color optimized for long-form readability.
-- **High-Luminance Link Blue** (`#2997ff`): Bright link treatment on darker scenes where stronger contrast is required.
+### 3.1 Desktop 3-Pane Master-Detail Shell (`1440×900` Standard — Mirroring Reference Architecture)
+```text
++-----------------------+----------------------------+--------------------------------------------------------------+
+| 205px                 | 285px                      | * (Fluid Right Editorial & Workspace Stage)                  |
+| Pane 1: Navigation,   | Pane 2: Middle Note Feed   | Top Minimal Bar: Folder Dropdown · Add Tags · View Icons · •••|
+| Quick Links, Folders, | Pill Search + Circular (+) | Hero Banner / Templates Pill                                 |
+| Subfolders, Tags &    | "All notes ▾" Heading      | ● Colored Dot + Large Display Title                          |
+| User Profile Footer   | Colored Dot Note Cards     | Editorial Body + Embedded Attachment Card + Bottom "/" Bar   |
++-----------------------+----------------------------+--------------------------------------------------------------+
+```
 
-### Surface & Background
-- **Pure White Canvas** (`#ffffff`): Retail/product-list backgrounds and dense transactional sections.
-- **Graphite Surface A** (`#272729`): Dark card and media-control context layer.
-- **Graphite Surface B** (`#262629`): Slightly deeper dark utility layer for control groupings.
-- **Graphite Surface C** (`#28282b`): Elevated dark supporting surfaces.
-- **Graphite Surface D** (`#2a2a2c`): Darkest elevated step used for separation in richer dark scenes.
+### 3.2 Three-Pane Master-Detail Architecture (Reference Screenshots 1, 2 & 3)
+1. **Pane 1 — Left Navigation, Folders & Tags Sidebar (`205px`, deepest surface)**:
+   - **Top Header**: macOS window traffic lights (`🔴 🟡 🟢`) or Workspace Avatar (`P` / `R` badge + `"Private"` / `"Rhyolite"`), plus subtle sync `⟳` and collapse `<` buttons.
+   - **Section 1: `Quick links`**:
+     - Active item renders with a **full-pill `CornerRadius="999"` solid blue/accent background (`#0D6EFD` / `AppleAccentBrush`) and white icon + text**.
+     - Items: `📄 All notes`, `🔔 Reminders`, `☑️ Tasks`, `♡ Favorites`, `🖊️ Highlights`, `🕒 Activity` (with red notification dot), `🔍 Saved search` (`Test search 12`, `My notes 10`).
+   - **Section 2: `Folders`** (header row with `Folders` on the left, sort `≡` and `+` button on the right to toggle the Folder & Emoji Studio popover):
+     - Hierarchical folder and indented subfolder tree with colored folder icons/emojis and muted `direct/total` note counts (`4/6`, `3/19`, `2/345`, `1`, `52`):
+       - `🏛️ 01 — Architecture  4/6`
+         - `💾 Storage  1/1` (indented subfolder)
+         - `🔌 Protocols  0/0` (indented subfolder)
+       - `📅 02 — Daily Notes  1/1`
+       - `🧠 03 — Study & Research  1/1`
+       - `🚀 04 — Capacities Studio  0/2`
+         - `🚀 Projects  1/1` (indented subfolder)
+         - `🤝 Meetings  1/1` (indented subfolder)
+   - **Section 3: `Tags`** (header row with `+` button): `🏷️ Design 12`, `🏷️ Architecture 6`, `🏷️ Screenshots 250`.
+   - **Section 4: `Trash`**: `🏷️ Silver / Snapshots 28`.
+   - **Bottom User Profile Footer**: Avatar circle + `"Dustin Blad"` / `"Personal"`.
+2. **Pane 2 — Middle Note List / Feed Column (`285px`, mid-tone surface)**:
+   - **Top Search & Quick-Create Row**: Pill-shaped Search input (`🔍 Search` with filter icon `≡`) + **Circular Accent `+` Button** (`30×30px`, `CornerRadius="999"`).
+   - **Feed Header**: `All notes ▾` (or active folder/filter title).
+   - **Note Feed Cards**:
+     - Selected note card has a crisp `1px` border (`#3E3E44` dark / `#CBD5E1` light) and elevated surface fill; unselected cards have subtle `1px` bottom dividers.
+     - **Line 1**: `9px` colored status/category dot (`●` green, orange, purple, red, blue) + **Bold Note Title**.
+     - **Line 2**: Date (`18/11/2026`) + single-line excerpt preview (`TextTrimming="CharacterEllipsis"`).
+     - **Line 3**: Tinted rounded reminder/metadata pill (`🔔 13 sep 15:00` / `🔔 20 FEB 15:00` in translucent blue `#1E3A5F` / `#38BDF8`).
+3. **Pane 3 — Right Main Editorial Studio & Multi-Screen Stage (`*` width)**:
+   - **Top Minimal Header Bar (`42px`)**:
+     - Left: `📁 My notes / Folder ▾` + `🏷️ Add tags` + compact screen/theme controls.
+     - Right: Minimal action icons (`📎` Attach · `☑️` Tasks · `🔔` Reminder · `🔗` Share · `⤢` Focus/Split · `•••` More Actions menu trigger).
+   - **Floating `•••` Note Context Menu Popover (`IsNoteMenuOpen`)**:
+     - Mirrors Reference Screenshot 1: `♡ Add to favorites`, `📌 Pin note`, `🎨 Set color`, `⛶ Focus mode` (with toggle switch), `⚙️ Appearance`, `🔍 Find in note`, `📁 Move to`, `📋 Copy to`, `💬 View resolved comments`, `ℹ️ Note info`, `↩ Undo`, `↪ Redo`, `🗑️ Delete`.
+   - **Editorial Note Canvas**:
+     - Optional **Hero Cover Banner** (Screenshot 1) or top-right `✨ Templates` pill (Screenshot 3).
+     - **Colored Accent Dot + Large `26px` Display Title** (`● Fusion energy` / `● Hybrid Storage Engine`).
+     - Generous editorial prose with inline highlight spans, embedded diagram/visual preview, bordered **Attachment / Google Drive / SQLite Sidecar Card**, and bottom slash-command bar (`Type "/" or add  ☑️  ☰  🔢  ⊞  🖼️  📎  |  ⌄`).
 
-### Neutrals & Text
-- **Secondary Neutral Gray** (`#6e6e73`): Body secondary copy, helper descriptions, tertiary metadata.
-- **Soft Border Gray** (`#d2d2d7`): Dividers, subtle outlines, and muted utility containment.
-- **Mid Border Gray** (`#86868b`): Stronger field outlines in product-configuration and filter contexts.
-- **Utility Dark Gray** (`#424245`): Dark-neutral text/surface crossover in store contexts.
+---
 
-### Semantic & Accent
-- **Selection/Focus Signal** (`#0071e3`): Shared focus and selected-state signal across marketing and commerce contexts.
-- **Error/Warning/Success**: No distinct semantic palette was consistently visible in the extracted surface set.
+## 4. Token and Visual-System Guidance
+Rhyolite supports **9 switchable design systems** from `feimacode/open-design-agent-kit`, each updating 25+ `DynamicResource` tokens at runtime:
+- **Typography Tokens**: `AppleUiFont`, `AppleDisplayFont`, `AppleMonoFont`, `AppleHeadingFontWeight`, `AppleBtnFontWeight`, `AppleBtnFontSize`.
+- **Button Geometry & Bevel Tokens**: `ApplePrimaryBtnCornerRadius` (`0px` Vercel to `999px` Stripe), `AppleSecondaryBtnCornerRadius`, `ApplePrimaryBtnBorderThickness` (`1,1,1,3` Raycast 3D keycap, `1,2,1,1` Linear top-lit, `1,1,1,2` GitHub Primer), `ApplePrimaryBtnShadow`.
+- **Card, Input & Pill Tokens**: `AppleCardCornerRadius`, `AppleCardBorderThickness`, `AppleCardShadow`, `AppleInputCornerRadius`, `ApplePillCornerRadius`.
 
-### Gradient System
-- The extracted pages are overwhelmingly solid-surface driven. Visual richness comes from photography and finish rendering rather than persistent UI gradients.
+---
 
-## 3. Typography Rules
+## 5. Component Selection and Usage Rules
+- **Primary Button (`Classes="apple-btn-primary"`)**: Maximum **1–2 primary buttons per toolbar region** (e.g., `+ Note` in sidebar, `Save` in editor bar, `+ Create Object` in Object Studio).
+- **Secondary / Ghost Tree Row**: Folder and note rows inside the Unified Explorer Tree must use a borderless transparent background at rest, revealing a subtle surface tint on `:pointerover` and `AppleCalloutBgBrush` when `:selected`.
+- **Capacities Folder Cards (in Screen 4 Object Studio)**: Display a top horizontal strip of **Subfolder Cards** showing each folder's assigned emoji (`🏛️`, `💾`, `🔌`, `🚀`, `🤝`), name, subfolder path, and item count so users can navigate folders visually inside the main stage as well as the sidebar.
 
-### Font Family
-- **Display Family:** `SF Pro Display`, fallbacks `SF Pro Icons, Helvetica Neue, Helvetica, Arial, sans-serif`
-- **Text Family:** `SF Pro Text`, fallbacks `SF Pro Icons, Helvetica Neue, Helvetica, Arial, sans-serif`
-- **Usage Split:** Display family handles hero/product headlines and merchandising headings; Text family handles navigation, controls, labels, and dense commerce copy.
+---
 
-### Hierarchy
-| Role | Size | Weight | Line Height | Letter Spacing | Notes |
-|------|------|--------|-------------|----------------|-------|
-| Hero Display XL | 80px | 600 | 1.00-1.05 | -1.2px | Environment/store hero scale |
-| Hero Display L | 56px | 600 | 1.07 | -0.28px | Homepage hero moments |
-| Section Display | 48px | 500-600 | 1.08 | -0.144px | Major chapter headings |
-| Product Heading | 40px | 600 | 1.10 | normal | Product and campaign section titles |
-| Feature Display | 38px | 600 | 1.21 | 0.152px | Device and merchandising callouts |
-| Promo Display | 32px | 300-600 | 1.09-1.13 | 0.128px to 0.352px | Module-level sub-heroes |
-| Card/Product Title | 28px | 600 | 1.14 | 0.196px | Tile-level naming and key copy |
-| Utility Heading | 24px | 600 | 1.17 | 0.216px / -0.2px | Configurator and grouped content headers |
-| Link/Action Heading | 21px | 600 | 1.14-1.38 | 0.231px | Larger promotional links |
-| Subhead | 19px | 600 | 1.21 | 0.228px | Compact section intros |
-| Body Primary | 17px | 400 | 1.47 | -0.374px | Standard body and retail descriptions |
-| Body Emphasis | 17px | 600 | 1.24 | -0.374px | Emphasized labels and key values |
-| Control Label | 14px | 400-600 | 1.29-1.47 | -0.224px | Buttons, helper labels, compact nav text |
-| Micro UI | 12px | 400-600 | 1.00-1.33 | -0.12px | Fine print, micro labels |
-| Legal/Meta | 10px | 400 | 1.30-1.47 | -0.08px | Dense metadata and legal support text |
+## 6. Interaction States and Behavior
+- **Folder Row Click**: Selects the folder (`SelectedFolderNode`), expands/collapses its children (`ToggleFolderExpandCommand`), and filters the Object Studio view when Screen 4 is active.
+- **Note Row Click**: Opens the note immediately in the editor (`SelectedNote`) and updates breadcrumbs (`🏛️ 01 — Architecture › 💾 Storage › 📄 SQLite WAL Indexer`).
+- **Emoji Assignment**: Clicking any emoji in the Folder Studio Drawer immediately updates `folder_metadata` in SQLite WAL and refreshes both the Unified Explorer Tree and the Breadcrumb bar in `< 1 ms`.
 
-### Principles
-- **Continuity across page types:** The same typographic DNA spans cinematic launches and product-purchase flows, preventing a brand split between marketing and commerce.
-- **Compression at scale:** Display tiers use tight leading and controlled tracking to feel machined and product-first.
-- **Readable density at retail depth:** SF Pro Text balances compactness with enough vertical rhythm for long product lists and option matrices.
-- **Measured weight ladder:** 600 is the dominant emphasis weight; 700 appears selectively; 300 is used sparingly for contrast in larger lines.
+---
 
-### Note on Font Substitutes
-- Closest freely available substitutes: `Inter` for text-heavy implementation and `SF Pro Display-like` metrics approximated with `Inter Tight` for headings.
-- When substituting, increase line-height slightly (+0.02 to +0.06) on body sizes and reduce negative tracking intensity to preserve readability.
+## 7. Content and Microcopy Guidance
+- Keep sidebar labels to **1–3 words** (`EXPLORER`, `OBJECT TYPES`, `BOOKMARKS`).
+- Never repeat folder paths on note rows that are already visually nested inside their parent folder in the tree.
 
-## 4. Component Stylings
+---
 
-### Buttons
-- **Primary Fill Action:** `#0071e3` background, `#ffffff` text, 8px radius, compact horizontal padding (commonly 8px 15px). Used for decisive purchase/progression actions.
-- **Dark Fill Action:** `#1d1d1f` background, `#ffffff` text, 8px radius. Used when light surfaces need a restrained high-contrast primary.
-- **Pill/Capsule Action Family:** large capsule actions at `18px`-`56px` radii and extreme pill links at `980px`. Establishes Apple’s soft but precise call-to-action silhouette.
-- **Utility Filter/Button Shells:** light shells (`#fafafc` or translucent white) with subtle gray borders (`#d2d2d7` / `#86868b`) for dense configuration contexts.
-- **Pressed Behavior:** active controls commonly reduce scale or shift fill slightly to indicate physical press confirmation.
+## 8. Accessibility Requirements
+- Minimum `4.5:1` contrast ratio for body text and `3:1` for active folder/note selection borders across all 18 Light/Dark palettes.
+- Keyboard shortcuts: `⌘P` / `Ctrl+P` (Command Palette), `⌘S` / `Ctrl+S` (Save Note), `⌘N` / `Ctrl+N` (New Note), `Esc` (Close modal/drawer).
 
-### Cards & Containers
-- **Editorial/Product Cards:** light cards on `#f5f5f7` or white fields with minimal framing and image-first composition.
-- **Dark Utility Cards:** graphite steps (`#272729` to `#2a2a2c`) used for overlays, media controls, and dark-context modules.
-- **Configurator Panels:** rounded containers (often 12px-18px) with clear but restrained border definition.
-- **Carousel/Spotlight Modules:** larger rounded shells (`28px`-`36px`) for featured content lanes.
+---
 
-### Inputs & Forms
-- **Retail Input Fields:** translucent or white backgrounds, dark text (`#1d1d1f`), border-led containment (`#86868b`).
-- **Selection Controls:** circular/toggle-like control geometry appears frequently in product selection interfaces.
-- **Density Strategy:** form fields remain visually quiet to keep device imagery and pricing hierarchy dominant.
+## 9. Responsive Behavior
+- Collapsible Left Explorer (`◧`, `268px` ↔ `0px`) and Collapsible Right Inspector (`◨`, `280px` ↔ `0px`) allow distraction-free full-bleed writing or 3-pane studio layouts.
+- Dedicated Mobile adaptive view (`390px` viewport) with bottom navigation and 1-tap Daily Note capture.
 
-### Navigation
-- **Global Marketing Nav:** compact dark translucent bar with small-type links and restrained iconography.
-- **Store/Sub-shop Nav Layers:** additional utility bars, chips, and segmented controls for category and product narrowing.
-- **Link Hierarchy:** link blues remain the primary interactive signal while neutral text supports dense navigation sets.
+---
 
-### Image Treatment
-- **Object-First Photography:** hardware and accessories are foregrounded on controlled solid surfaces.
-- **High-fidelity finish rendering:** reflective/material details are central to visual persuasion.
-- **Mixed framing:** full-bleed hero scenes coexist with rounded retail cards and tightly cropped merchandising thumbnails.
+## 10. AI-Specific UI Patterns
+- Local Vault RAG Copilot lives in the Right Inspector, citing exact `[[WikiLinks]]` from the vault.
+- Headless `--mcp-stdio` JSON-RPC 2.0 server exposes vault tools to external AI agents in `< 0.5 ms`.
 
-### Other Distinctive Components
-- **Product Configurator Matrix:** option stacks and selectors combining chips, radio-style controls, and contextual pricing/summary blocks.
-- **Carousel Control Dots/Arrows:** circular control vocabulary in muted overlays for gallery progression.
-- **Environment Story Panels:** narrative chapters that blend editorial typography with cinematic product/environment visuals.
+---
 
-## 5. Layout Principles
+## 11. Anti-Patterns and Prohibited Choices
+- ❌ **NO Split "Folders List" + "Notes List" in the Same Sidebar Column**: Never render a flat list of folders above a separate flat list of notes. Always use the **Unified Hierarchical Explorer Tree** where subfolders and notes are nested directly inside their parent folders.
+- ❌ **NO Multi-Line Card Clutter in File Trees**: Tree rows must be single-line (`28px` height) with clean ellipsis truncation. Do not stack subtitles and word counts under every tree item.
+- ❌ **NO Permanent Form/Emoji Strip Clutter**: Keep the Folder Creation & Emoji Picker inside the collapsible `IsFolderStudioOpen` drawer (or inside the dedicated Folder Studio header in Screen 4) so the default sidebar remains clean.
+- ❌ **NO Duplicate Design-System Button Rows**: Put the Design System selector (`◀ [ComboBox] ▶`) in the top tab bar rather than adding a third full-width toolbar row of 9 duplicate buttons across the editor header.
 
-### Spacing System
-- Base unit is effectively `8px`, but the system supports dense micro-steps for precision alignment.
-- Frequently reused spacing values across pages: `2`, `4`, `6`, `7`, `8`, `9`, `10`, `12`, `14`, `17`, `20` px.
-- Universal rhythm constants visible across both marketing and retail flows: `8px` unit scaffolding with `14-20px` utility intervals for component padding and list spacing.
+---
 
-### Grid & Container
-- **Showcase pages:** large central columns with broad horizontal breathing room and full-width color chapters.
-- **Commerce pages:** tighter multi-column product and control grids with frequent modular stacking.
-- **Container behavior:** constrained readable core with generous outer margins at desktop widths.
+## 12. Canonical Design References
+1. **Obsidian (`https://obsidian.md/`)**: Left ribbon, unified folder/subfolder/note tree with vertical indentation guides, multi-tab header, inline YAML `Properties`, backlinks inspector, bottom status bar.
+2. **Capacities (`https://capacities.io/product`)**: Object Types sidebar filter, custom folder/object icon & emoji identity, Object Studio schema builder, Collections, and 4-mode visual views (Gallery cover cards, Wall/Kanban, Table, Calendar).
+3. **Craft.do & Bear**: Generous whitespace, single-line tree typography, progressive disclosure of folder management controls.
 
-### Whitespace Philosophy
-- **Scene pacing:** major visual chapters use broad top/bottom breathing room.
-- **Information compaction where needed:** retail pages deliberately compress spacing to expose more actionable information per viewport.
-- **Contrast-led separation:** section transitions rely more on surface changes than decorative separators.
+---
 
-### Border Radius Scale
-- **5px:** tiny utility links/tags and minor small shells.
-- **8px-12px:** standard controls and compact fields.
-- **16px-18px:** cards, module frames, and commerce panels.
-- **28px-36px:** larger module and spotlight containers.
-- **56px / 100px / 980px:** capsules, large pills, and signature elongated CTA forms.
-- **50%:** circular media and selection controls.
+## 13. Preflight Checklist Before Generating UI
+1. Are subfolders (`💾 Storage`, `🔌 Protocols`, `🚀 Projects`, `🤝 Meetings`) and notes (`📄 Storage Architecture`) rendered inside a single unified tree with depth indentation and vertical guide lines?
+2. Are all tree rows single-line and scannable without horizontal clipping?
+3. Is the top header consolidated into at most 2 clean bars (Tab Bar + Breadcrumb/Mode Bar)?
 
-## 6. Depth & Elevation
+---
 
-| Level | Treatment | Use |
-|------|-----------|-----|
-| Level 0 | Flat neutral surfaces (`#ffffff`, `#f5f5f7`, `#000000`) | Main narrative and product stages |
-| Level 1 | Subtle border containment (`#d2d2d7`, `#86868b`) | Filters, input fields, utility cards |
-| Level 2 | Soft shadow (`rgba(0,0,0,0.08)` to `rgba(0,0,0,0.22)` where present) | Highlighted cards and elevated merchandise modules |
-| Level 3 | Dark-surface stepping (`#272729` -> `#2a2a2c`) | Overlays, media controls, dark utility clusters |
-| Accessibility | Blue focus signal (`#0071e3`) | Keyboard and selection emphasis |
-
-Depth is intentionally restrained. Apple favors tonal contrast, surface stepping, and compositional hierarchy over heavy shadow stacks.
-
-### Decorative Depth
-- Decorative depth is primarily created by photographic realism and material rendering, not synthetic UI effects.
-- Translucent overlays and glass-like utility bars provide mild atmospheric layering in navigation and controls.
-
-## 7. Do's and Don'ts
-
-### Do
-- Use the neutral triad (`#000000`, `#f5f5f7`, `#ffffff`) as the structural foundation.
-- Reserve blue accents for genuine action and navigation semantics.
-- Keep typography tight and deliberate, especially at display scales.
-- Maintain the capsule/circle geometry language for controls and key actions.
-- Let product imagery carry visual drama; keep chrome understated.
-- Use border-led containment in dense retail contexts instead of heavy card ornamentation.
-- Preserve clear separation between showcase modules and transactional modules while keeping core tokens shared.
-
-### Don't
-- Don’t introduce broad secondary accent palettes that compete with Apple blue.
-- Don’t overuse shadows, glow effects, or decorative gradients in core UI chrome.
-- Don’t mix unrelated font families or loosen tracking indiscriminately.
-- Don’t flatten all corners to a single radius; Apple uses purposeful radius tiers.
-- Don’t overload commerce modules with thick borders or loud visual effects.
-- Don’t remove neutral contrast cadence between dark and light chapters.
-- Don’t treat marketing and purchase flows as separate design systems.
-
-## 8. Responsive Behavior
-
-### Breakpoints
-| Name | Width | Key Changes |
-|------|-------|-------------|
-| Small Mobile | 374px and below | Tightened retail controls, single-column product stacks |
-| Mobile | 375px-640px | One-column modules, compact action rows, condensed selectors |
-| Tablet | 641px-833px | Expanded cards and mixed 1-2 column transitions |
-| Tablet Wide | 834px-1023px | More stable multi-column merchandising, larger text blocks |
-| Desktop | 1024px-1240px | Full retail layouts and product comparison structures |
-| Desktop Wide | 1241px-1440px | Marketing hero expansion and broader section spacing |
-| Large Desktop | 1441px+ | Maximum chapter breathing room and wide editorial composition |
-
-### Touch Targets
-- Primary and secondary actions are generally presented in tap-friendly pill/button geometries.
-- Circular media and selection controls align with minimum touchable intent in mobile contexts.
-- Dense commerce UI uses compact labels but maintains clear hit regions via surrounding shape padding.
-
-### Collapsing Strategy
-- Marketing hero typography scales down in discrete tiers while preserving hierarchy contrast.
-- Product and commerce grids collapse from multi-column to stacked cards with persistent selector visibility.
-- Utility navigation compresses into simpler link/control groupings while preserving key actions.
-- Option/configuration clusters become vertically sequenced to keep purchase flow linear on small screens.
-
-### Image Behavior
-- Product imagery preserves aspect and centrality through breakpoints.
-- Hero visuals remain dominant on mobile, with text repositioned around media priority.
-- Retail thumbnails stay legible via tighter crop logic and denser card stacking.
-- Image-led modules continue to anchor the rhythm as layout density increases.
-
-## 9. Agent Prompt Guide
-
-### Quick Color Reference
-- Primary action blue: **Apple Action Blue** (`#0071e3`)
-- Inline link blue: **Body Link Blue** (`#0066cc`)
-- Dark chapter canvas: **Absolute Black** (`#000000`)
-- Light chapter canvas: **Pale Apple Gray** (`#f5f5f7`)
-- Primary text on light: **Near-Black Ink** (`#1d1d1f`)
-- Secondary text: **Secondary Neutral Gray** (`#6e6e73`)
-- Retail border soft: **Soft Border Gray** (`#d2d2d7`)
-- Retail border strong: **Mid Border Gray** (`#86868b`)
-
-### Example Component Prompts
-- "Design an Apple-style product hero on a black canvas (`#000000`) with SF Pro Display semibold headline (48-56px), concise supporting copy, and two capsule CTAs using `#0071e3` and `#1d1d1f`."
-- "Create a commerce configuration panel on white (`#ffffff`) with 18px rounded cards, `#86868b` border fields, SF Pro Text 17px body copy, and compact option selectors."
-- "Build a merchandising card grid alternating `#f5f5f7` and white surfaces, with image-first cards, restrained shadows, and 14-17px SF Pro Text metadata."
-- "Generate a carousel control cluster using circular buttons (50% radius), muted gray overlays, and clear active feedback for gallery navigation."
-- "Compose a mixed marketing + retail page rhythm: dark showcase chapter -> light feature chapter -> dense product list module while keeping blue accents only for actions and links."
-
-### Iteration Guide
-1. Lock the neutral foundation first (`#000000`, `#f5f5f7`, `#ffffff`) before tuning accents.
-2. Keep blue accents scarce and purposeful; if everything is blue, hierarchy collapses.
-3. Tune typography in this order: display scale, body readability, then micro labels.
-4. Match radius by component class (field, card, capsule, circle) rather than one-size-fits-all rounding.
-5. Increase density gradually when moving from showcase sections to commerce sections.
-6. Validate that product imagery remains the strongest visual layer after each revision.
-
-### Known Gaps
-- Distinct semantic status colors (error/warning/success) were not consistently visible in the extracted page set.
-- Some interaction micro-states vary by module and are not represented as universal system tokens.
-- A few retail modules expose context-specific typography overrides that do not appear across all five pages.
-
-## Not synced from Open Design
-
-- --motion-fast skipped: Claude design systems have no motion family.
-- --motion-base skipped: Claude design systems have no motion family.
-- --ease-standard skipped: Claude design systems have no motion family.
-- Written as literal colours computed from color-mix(): --focus-ring. They won't follow later edits to the colours they mix.
-- Fonts are named by family only (hosted faces); no font files were copied.
-- No components or assets: Open Design design systems carry tokens and guidance only.
+## 14. Final UI QA Checklist
+1. Verify all 12 rendered mockups (`docs/mockups/01_*.png` through `12_*.png`) via visual inspection.
+2. Confirm zero text overlap, zero clipped buttons, and clear visual hierarchy in both Light and Dark themes across all 9 design systems.

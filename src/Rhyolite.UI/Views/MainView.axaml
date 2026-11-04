@@ -23,281 +23,484 @@
 
   <Grid>
     <!-- ========================================================================= -->
-    <!-- AUTHENTIC OBSIDIAN DESKTOP WORKSPACE SHELL                                -->
-    <!-- Col 0: Far-Left Vertical Icon Ribbon (46px)                               -->
-    <!-- Col 1: Persistent Collapsible Left Vault Sidebar (260px)                  -->
-    <!-- Col 2: Multi-Tab Document & Graph/Canvas/Bases/Study Workspace (*)        -->
-    <!-- Col 3: Collapsible Right Backlinks, Outline & AI Copilot Inspector (290px)-->
-    <!-- Row 1: Obsidian Bottom Telemetry & Word/Backlink Status Bar (28px)        -->
+    <!-- 3-PANE MASTER-DETAIL EDITORIAL WORKSPACE ARCHITECTURE                     -->
+    <!-- Col 0: Pane 1 — Left Navigation, Quick Links, Folders/Subfolders & Tags   -->
+    <!-- Col 1: Pane 2 — Middle Note Feed Column (Search, Circular +, Note Cards)  -->
+    <!-- Col 2: Pane 3 — Right Main Editorial Note Studio & Screens 2–8 (*)        -->
+    <!-- Col 3: Collapsible Right Backlinks, Outline & RAG Copilot Drawer (Auto)   -->
+    <!-- Row 1: Bottom Telemetry & Word/Backlink Status Bar (26px)                 -->
     <!-- ========================================================================= -->
-    <Grid RowDefinitions="*,28" ColumnDefinitions="46,Auto,*,Auto">
+    <Grid RowDefinitions="*,26" ColumnDefinitions="210,Auto,*,Auto">
 
       <!-- ===================================================================== -->
-      <!-- COL 0: OBSIDIAN FAR-LEFT VERTICAL ICON RIBBON (46px)                  -->
+      <!-- PANE 1 (COL 0): LEFT NAVIGATION, QUICK LINKS, FOLDERS & TAGS SIDEBAR  -->
       <!-- ===================================================================== -->
       <Border Grid.Row="0" Grid.Column="0"
-              Background="{DynamicResource AppleSurfaceWarmBrush}"
-              BorderBrush="{DynamicResource AppleBorderBrush}"
-              BorderThickness="0,0,1,0"
-              Padding="5,8">
-        <DockPanel LastChildFill="True">
-          <!-- Bottom Ribbon Actions: Theme & Design Preset Switcher -->
-          <StackPanel DockPanel.Dock="Bottom" Spacing="5" HorizontalAlignment="Center">
-            <Button Content="🎨"
-                    Command="{Binding NextDesignSystemCommand}"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Cycle Design System Preset (open-design-agent-kit)" />
-            <Button Content="🌗"
-                    Command="{Binding ToggleAppleThemeCommand}"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Toggle Light / Dark Theme Variant" />
-          </StackPanel>
-
-          <!-- Top Ribbon Actions: Obsidian Workspace Switchers -->
-          <StackPanel Spacing="5" HorizontalAlignment="Center">
-            <Button Content="◧"
-                    Command="{Binding ToggleLeftSidebarCommand}"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Toggle Left File Explorer Sidebar" />
-            <Border Height="1" Background="{DynamicResource AppleBorderBrush}" Margin="4,2" />
-            <Button Content="📄"
-                    Command="{Binding SwitchScreenCommand}" CommandParameter="Studio"
-                    Classes="apple-btn-primary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Note Studio &amp; Markdown Editor" />
-            <Button Content="🕸️"
-                    Command="{Binding SwitchScreenCommand}" CommandParameter="Graph"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Open Force-Directed Knowledge Graph View" />
-            <Button Content="🎨"
-                    Command="{Binding SwitchScreenCommand}" CommandParameter="Canvas"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Open Spatial Infinite .canvas Board" />
-            <Button Content="🗃️"
-                    Command="{Binding SwitchScreenCommand}" CommandParameter="Bases"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Open Bases Relational Table &amp; Kanban" />
-            <Button Content="📅"
-                    Command="{Binding OpenDailyNoteCommand}"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Open Today's Daily Note" />
-            <Button Content="🧠"
-                    Command="{Binding SwitchScreenCommand}" CommandParameter="Study"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Open FSRS Spaced Repetition &amp; Snapshot Time-Machine" />
-            <Button Content="🔌"
-                    Command="{Binding SwitchScreenCommand}" CommandParameter="Protocol"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Open MCP JSON-RPC 2.0, GraphQL &amp; P2P Mesh Console" />
-            <Button Content="🛡️"
-                    Command="{Binding SwitchScreenCommand}" CommandParameter="DevEx"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Open GitHub PR Review &amp; 1Password/KeePassXC DevEx Studio" />
-            <Button Content="📱"
-                    Command="{Binding SwitchScreenCommand}" CommandParameter="Mobile"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Open Mobile Companion Preview" />
-            <Border Height="1" Background="{DynamicResource AppleBorderBrush}" Margin="4,2" />
-            <Button Content="⌘"
-                    Command="{Binding ToggleCommandPaletteCommand}"
-                    Classes="apple-btn-secondary"
-                    Width="34" Height="34" Padding="0" FontSize="14"
-                    ToolTip.Tip="Open Command Palette (⌘P / Ctrl+P)" />
-          </StackPanel>
-        </DockPanel>
-      </Border>
-
-      <!-- ===================================================================== -->
-      <!-- COL 1: OBSIDIAN + CAPACITIES LEFT SIDEBAR (FOLDERS / OBJECTS / NOTES) -->
-      <!-- ===================================================================== -->
-      <Border Grid.Row="0" Grid.Column="1"
-              Width="282"
               IsVisible="{Binding IsLeftSidebarOpen}"
               Background="{DynamicResource AppleSurfaceBrush}"
               BorderBrush="{DynamicResource AppleBorderBrush}"
               BorderThickness="0,0,1,0"
-              Padding="9,8">
+              Padding="10,10">
         <DockPanel LastChildFill="True">
-          <!-- Left Sidebar Top Tab Bar & Folder/Object Controls -->
-          <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,6">
-            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="4">
-              <Button Grid.Column="0" Content="📁 Files"
-                      Command="{Binding SetLeftSidebarTabCommand}" CommandParameter="Files"
-                      Classes="apple-btn-secondary" Padding="6,3" FontSize="11" HorizontalAlignment="Stretch" />
-              <Button Grid.Column="1" Content="✨ Objects"
-                      Command="{Binding SwitchScreenCommand}" CommandParameter="Bases"
-                      Classes="apple-btn-secondary" Padding="6,3" FontSize="11" HorizontalAlignment="Stretch" />
-              <Button Grid.Column="2" Content="🔖 Pins"
-                      Command="{Binding SetLeftSidebarTabCommand}" CommandParameter="Bookmarks"
-                      Classes="apple-btn-secondary" Padding="6,3" FontSize="11" HorizontalAlignment="Stretch" />
-            </Grid>
 
-            <!-- Action Toolbar: New Note / New Typed Object / Daily -->
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
-              <Button Grid.Column="0" Content="＋ 📄 Note"
-                      Command="{Binding CreateNewNoteCommand}"
-                      Classes="apple-btn-primary" Padding="7,4" FontSize="11" HorizontalAlignment="Stretch" />
-              <Button Grid.Column="1" Content="＋ ✨ Object"
-                      Command="{Binding CreateTypedObjectCommand}"
-                      Classes="apple-btn-secondary" Padding="7,4" FontSize="11" />
-              <Button Grid.Column="2" Content="📅"
-                      Command="{Binding OpenDailyNoteCommand}"
-                      Classes="apple-btn-secondary" Padding="7,4" FontSize="11" ToolTip.Tip="Open Daily Note" />
-            </Grid>
-
-            <!-- Live Vault Search / Tag / Object Filter -->
-            <TextBox Text="{Binding SearchFilter, Mode=TwoWay}"
-                     PlaceholderText="🔍 Filter files, #tags, or object types…"
-                     FontSize="11.5" Padding="7,4" />
-
-            <!-- Capacities Object Types Quick-Filter Strip -->
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-              <StackPanel Orientation="Horizontal" Spacing="3">
-                <Button Content="✨ All" Command="{Binding FilterByObjectTypeCommand}" CommandParameter="All" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="🏛️ ADRs" Command="{Binding FilterByObjectTypeCommand}" CommandParameter="Architecture ADR" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="🚀 Projects" Command="{Binding FilterByObjectTypeCommand}" CommandParameter="Project" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="🤝 Meetings" Command="{Binding FilterByObjectTypeCommand}" CommandParameter="Meeting" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="📅 Daily" Command="{Binding FilterByObjectTypeCommand}" CommandParameter="Daily Note" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="🧠 Study" Command="{Binding FilterByObjectTypeCommand}" CommandParameter="Study Card" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
+          <!-- Top macOS Traffic Lights + Workspace Header -->
+          <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,10">
+            <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+              <!-- macOS Window Controls -->
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="2,0,10,0">
+                <Border Width="10" Height="10" CornerRadius="999" Background="#FF5F56" />
+                <Border Width="10" Height="10" CornerRadius="999" Background="#FFBD2E" />
+                <Border Width="10" Height="10" CornerRadius="999" Background="#27C93F" />
               </StackPanel>
-            </ScrollViewer>
 
-            <!-- Hierarchical Folders & Subfolders + Emoji Assignment Panel -->
-            <Border Background="{DynamicResource AppleSurfaceWarmBrush}"
-                    BorderBrush="{DynamicResource AppleBorderSoftBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{DynamicResource AppleSecondaryBtnCornerRadius}"
-                    Padding="7,6">
-              <StackPanel Spacing="4">
-                <Grid ColumnDefinitions="*,Auto">
-                  <TextBlock Grid.Column="0" Text="🗂️ FOLDERS &amp; SUBFOLDERS" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" VerticalAlignment="Center" />
-                  <Button Grid.Column="1" Content="All Folders"
-                          Command="{Binding SelectFolderFilterCommand}" CommandParameter="All"
-                          Classes="apple-btn-secondary" Padding="5,1" FontSize="9.5" />
-                </Grid>
+              <!-- Workspace Badge ("R Rhyolite") -->
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Border Width="20" Height="20" CornerRadius="5" Background="{DynamicResource AppleAccentBrush}">
+                  <TextBlock Text="R" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="Rhyolite" Classes="display-heading" FontSize="13" Foreground="{DynamicResource AppleFgBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="▾" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+              </StackPanel>
 
-                <!-- Create Folder / Subfolder & Move Active Note Bar -->
-                <Grid ColumnDefinitions="32,*,Auto,Auto" ColumnSpacing="3">
-                  <TextBox Grid.Column="0" Text="{Binding SelectedEmojiInput, Mode=TwoWay}" FontSize="11" Padding="4,2" HorizontalContentAlignment="Center" />
-                  <TextBox Grid.Column="1" Text="{Binding NewFolderPathInput, Mode=TwoWay}" PlaceholderText="Folder/Subfolder..." FontSize="10.5" Padding="5,2" />
-                  <Button Grid.Column="2" Content="＋Sub" Command="{Binding CreateFolderOrSubfolderCommand}" Classes="apple-btn-primary" Padding="6,2" FontSize="10" ToolTip.Tip="Create Folder or Nested Subfolder with Emoji" />
-                  <Button Grid.Column="3" Content="↗" Command="{Binding MoveActiveNoteToSelectedFolderCommand}" Classes="apple-btn-secondary" Padding="5,2" FontSize="10" ToolTip.Tip="Move Active Note to Selected Folder" />
-                </Grid>
+              <!-- Sync & Collapse Buttons -->
+              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                <Button Content="↻"
+                        Command="{Binding OpenDailyNoteCommand}"
+                        Background="Transparent" BorderThickness="0" Padding="5,2" FontSize="12"
+                        Foreground="{DynamicResource AppleMutedBrush}"
+                        ToolTip.Tip="Sync Vault &amp; Open Today's Daily Note" />
+                <Button Content="‹"
+                        Command="{Binding ToggleLeftSidebarCommand}"
+                        Background="Transparent" BorderThickness="0" Padding="5,2" FontSize="14"
+                        Foreground="{DynamicResource AppleMutedBrush}"
+                        ToolTip.Tip="Collapse Left Sidebar" />
+              </StackPanel>
+            </Grid>
+          </StackPanel>
 
-                <!-- 1-Click Folder Icon / Emoji Assignment Strip -->
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                  <StackPanel Orientation="Horizontal" Spacing="2">
-                    <TextBlock Text="Icon:" FontSize="9.5" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" Margin="0,0,2,0" />
-                    <Button Content="🏛️" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🏛️" Classes="apple-btn-secondary" Padding="4,1" FontSize="10.5" />
-                    <Button Content="💾" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="💾" Classes="apple-btn-secondary" Padding="4,1" FontSize="10.5" />
-                    <Button Content="🔌" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🔌" Classes="apple-btn-secondary" Padding="4,1" FontSize="10.5" />
-                    <Button Content="🚀" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🚀" Classes="apple-btn-secondary" Padding="4,1" FontSize="10.5" />
-                    <Button Content="🤝" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🤝" Classes="apple-btn-secondary" Padding="4,1" FontSize="10.5" />
-                    <Button Content="🧠" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🧠" Classes="apple-btn-secondary" Padding="4,1" FontSize="10.5" />
-                    <Button Content="📅" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="📅" Classes="apple-btn-secondary" Padding="4,1" FontSize="10.5" />
-                    <Button Content="🛡️" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🛡️" Classes="apple-btn-secondary" Padding="4,1" FontSize="10.5" />
-                    <Button Content="📚" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="📚" Classes="apple-btn-secondary" Padding="4,1" FontSize="10.5" />
-                    <Button Content="🔥" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🔥" Classes="apple-btn-secondary" Padding="4,1" FontSize="10.5" />
+          <!-- Bottom User Profile Footer (Matches Reference Screenshots) -->
+          <Border DockPanel.Dock="Bottom"
+                  BorderBrush="{DynamicResource AppleBorderSoftBrush}"
+                  BorderThickness="0,1,0,0"
+                  Padding="4,8,4,2"
+                  Margin="0,6,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+              <Grid Grid.Column="0" Width="28" Height="28">
+                <Border Width="28" Height="28" CornerRadius="999" Background="{DynamicResource AppleSurfaceWarmBrush}" BorderBrush="{DynamicResource AppleBorderBrush}" BorderThickness="1">
+                  <TextBlock Text="DB" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource AppleFgBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <Border Width="7" Height="7" CornerRadius="999" Background="#EF4444" HorizontalAlignment="Right" VerticalAlignment="Top" />
+              </Grid>
+              <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
+                <TextBlock Text="Dustin Blad" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppleFgBrush}" />
+                <TextBlock Text="Personal" FontSize="10.5" Foreground="{DynamicResource AppleMutedBrush}" />
+              </StackPanel>
+              <Button Grid.Column="2"
+                      Content="⌘P"
+                      Command="{Binding ToggleCommandPaletteCommand}"
+                      Classes="apple-btn-secondary"
+                      Padding="6,2" FontSize="10"
+                      ToolTip.Tip="Open Command Palette (⌘P)" />
+            </Grid>
+          </Border>
+
+          <!-- Scrollable Navigation Sections: Quick links, Folders, Tags, Studios -->
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12">
+
+              <!-- SECTION 1: QUICK LINKS -->
+              <StackPanel Spacing="2">
+                <TextBlock Text="Quick links"
+                           FontSize="11"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppleMutedBrush}"
+                           Margin="6,0,0,4" />
+
+                <!-- Active Full-Capsule Selection Pill ("All notes") -->
+                <Button Command="{Binding SelectFolderFilterCommand}"
+                        CommandParameter="All"
+                        Background="{DynamicResource AppleAccentBrush}"
+                        Foreground="#FFFFFF"
+                        BorderThickness="0"
+                        CornerRadius="999"
+                        Padding="10,5"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="📄" FontSize="12" Foreground="#FFFFFF" VerticalAlignment="Center" />
+                    <TextBlock Text="All notes" FontSize="12" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center" />
                   </StackPanel>
-                </ScrollViewer>
+                </Button>
 
-                <!-- Nested Folder & Subfolder Hierarchy Tree -->
+                <!-- Clean Unselected Quick Link Rows -->
+                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="Study"
+                        Background="Transparent" BorderThickness="0" Padding="10,4"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="🔔" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="Reminders" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+
+                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="Studio"
+                        Background="Transparent" BorderThickness="0" Padding="10,4"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="☑️" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="Tasks" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+
+                <Button Command="{Binding SetLeftSidebarTabCommand}" CommandParameter="Bookmarks"
+                        Background="Transparent" BorderThickness="0" Padding="10,4"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="♡" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="Favorites" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+
+                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="Canvas"
+                        Background="Transparent" BorderThickness="0" Padding="10,4"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="🖊️" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="Highlights" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+
+                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="DevEx"
+                        Background="Transparent" BorderThickness="0" Padding="10,4"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                    <TextBlock Grid.Column="0" Text="🕒" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="Activity" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" VerticalAlignment="Center" />
+                    <Border Grid.Column="2" Width="6" Height="6" CornerRadius="999" Background="#EF4444" VerticalAlignment="Center" />
+                  </Grid>
+                </Button>
+
+                <!-- Saved search expandable group -->
+                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="Bases"
+                        Background="Transparent" BorderThickness="0" Padding="6,4"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <TextBlock Text="▾" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="🔍" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="Saved search" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+
+                <Button Command="{Binding FilterByObjectTypeCommand}" CommandParameter="Architecture ADR"
+                        Background="Transparent" BorderThickness="0" Padding="28,3,10,3"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="Architecture" FontSize="11.5" Foreground="{DynamicResource AppleFg2Brush}" />
+                    <TextBlock Grid.Column="1" Text="6" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                  </Grid>
+                </Button>
+
+                <Button Command="{Binding FilterByObjectTypeCommand}" CommandParameter="Project"
+                        Background="Transparent" BorderThickness="0" Padding="28,3,10,3"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="Capacities" FontSize="11.5" Foreground="{DynamicResource AppleFg2Brush}" />
+                    <TextBlock Grid.Column="1" Text="4" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                  </Grid>
+                </Button>
+              </StackPanel>
+
+              <!-- SECTION 2: FOLDERS & NESTED SUBFOLDERS (WITH DIRECT/TOTAL COUNTS) -->
+              <StackPanel Spacing="3">
+                <Grid ColumnDefinitions="*,Auto,Auto" Margin="6,0,2,2">
+                  <TextBlock Grid.Column="0"
+                             Text="Folders"
+                             FontSize="11"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource AppleMutedBrush}"
+                             VerticalAlignment="Center" />
+                  <Button Grid.Column="1"
+                          Content="≡"
+                          Command="{Binding SelectFolderFilterCommand}" CommandParameter="All"
+                          Background="Transparent" BorderThickness="0" Padding="5,1" FontSize="12"
+                          Foreground="{DynamicResource AppleMutedBrush}"
+                          ToolTip.Tip="Show All Folders" />
+                  <Button Grid.Column="2"
+                          Content="＋"
+                          Command="{Binding ToggleFolderStudioCommand}"
+                          Background="Transparent" BorderThickness="0" Padding="5,1" FontSize="12"
+                          Foreground="{DynamicResource AppleMutedBrush}"
+                          ToolTip.Tip="Open Folder &amp; Emoji Studio" />
+                </Grid>
+
+                <!-- Progressive-Disclosure Folder & Emoji Studio Popover Card -->
+                <Border IsVisible="{Binding IsFolderStudioOpen}"
+                        Background="{DynamicResource AppleSurfaceWarmBrush}"
+                        BorderBrush="{DynamicResource AppleAccentBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="8,7"
+                        Margin="2,2,2,4">
+                  <StackPanel Spacing="5">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Grid.Column="0" Text="🎨 Folder &amp; Emoji Studio" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="✕" Command="{Binding ToggleFolderStudioCommand}" Background="Transparent" BorderThickness="0" Padding="3,0" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" />
+                    </Grid>
+                    <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="3">
+                      <TextBox Grid.Column="0" Text="{Binding SelectedEmojiInput, Mode=TwoWay}" FontSize="11" Padding="2" HorizontalContentAlignment="Center" />
+                      <TextBox Grid.Column="1" Text="{Binding NewFolderPathInput, Mode=TwoWay}" PlaceholderText="Folder/Subfolder..." FontSize="10" Padding="4,2" />
+                      <Button Grid.Column="2" Content="＋" Command="{Binding CreateFolderOrSubfolderCommand}" Classes="apple-btn-primary" Padding="6,2" FontSize="10" />
+                    </Grid>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                      <StackPanel Orientation="Horizontal" Spacing="2">
+                        <Button Content="🏛️" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🏛️" Classes="apple-btn-secondary" Padding="3,1" FontSize="10" />
+                        <Button Content="💾" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="💾" Classes="apple-btn-secondary" Padding="3,1" FontSize="10" />
+                        <Button Content="🔌" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🔌" Classes="apple-btn-secondary" Padding="3,1" FontSize="10" />
+                        <Button Content="🚀" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🚀" Classes="apple-btn-secondary" Padding="3,1" FontSize="10" />
+                        <Button Content="🤝" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🤝" Classes="apple-btn-secondary" Padding="3,1" FontSize="10" />
+                        <Button Content="🧠" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="🧠" Classes="apple-btn-secondary" Padding="3,1" FontSize="10" />
+                        <Button Content="📅" Command="{Binding AssignEmojiToSelectedFolderCommand}" CommandParameter="📅" Classes="apple-btn-secondary" Padding="3,1" FontSize="10" />
+                      </StackPanel>
+                    </ScrollViewer>
+                  </StackPanel>
+                </Border>
+
+                <!-- Hierarchical Folder & Subfolder Tree matching Reference Screenshots (e.g. " Projects 4/4") -->
                 <ItemsControl ItemsSource="{Binding VisibleFolderNodes}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                      <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="{Binding IndentMargin}" ColumnSpacing="3">
+                      <Grid ColumnDefinitions="16,*" Margin="{Binding IndentMargin}" MinHeight="26">
                         <Button Grid.Column="0"
                                 Content="{Binding ChevronGlyph}"
-                                Command="{Binding $parent[UserControl].DataContext.ToggleFolderExpandCommand}"
+                                Command="{Binding $parent[UserControl].DataContext.ToggleFolderExpandedCommand}"
                                 CommandParameter="{Binding}"
-                                Background="Transparent" BorderThickness="0" Padding="3,1" FontSize="10" />
+                                Background="Transparent" BorderThickness="0" Padding="0"
+                                FontSize="10" Foreground="{DynamicResource AppleMutedBrush}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <Button Grid.Column="1"
                                 Command="{Binding $parent[UserControl].DataContext.SelectFolderFilterCommand}"
                                 CommandParameter="{Binding}"
-                                Background="Transparent" BorderThickness="0" Padding="2,2"
+                                Background="Transparent" BorderThickness="0" Padding="4,3"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
-                          <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="{Binding IconEmoji}" FontSize="11.5" />
-                            <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppleFgBrush}" TextTrimming="CharacterEllipsis" />
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding IconEmoji}" FontSize="12" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding DisplayName}" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="105" />
+                            <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding DirectNoteCount}" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                              <TextBlock Text="/" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                              <TextBlock Text="{Binding TotalNoteCount}" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                            </StackPanel>
                           </StackPanel>
                         </Button>
-                        <Border Grid.Column="2" Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}" Padding="5,1" VerticalAlignment="Center">
-                          <TextBlock Text="{Binding TotalNoteCount}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" />
-                        </Border>
-                        <Button Grid.Column="3"
-                                Content="+"
-                                Command="{Binding $parent[UserControl].DataContext.QuickCreateSubfolderCommand}"
-                                CommandParameter="{Binding}"
-                                Classes="apple-btn-secondary" Padding="4,0" FontSize="9.5"
-                                ToolTip.Tip="Create Nested Subfolder Here" />
                       </Grid>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
               </StackPanel>
-            </Border>
 
+              <!-- SECTION 3: TAGS -->
+              <StackPanel Spacing="2">
+                <Grid ColumnDefinitions="*,Auto" Margin="6,0,2,2">
+                  <TextBlock Grid.Column="0" Text="Tags" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                  <Button Grid.Column="1" Content="＋" Command="{Binding TogglePropertiesAccordionCommand}" Background="Transparent" BorderThickness="0" Padding="5,1" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" />
+                </Grid>
+                <Button Command="{Binding SelectFolderFilterCommand}" CommandParameter="All"
+                        Background="Transparent" BorderThickness="0" Padding="10,3"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                    <TextBlock Grid.Column="0" Text="🏷️" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" />
+                    <TextBlock Grid.Column="1" Text="architecture" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" />
+                    <TextBlock Grid.Column="2" Text="6" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                  </Grid>
+                </Button>
+                <Button Command="{Binding SelectFolderFilterCommand}" CommandParameter="All"
+                        Background="Transparent" BorderThickness="0" Padding="10,3"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                    <TextBlock Grid.Column="0" Text="🏷️" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" />
+                    <TextBlock Grid.Column="1" Text="sqlite-wal" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" />
+                    <TextBlock Grid.Column="2" Text="3" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                  </Grid>
+                </Button>
+                <Button Command="{Binding SelectFolderFilterCommand}" CommandParameter="All"
+                        Background="Transparent" BorderThickness="0" Padding="10,3"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                    <TextBlock Grid.Column="0" Text="🏷️" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" />
+                    <TextBlock Grid.Column="1" Text="capacities" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" />
+                    <TextBlock Grid.Column="2" Text="4" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                  </Grid>
+                </Button>
+              </StackPanel>
+
+              <!-- SECTION 4: TRASH & WORKSPACE STUDIOS -->
+              <StackPanel Spacing="2">
+                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="Study"
+                        Background="Transparent" BorderThickness="0" Padding="10,4"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                    <TextBlock Grid.Column="0" Text="🗑️" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" />
+                    <TextBlock Grid.Column="1" Text="Trash" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" />
+                    <TextBlock Grid.Column="2" Text="25" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                  </Grid>
+                </Button>
+
+                <TextBlock Text="Studios" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppleMutedBrush}" Margin="6,6,0,2" />
+                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="Graph" Background="Transparent" BorderThickness="0" Padding="10,3" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="🕸️" FontSize="12" />
+                    <TextBlock Text="Knowledge Graph" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" />
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="Canvas" Background="Transparent" BorderThickness="0" Padding="10,3" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="🎨" FontSize="12" />
+                    <TextBlock Text="Spatial Canvas" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" />
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="Bases" Background="Transparent" BorderThickness="0" Padding="10,3" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="✨" FontSize="12" />
+                    <TextBlock Text="Capacities Studio" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" />
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="Protocol" Background="Transparent" BorderThickness="0" Padding="10,3" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="🔌" FontSize="12" />
+                    <TextBlock Text="MCP &amp; P2P Mesh" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" />
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+
+      <!-- ===================================================================== -->
+      <!-- PANE 2 (COL 1): MIDDLE NOTE FEED COLUMN (SEARCH + CIRCULAR + + CARDS) -->
+      <!-- ===================================================================== -->
+      <Border Grid.Row="0" Grid.Column="1"
+              Width="285"
+              IsVisible="{Binding IsStudioView}"
+              Background="{DynamicResource AppleSurfaceWarmBrush}"
+              BorderBrush="{DynamicResource AppleBorderBrush}"
+              BorderThickness="0,0,1,0"
+              Padding="12,10">
+        <DockPanel LastChildFill="True">
+
+          <!-- Top Pill Search Box + Circular Blue/Accent '+' Button -->
+          <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+              <Border Grid.Column="0"
+                      CornerRadius="999"
+                      Background="{DynamicResource AppleSurfaceBrush}"
+                      BorderBrush="{DynamicResource AppleBorderBrush}"
+                      BorderThickness="1"
+                      Padding="10,4">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                  <TextBlock Grid.Column="0" Text="🔍" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                  <TextBox Grid.Column="1"
+                           Text="{Binding SearchFilter, Mode=TwoWay}"
+                           PlaceholderText="Search"
+                           BorderThickness="0"
+                           Background="Transparent"
+                           FontSize="12"
+                           Padding="0"
+                           VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+
+              <!-- Circular Accent '+' New Note Button -->
+              <Button Grid.Column="1"
+                      Content="＋"
+                      Command="{Binding CreateNewNoteCommand}"
+                      Background="{DynamicResource AppleAccentBrush}"
+                      Foreground="#FFFFFF"
+                      BorderThickness="0"
+                      Width="28" Height="28"
+                      CornerRadius="999"
+                      Padding="0"
+                      FontSize="14"
+                      FontWeight="Bold"
+                      HorizontalContentAlignment="Center"
+                      VerticalContentAlignment="Center"
+                      ToolTip.Tip="Create New Note (⌘N)" />
+            </Grid>
+
+            <!-- Feed Header ("📄 All notes ▾") -->
             <Grid ColumnDefinitions="*,Auto" Margin="2,2,2,0">
-              <TextBlock Grid.Column="0" Text="📄 VAULT NOTES &amp; OBJECTS" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" />
-              <TextBlock Grid.Column="1" Text="{Binding ActiveFolderFilter}" FontSize="9.5" Foreground="{DynamicResource AppleLinkBrush}" FontWeight="SemiBold" />
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Text="📄" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock Text="All notes" Classes="display-heading" FontSize="16" Foreground="{DynamicResource AppleFgBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="▾" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock Grid.Column="1"
+                         Text="{Binding ActiveFolderFilter}"
+                         FontSize="10.5"
+                         Foreground="{DynamicResource AppleMutedBrush}"
+                         VerticalAlignment="Center" />
             </Grid>
           </StackPanel>
 
-          <!-- Bottom-Left Obsidian Vault Switcher Footer -->
-          <Border DockPanel.Dock="Bottom"
-                  Background="{DynamicResource AppleSurfaceWarmBrush}"
-                  BorderBrush="{DynamicResource AppleBorderBrush}"
-                  BorderThickness="1"
-                  CornerRadius="{DynamicResource AppleSecondaryBtnCornerRadius}"
-                  Padding="8,5" Margin="0,6,0,0">
-            <Grid ColumnDefinitions="*,Auto">
-              <StackPanel Grid.Column="0" Spacing="1">
-                <TextBlock Text="🗄️ Rhyolite Vault · Obsidian + Capacities" Classes="display-heading" FontSize="11" Foreground="{DynamicResource AppleFgBrush}" />
-                <TextBlock Text="{Binding VaultSummaryText}" FontSize="9.5" Foreground="{DynamicResource AppleMutedBrush}" />
-              </StackPanel>
-              <Border Grid.Column="1" Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}" VerticalAlignment="Center">
-                <TextBlock Text="v1.2" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" />
-              </Border>
-            </Grid>
-          </Border>
-
-          <!-- Obsidian + Capacities Vault File Tree ListBox -->
+          <!-- Scrollable Feed of Note Cards (Dot + Title + Snippet + Reminder/Type Pill) -->
           <ListBox ItemsSource="{Binding VaultNotes}"
                    SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
                    SelectionChanged="OnVaultNoteSelectionChanged"
                    Background="Transparent"
-                   BorderThickness="0">
+                   BorderThickness="0"
+                   Padding="0">
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <Border Padding="6,4" CornerRadius="{DynamicResource AppleSecondaryBtnCornerRadius}" Margin="0,1">
-                  <StackPanel Spacing="2">
-                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
-                      <TextBlock Grid.Column="0" Text="{Binding ObjectIconEmoji}" FontSize="12" VerticalAlignment="Center" />
+                <Border Background="{DynamicResource AppleSurfaceBrush}"
+                        BorderBrush="{DynamicResource AppleBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="11,9"
+                        Margin="0,3">
+                  <StackPanel Spacing="5">
+                    <!-- Row 1: Colored Status Circle Dot + Bold Note Title -->
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7" VerticalAlignment="Center">
+                      <Border Grid.Column="0"
+                              Width="9" Height="9"
+                              CornerRadius="999"
+                              Background="{Binding CoverColorHex}"
+                              VerticalAlignment="Center" />
                       <TextBlock Grid.Column="1"
                                  Text="{Binding Title}"
                                  Classes="display-heading"
-                                 FontSize="12"
+                                 FontSize="13"
                                  Foreground="{DynamicResource AppleFgBrush}"
-                                 TextTrimming="CharacterEllipsis" />
-                      <Border Grid.Column="2" Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}" Padding="5,1">
-                        <TextBlock Text="{Binding ObjectType}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AppleLinkBrush}" />
-                      </Border>
+                                 TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="2"
+                                 Text="{Binding ObjectIconEmoji}"
+                                 FontSize="11"
+                                 Foreground="{DynamicResource AppleMutedBrush}"
+                                 VerticalAlignment="Center" />
                     </Grid>
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <TextBlock Text="{Binding FolderIconEmoji}" FontSize="10" />
-                      <TextBlock Text="{Binding FolderPath}" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" TextTrimming="CharacterEllipsis" />
-                      <TextBlock Text="{Binding WordCount, StringFormat='· {0}w'}" FontSize="10" Foreground="{DynamicResource AppleMetaBrush}" />
+
+                    <!-- Row 2: Date + 1-Line Body Snippet -->
+                    <TextBlock Text="{Binding BodyWithoutFrontmatter}"
+                               FontSize="11.5"
+                               Foreground="{DynamicResource AppleMutedBrush}"
+                               MaxLines="2"
+                               TextWrapping="Wrap"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <!-- Row 3: Tinted Reminder / Timestamp / Object Type Pill Badge -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
+                      <Border CornerRadius="999"
+                              Background="{DynamicResource AppleCalloutBgBrush}"
+                              Padding="8,2">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                          <TextBlock Text="🔔" FontSize="9.5" VerticalAlignment="Center" />
+                          <TextBlock Text="{Binding ObjectType, StringFormat='04 NOV 15:00 · {0}'}"
+                                     FontSize="9.5"
+                                     FontWeight="Bold"
+                                     Foreground="{DynamicResource AppleLinkBrush}"
+                                     VerticalAlignment="Center" />
+                        </StackPanel>
+                      </Border>
                     </StackPanel>
                   </StackPanel>
                 </Border>
@@ -308,131 +511,155 @@
       </Border>
 
       <!-- ===================================================================== -->
-      <!-- COL 2: OBSIDIAN MULTI-TAB CENTER WORKSPACE                            -->
+      <!-- PANE 3 (COL 2): RIGHT MAIN EDITORIAL NOTE STUDIO & SCREENS 2–8        -->
       <!-- ===================================================================== -->
-      <Grid Grid.Row="0" Grid.Column="2" RowDefinitions="Auto,Auto,*">
+      <Grid Grid.Row="0" Grid.Column="2" RowDefinitions="42,*">
 
-        <!-- ROW 0: OBSIDIAN DOCUMENT TAB BAR + MULTI-DESIGN SYSTEM PRESET STRIP -->
+        <!-- TOP MINIMAL HEADER BAR (FOLDER BREADCRUMB + ADD TAGS + RIGHT ICONS) -->
         <Border Grid.Row="0"
-                Background="{DynamicResource AppleSurfaceBrush}"
+                Background="{DynamicResource AppleBgBrush}"
                 BorderBrush="{DynamicResource AppleBorderBrush}"
                 BorderThickness="0,0,0,1"
-                Padding="8,6">
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <!-- Left: Obsidian Workspace Tabs -->
-            <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-              <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                <Button Command="{Binding SwitchScreenCommand}" CommandParameter="Studio"
-                        Classes="apple-btn-primary" Padding="10,5" FontSize="12">
-                  <TextBlock Text="{Binding SelectedNote.Title, StringFormat='📄 {0}.md  ✕', FallbackValue='📄 Active Note.md  ✕'}" />
-                </Button>
-                <Button Content="🕸️ Graph.view" Command="{Binding SwitchScreenCommand}" CommandParameter="Graph" Classes="apple-btn-secondary" Padding="9,5" FontSize="11" />
-                <Button Content="🎨 System.canvas" Command="{Binding SwitchScreenCommand}" CommandParameter="Canvas" Classes="apple-btn-secondary" Padding="9,5" FontSize="11" />
-                <Button Content="🗃️ Roadmap.base" Command="{Binding SwitchScreenCommand}" CommandParameter="Bases" Classes="apple-btn-secondary" Padding="9,5" FontSize="11" />
-                <Button Content="🧠 FSRS Deck" Command="{Binding SwitchScreenCommand}" CommandParameter="Study" Classes="apple-btn-secondary" Padding="9,5" FontSize="11" />
-                <Button Content="🔌 MCP Mesh" Command="{Binding SwitchScreenCommand}" CommandParameter="Protocol" Classes="apple-btn-secondary" Padding="9,5" FontSize="11" />
-                <Button Content="🛡️ PR #142" Command="{Binding SwitchScreenCommand}" CommandParameter="DevEx" Classes="apple-btn-secondary" Padding="9,5" FontSize="11" />
-                <Button Content="📱 Mobile" Command="{Binding SwitchScreenCommand}" CommandParameter="Mobile" Classes="apple-btn-secondary" Padding="9,5" FontSize="11" />
-                <Button Content="＋" Command="{Binding CreateNewNoteCommand}" Classes="apple-btn-secondary" Padding="8,5" FontSize="12" ToolTip.Tip="New Note Tab (⌘N)" />
+                Padding="14,0">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" VerticalAlignment="Center">
+
+            <!-- Left: Active Folder Dropdown + Add Tags (Matches Reference Screenshots) -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Button Command="{Binding ToggleFolderStudioCommand}"
+                      Background="Transparent" BorderThickness="0" Padding="4,3">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding ActiveNoteFolderBreadcrumb}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppleFgBrush}" />
+                  <TextBlock Text="▾" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <TextBlock Text="|" FontSize="11" Foreground="{DynamicResource AppleBorderBrush}" VerticalAlignment="Center" />
+
+              <Button Command="{Binding TogglePropertiesAccordionCommand}"
+                      Background="Transparent" BorderThickness="0" Padding="4,3">
+                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                  <TextBlock Text="🏷️" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" />
+                  <TextBlock Text="Add tags" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+
+            <!-- Center: Compact Workspace Screen Pills + Design System Switcher -->
+            <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                <Button Content="📄 Note" Command="{Binding SwitchScreenCommand}" CommandParameter="Studio" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
+                <Button Content="🕸️ Graph" Command="{Binding SwitchScreenCommand}" CommandParameter="Graph" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
+                <Button Content="🎨 Canvas" Command="{Binding SwitchScreenCommand}" CommandParameter="Canvas" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
+                <Button Content="✨ Studio" Command="{Binding SwitchScreenCommand}" CommandParameter="Bases" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
+                <Button Content="🧠 FSRS" Command="{Binding SwitchScreenCommand}" CommandParameter="Study" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
+                <Button Content="🔌 MCP" Command="{Binding SwitchScreenCommand}" CommandParameter="Protocol" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
+                <Button Content="🛡️ PR" Command="{Binding SwitchScreenCommand}" CommandParameter="DevEx" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
+                <Button Content="📱 iOS" Command="{Binding SwitchScreenCommand}" CommandParameter="Mobile" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
               </StackPanel>
             </ScrollViewer>
 
-            <!-- Right: Live Design System Switcher & Right Sidebar Toggle -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-              <Button Content="◀" Command="{Binding PreviousDesignSystemCommand}" Classes="apple-btn-secondary" Padding="6,4" FontSize="11" />
+            <!-- Right: Design System Selector + Minimal Action Icons (📎 ☑️ 🔔 🔗 ⤢ •••) -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+              <Button Content="◀" Command="{Binding PreviousDesignSystemCommand}" Background="Transparent" BorderThickness="0" Padding="4,2" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" />
               <ComboBox ItemsSource="{Binding DesignSystems}"
                         SelectedItem="{Binding SelectedDesignSystem, Mode=TwoWay}"
-                        Width="150" FontSize="11" Padding="6,3" />
-              <Button Content="▶" Command="{Binding NextDesignSystemCommand}" Classes="apple-btn-secondary" Padding="6,4" FontSize="11" />
-              <Button Content="{Binding ThemeButtonLabel}" Command="{Binding ToggleAppleThemeCommand}" Classes="apple-btn-secondary" Padding="8,4" FontSize="11" />
-              <Button Content="◨" Command="{Binding ToggleRightSidebarCommand}" Classes="apple-btn-secondary" Padding="7,4" FontSize="12" ToolTip.Tip="Toggle Right Backlinks &amp; Outline Sidebar" />
+                        Width="128" FontSize="10.5" Padding="6,2" />
+              <Button Content="▶" Command="{Binding NextDesignSystemCommand}" Background="Transparent" BorderThickness="0" Padding="4,2" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" />
+              <Button Content="🌗" Command="{Binding ToggleAppleThemeCommand}" Background="Transparent" BorderThickness="0" Padding="5,2" FontSize="12" ToolTip.Tip="Toggle Light / Dark Theme" />
+
+              <TextBlock Text="|" FontSize="11" Foreground="{DynamicResource AppleBorderBrush}" VerticalAlignment="Center" Margin="2,0" />
+
+              <Button Content="📎" Command="{Binding SaveActiveNoteCommand}" Background="Transparent" BorderThickness="0" Padding="5,2" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" ToolTip.Tip="Attach / Save to SQLite WAL" />
+              <Button Content="☑️" Command="{Binding TogglePropertiesAccordionCommand}" Background="Transparent" BorderThickness="0" Padding="5,2" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" ToolTip.Tip="Toggle Properties &amp; Tasks" />
+              <Button Content="🔔" Command="{Binding SwitchScreenCommand}" CommandParameter="Study" Background="Transparent" BorderThickness="0" Padding="5,2" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" ToolTip.Tip="FSRS Reminders" />
+              <Button Content="🔗" Command="{Binding ToggleRightSidebarCommand}" Background="Transparent" BorderThickness="0" Padding="5,2" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" ToolTip.Tip="Toggle Backlinks &amp; Outline Drawer" />
+              <Button Content="⤢" Command="{Binding ToggleLeftSidebarCommand}" Background="Transparent" BorderThickness="0" Padding="5,2" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" ToolTip.Tip="Focus Mode" />
+              <Button Content="•••" Command="{Binding ToggleNoteMenuCommand}" Background="Transparent" BorderThickness="0" Padding="6,2" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AppleFgBrush}" ToolTip.Tip="Note Options Menu" />
             </StackPanel>
           </Grid>
         </Border>
 
-        <!-- ROW 1: OBSIDIAN BREADCRUMB BAR + EDITOR MODE SWITCHER + 9 DESIGN SYSTEM PILLS -->
-        <Border Grid.Row="1"
-                Background="{DynamicResource AppleSurfaceWarmBrush}"
-                BorderBrush="{DynamicResource AppleBorderBrush}"
-                BorderThickness="0,0,0,1"
-                Padding="10,5">
-          <StackPanel Spacing="5">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-              <!-- Left: Obsidian Vault Breadcrumb + Note Title Rename/Pin/Delete -->
-              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                <TextBlock Text="🗄️ Vault ›" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding ActiveNoteFolderBreadcrumb, StringFormat='{}{0} ›'}" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
-                <TextBox Text="{Binding EditableNoteTitle, Mode=TwoWay}"
-                         Classes="display-heading"
-                         Width="210" FontSize="12" Padding="6,3" />
-                <Button Content="✏️ Rename" Command="{Binding RenameActiveNoteCommand}" Classes="apple-btn-secondary" Padding="7,3" FontSize="11" />
-                <Button Content="📌 Pin" Command="{Binding TogglePinActiveNoteCommand}" Classes="apple-btn-secondary" Padding="7,3" FontSize="11" />
-                <Button Content="🗑️" Command="{Binding DeleteActiveNoteCommand}" Classes="apple-btn-secondary" Padding="7,3" FontSize="11" ToolTip.Tip="Delete Active Note" />
-              </StackPanel>
-
-              <!-- Right: Obsidian Source / Live Split / Reading View Switcher -->
-              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                <Button Content="✏️ Source" Command="{Binding SetEditorModeCommand}" CommandParameter="Source" Classes="apple-btn-secondary" Padding="8,3" FontSize="11" />
-                <Button Content="◫ Split" Command="{Binding SetEditorModeCommand}" CommandParameter="Split" Classes="apple-btn-primary" Padding="8,3" FontSize="11" />
-                <Button Content="📖 Reading" Command="{Binding SetEditorModeCommand}" CommandParameter="Reading" Classes="apple-btn-secondary" Padding="8,3" FontSize="11" />
-                <Button Content="💾 Save" Command="{Binding SaveActiveNoteCommand}" Classes="apple-btn-primary" Padding="8,3" FontSize="11" />
-              </StackPanel>
-            </Grid>
-
-            <!-- 9 Design System Quick-Switch Pills + Live Component/Font Style Badge -->
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-                <TextBlock Text="DESIGN:" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" VerticalAlignment="Center" Margin="0,0,3,0" />
-                <Button Content="🍎 Apple" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="apple" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="📐 Linear" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="linear-app" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="📝 Notion" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="notion" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="▲ Vercel" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="vercel" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="✴️ Claude" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="claude" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="🐙 GitHub" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="github" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="🚀 Raycast" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="raycast" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="💳 Stripe" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="stripe" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                <Button Content="⚡ Supabase" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="supabase" Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-              </StackPanel>
-              <TextBlock Grid.Column="1"
-                         Text="{Binding ActiveDesignSubtitleText}"
-                         FontSize="10"
-                         Foreground="{DynamicResource AppleLinkBrush}"
-                         HorizontalAlignment="Right"
-                         VerticalAlignment="Center"
-                         TextTrimming="CharacterEllipsis" />
-            </Grid>
-          </StackPanel>
-        </Border>
-
         <!-- =================================================================== -->
-        <!-- ROW 2: ACTIVE WORKSPACE BODY (SCREENS 1 THROUGH 8)                  -->
+        <!-- MAIN WORKSPACE BODY (SCREENS 1 THROUGH 8 + FLOATING ••• MENU)       -->
         <!-- =================================================================== -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="1">
 
-          <!-- SCREEN 1: OBSIDIAN NOTE STUDIO (INLINE YAML PROPERTIES + HYBRID SPLIT EDITOR) -->
-          <Grid IsVisible="{Binding IsStudioView}" RowDefinitions="Auto,*,Auto" Margin="14,10" RowSpacing="10">
+          <!-- SCREEN 1: EDITORIAL NOTE STUDIO (HERO BANNER + ● TITLE + GOOGLE DRIVE/WAL CARD + BOTTOM SLASH BAR) -->
+          <Grid IsVisible="{Binding IsStudioView}" RowDefinitions="*,Auto">
 
-            <!-- Obsidian 1.4+ Inline YAML Frontmatter Properties Accordion -->
-            <Border Grid.Row="0" Classes="apple-surface-card" Padding="12,8">
-              <StackPanel Spacing="6">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                  <Button Grid.Column="0"
-                          Content="🏷️ Properties (YAML Frontmatter)"
-                          Command="{Binding TogglePropertiesAccordionCommand}"
-                          Classes="apple-btn-secondary" Padding="8,3" FontSize="11" />
-                  <TextBlock Grid.Column="1"
-                             Text="{Binding ActiveDesignSubtitleText}"
-                             FontSize="11"
-                             Foreground="{DynamicResource AppleLinkBrush}"
-                             VerticalAlignment="Center"
-                             TextTrimming="CharacterEllipsis" />
-                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                    <TextBox Text="{Binding NewPropertyKey, Mode=TwoWay}" PlaceholderText="property key" Width="95" FontSize="11" Padding="6,3" />
-                    <TextBox Text="{Binding NewPropertyValue, Mode=TwoWay}" PlaceholderText="value" Width="110" FontSize="11" Padding="6,3" />
-                    <Button Content="＋ Add Property" Command="{Binding UpsertFrontmatterPropertyCommand}" Classes="apple-btn-primary" Padding="8,3" FontSize="11" />
+            <ScrollViewer Grid.Row="0" Padding="28,16,28,10">
+              <StackPanel Spacing="14">
+
+                <!-- Hero Visual Artwork Banner + Floating '✨ Templates' Pill Button (Matches Screenshots 1–3) -->
+                <Border Height="104"
+                        CornerRadius="10"
+                        ClipToBounds="True"
+                        BorderBrush="{DynamicResource AppleBorderBrush}"
+                        BorderThickness="1">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                      <GradientStop Color="#2E1065" Offset="0.0" />
+                      <GradientStop Color="#9D174D" Offset="0.38" />
+                      <GradientStop Color="#D97706" Offset="0.74" />
+                      <GradientStop Color="#1E3A8A" Offset="1.0" />
+                    </LinearGradientBrush>
+                  </Border.Background>
+                  <Grid>
+                    <!-- Decorative Warm Abstract Geometric Accents -->
+                    <Border Width="180" Height="180" CornerRadius="999" Background="#33F59E0B" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="40,-40,0,0" />
+                    <Border Width="220" Height="220" CornerRadius="999" Background="#28EC4899" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="60,20,0,0" />
+                    <Border Width="140" Height="140" CornerRadius="999" Background="#3338BDF8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,90,-30" />
+
+                    <!-- Subtle Editorial Banner Caption (Bottom-Left) -->
+                    <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="16,0,0,12" Spacing="1">
+                      <TextBlock Text="{Binding SelectedNote.CollectionName, StringFormat='COLLECTION · {0}'}" FontSize="9.5" FontWeight="Bold" Foreground="#CCF8FAFC" />
+                      <TextBlock Text="{Binding ActiveDesignSubtitleText}" FontSize="11" Foreground="#F8FAFC" />
+                    </StackPanel>
+
+                    <!-- Floating Top-Right '✨ Templates' Pill Button (Matches Screenshot 3) -->
+                    <Button Command="{Binding CreateTypedObjectCommand}"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="0,12,14,0"
+                            Background="#CC18181B"
+                            Foreground="#FFFFFF"
+                            BorderBrush="#44FFFFFF"
+                            BorderThickness="1"
+                            CornerRadius="999"
+                            Padding="12,5">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="✨" FontSize="11.5" VerticalAlignment="Center" />
+                        <TextBlock Text="Templates" FontSize="11.5" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center" />
+                      </StackPanel>
+                    </Button>
+                  </Grid>
+                </Border>
+
+                <!-- Large Editorial Title Row: Colored Circle Dot + 26px Bold Title + Mode Pills -->
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" VerticalAlignment="Center">
+                  <Border Grid.Column="0"
+                          Width="11" Height="11"
+                          CornerRadius="999"
+                          Background="#F59E0B"
+                          VerticalAlignment="Center" />
+                  <TextBox Grid.Column="1"
+                           Text="{Binding EditableNoteTitle, Mode=TwoWay}"
+                           Classes="display-heading"
+                           FontSize="24"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource AppleFgBrush}"
+                           Background="Transparent"
+                           BorderThickness="0"
+                           Padding="0"
+                           VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button Content="✏️ Source" Command="{Binding SetEditorModeCommand}" CommandParameter="Source" Classes="apple-btn-secondary" Padding="7,3" FontSize="10.5" />
+                    <Button Content="◫ Split" Command="{Binding SetEditorModeCommand}" CommandParameter="Split" Classes="apple-btn-primary" Padding="7,3" FontSize="10.5" />
+                    <Button Content="📖 Reading" Command="{Binding SetEditorModeCommand}" CommandParameter="Reading" Classes="apple-btn-secondary" Padding="7,3" FontSize="10.5" />
                   </StackPanel>
                 </Grid>
 
+                <!-- Compact Properties & Tags Pill Strip -->
                 <WrapPanel IsVisible="{Binding IsPropertiesExpanded}" Orientation="Horizontal">
                   <ItemsControl ItemsSource="{Binding ActiveProperties}">
                     <ItemsControl.ItemsPanel>
@@ -443,12 +670,14 @@
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
                         <Border Classes="apple-pill"
-                                Background="{DynamicResource AppleBgBrush}"
-                                Margin="0,2,6,2" Padding="9,3">
-                          <StackPanel Orientation="Horizontal" Spacing="5">
-                            <TextBlock Text="{Binding Key}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppleMutedBrush}" />
-                            <TextBlock Text=":" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
-                            <TextBlock Text="{Binding Value}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AppleFgBrush}" />
+                                Background="{DynamicResource AppleSurfaceBrush}"
+                                BorderBrush="{DynamicResource AppleBorderSoftBrush}"
+                                BorderThickness="1"
+                                Margin="0,2,6,2" Padding="8,2">
+                          <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{Binding Key}" FontSize="10.5" Foreground="{DynamicResource AppleMutedBrush}" />
+                            <TextBlock Text=":" FontSize="10.5" Foreground="{DynamicResource AppleMutedBrush}" />
+                            <TextBlock Text="{Binding Value}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource AppleFgBrush}" />
                           </StackPanel>
                         </Border>
                       </DataTemplate>
@@ -465,136 +694,262 @@
                       <DataTemplate>
                         <Border Classes="apple-pill"
                                 Background="{DynamicResource AppleCalloutBgBrush}"
-                                Margin="0,2,6,2" Padding="9,3">
-                          <TextBlock Text="{Binding}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppleLinkBrush}" />
+                                Margin="0,2,6,2" Padding="8,2">
+                          <TextBlock Text="{Binding}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource AppleLinkBrush}" />
                         </Border>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
                 </WrapPanel>
-              </StackPanel>
-            </Border>
 
-            <!-- Hybrid 3-Mode Markdown Source & Editorial Reading View -->
-            <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="12">
-              <!-- Left Pane: Raw Markdown Source Editor -->
-              <Border Grid.Column="0"
-                      Grid.ColumnSpan="{Binding SourceEditorColumnSpan}"
-                      IsVisible="{Binding IsSourceEditorVisible}"
-                      Classes="apple-card">
-                <DockPanel LastChildFill="True">
-                  <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
-                    <TextBlock Grid.Column="0" Text="MARKDOWN SOURCE (.MD)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" />
-                    <TextBlock Grid.Column="1" Text="{Binding SelectedNote.RelativePath}" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" />
-                  </Grid>
-                  <TextBox Text="{Binding EditorMarkdownText, Mode=TwoWay}"
-                           Classes="mono-code"
-                           AcceptsReturn="True"
-                           TextWrapping="Wrap"
-                           FontSize="13"
-                           LineHeight="21"
-                           BorderThickness="0"
-                           Background="Transparent" />
-                </DockPanel>
-              </Border>
+                <!-- Clean Editorial Body & Live WikiLink / Callout Reading Surface -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="20" MaxHeight="285">
+                  <!-- Left: Clean Editorial Markdown Canvas -->
+                  <Border Grid.Column="0"
+                          Grid.ColumnSpan="{Binding SourceEditorColumnSpan}"
+                          IsVisible="{Binding IsSourceEditorVisible}"
+                          Background="Transparent"
+                          Padding="0">
+                    <TextBox Text="{Binding EditorMarkdownText, Mode=TwoWay}"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             FontSize="13"
+                             LineHeight="20"
+                             Foreground="{DynamicResource AppleFg2Brush}"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             Padding="0" />
+                  </Border>
 
-              <!-- Right Pane: Obsidian Editorial Reading & Live Callout / WikiLink Preview -->
-              <Border Grid.Column="{Binding ReadingPreviewGridColumn}"
-                      Grid.ColumnSpan="{Binding ReadingPreviewColumnSpan}"
-                      IsVisible="{Binding IsReadingPreviewVisible}"
-                      Classes="apple-card">
-                <ScrollViewer>
-                  <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Grid.Column="0" Text="LIVE READING VIEW &amp; WIKILINK GRAPH" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" />
-                      <Border Grid.Column="1" Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}">
-                        <TextBlock Text="{Binding SelectedDesignSystem.Name}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" />
+                  <!-- Right: Formatted Editorial Reading Preview + Clickable [[WikiLinks]] + Callouts -->
+                  <Border Grid.Column="{Binding ReadingPreviewGridColumn}"
+                          Grid.ColumnSpan="{Binding ReadingPreviewColumnSpan}"
+                          IsVisible="{Binding IsReadingPreviewVisible}"
+                          Background="{DynamicResource AppleSurfaceBrush}"
+                          BorderBrush="{DynamicResource AppleBorderSoftBrush}"
+                          BorderThickness="1"
+                          CornerRadius="8"
+                          Padding="14,10">
+                    <StackPanel Spacing="8">
+                      <!-- Clickable Outgoing [[WikiLinks]] -->
+                      <ItemsControl ItemsSource="{Binding ActiveOutgoingLinks}">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Button Command="{Binding $parent[UserControl].DataContext.OpenWikiLinkCommand}"
+                                    CommandParameter="{Binding TargetTitle}"
+                                    Classes="apple-btn-secondary"
+                                    Padding="7,2" Margin="0,0,5,4" FontSize="10.5">
+                              <TextBlock Text="{Binding TargetTitle, StringFormat='↗ [[{0}]]'}" Foreground="{DynamicResource AppleLinkBrush}" FontWeight="SemiBold" />
+                            </Button>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <!-- Rendered Callout Cards -->
+                      <ItemsControl ItemsSource="{Binding ActiveCallouts}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Border Background="{DynamicResource AppleCalloutBgBrush}"
+                                    BorderBrush="{DynamicResource AppleLinkBrush}"
+                                    BorderThickness="3,1,1,1"
+                                    CornerRadius="6"
+                                    Padding="10,7" Margin="0,2">
+                              <StackPanel Spacing="2">
+                                <TextBlock Text="{Binding Title}" Classes="display-heading" FontSize="11.5" Foreground="{DynamicResource AppleLinkBrush}" />
+                                <TextBlock Text="{Binding Body}" FontSize="11.5" Foreground="{DynamicResource AppleFgBrush}" TextWrapping="Wrap" />
+                              </StackPanel>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Text="{Binding ReadingPreviewBodyText}"
+                                 FontSize="12.5"
+                                 LineHeight="19"
+                                 MaxLines="5"
+                                 TextTrimming="CharacterEllipsis"
+                                 Foreground="{DynamicResource AppleFg2Brush}"
+                                 TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                </Grid>
+
+                <!-- Embedded Bordered Cloud / SQLite Sidecar Card (Mirrors 'Google drive / Podcast draft.mp3' Card in Screenshots 1 & 3) -->
+                <Border Background="{DynamicResource AppleSurfaceBrush}"
+                        BorderBrush="{DynamicResource AppleBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="14,12"
+                        Margin="0,4,0,4">
+                  <StackPanel Spacing="5">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Text="🔺" FontSize="11.5" VerticalAlignment="Center" />
+                      <TextBlock Text="SQLite WAL Sidecar &amp; Vault Drive" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppleFgBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                      <Border Width="18" Height="18" CornerRadius="4" Background="#EF4444">
+                        <TextBlock Text="⚡" FontSize="10" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
                       </Border>
-                    </Grid>
-
-                    <TextBlock Text="{Binding SelectedNote.Title}"
-                               Classes="display-heading"
-                               FontSize="22"
-                               Foreground="{DynamicResource AppleFgBrush}"
-                               TextWrapping="Wrap" />
-
-                    <!-- Clickable Outgoing [[WikiLinks]] -->
-                    <ItemsControl ItemsSource="{Binding ActiveOutgoingLinks}">
-                      <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                          <WrapPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                      </ItemsControl.ItemsPanel>
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                          <Button Command="{Binding $parent[UserControl].DataContext.OpenWikiLinkCommand}"
-                                  CommandParameter="{Binding TargetTitle}"
-                                  Classes="apple-btn-secondary"
-                                  Padding="8,3" Margin="0,0,5,5" FontSize="11">
-                            <TextBlock Text="{Binding TargetTitle, StringFormat='↗ [[{0}]]'}" Foreground="{DynamicResource AppleLinkBrush}" FontWeight="SemiBold" />
-                          </Button>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <!-- Rendered Obsidian Callout Cards (> [!NOTE], > [!TIP], etc.) -->
-                    <ItemsControl ItemsSource="{Binding ActiveCallouts}">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                          <Border Background="{DynamicResource AppleCalloutBgBrush}"
-                                  BorderBrush="{DynamicResource AppleLinkBrush}"
-                                  BorderThickness="3,1,1,1"
-                                  CornerRadius="{DynamicResource AppleSecondaryBtnCornerRadius}"
-                                  Padding="10,8" Margin="0,3">
-                            <StackPanel Spacing="3">
-                              <TextBlock Text="{Binding Title}" Classes="display-heading" FontSize="12" Foreground="{DynamicResource AppleLinkBrush}" />
-                              <TextBlock Text="{Binding Body}" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" TextWrapping="Wrap" />
-                            </StackPanel>
-                          </Border>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <!-- Editorial Formatted Reading Body -->
-                    <TextBlock Text="{Binding ReadingPreviewBodyText}"
-                               FontSize="13.5"
-                               LineHeight="22"
-                               Foreground="{DynamicResource AppleFg2Brush}"
-                               TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding SelectedNote.RelativePath, FallbackValue='01 — Architecture/Storage Architecture.md'}"
+                                 Classes="display-heading"
+                                 FontSize="13.5"
+                                 Foreground="{DynamicResource AppleFgBrush}"
+                                 VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Text="Last modified by Dustin Blad 1 minute ago · Atomic .md flush in 0.14 ms"
+                               FontSize="11.5"
+                               Foreground="{DynamicResource AppleMutedBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2,0,0">
+                      <TextBlock Text="🔗" FontSize="10.5" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                      <TextBlock Text="rhyolite.local/vault/cache.db" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
                   </StackPanel>
-                </ScrollViewer>
-              </Border>
-            </Grid>
+                </Border>
 
-            <!-- Bottom Strip of Studio: Interactive Task Checklists -->
-            <Border Grid.Row="2" Classes="apple-surface-card" Padding="12,8">
-              <StackPanel Spacing="4">
-                <TextBlock Text="✅ INTERACTIVE NOTE TASKS (CLICK TO TOGGLE IN .MD)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" />
-                <ItemsControl ItemsSource="{Binding ActiveTasks}">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                      <WrapPanel Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Border Background="{DynamicResource AppleBgBrush}"
-                              BorderBrush="{DynamicResource AppleBorderSoftBrush}"
-                              BorderThickness="1"
-                              CornerRadius="{DynamicResource AppleSecondaryBtnCornerRadius}"
-                              Padding="8,3" Margin="0,2,8,2">
-                        <CheckBox IsChecked="{Binding IsCompleted, Mode=OneWay}"
-                                  Content="{Binding Text}"
-                                  Command="{Binding $parent[UserControl].DataContext.ToggleTaskCompletionCommand}"
-                                  CommandParameter="{Binding}"
-                                  FontSize="11" />
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
               </StackPanel>
+            </ScrollViewer>
+
+            <!-- Bottom Slash-Command Formatting Bar ('Type "/" or add' + Icons — Matches Screenshots 1 & 3) -->
+            <Border Grid.Row="1"
+                    Padding="28,8,28,12"
+                    Background="{DynamicResource AppleBgBrush}">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" VerticalAlignment="Center">
+                <!-- Left Slash-Command & Rich Insert Toolbar -->
+                <Border Grid.Column="0"
+                        HorizontalAlignment="Left"
+                        Background="{DynamicResource AppleSurfaceBrush}"
+                        BorderBrush="{DynamicResource AppleBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12,5">
+                  <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <TextBlock Text="Type &quot;/&quot; or add" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <Button Content="☑️" Command="{Binding TogglePropertiesAccordionCommand}" Background="Transparent" BorderThickness="0" Padding="3,1" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" ToolTip.Tip="Insert Task Checklist" />
+                    <Button Content="☰" Command="{Binding SetEditorModeCommand}" CommandParameter="Split" Background="Transparent" BorderThickness="0" Padding="3,1" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" ToolTip.Tip="Bullet List" />
+                    <Button Content="🔢" Command="{Binding SetEditorModeCommand}" CommandParameter="Source" Background="Transparent" BorderThickness="0" Padding="3,1" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" ToolTip.Tip="Numbered List" />
+                    <Button Content="⊞" Command="{Binding SwitchScreenCommand}" CommandParameter="Bases" Background="Transparent" BorderThickness="0" Padding="3,1" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" ToolTip.Tip="Insert Table / Object" />
+                    <Button Content="🖼️" Command="{Binding SwitchScreenCommand}" CommandParameter="Canvas" Background="Transparent" BorderThickness="0" Padding="3,1" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" ToolTip.Tip="Insert Spatial Canvas" />
+                    <Button Content="📎" Command="{Binding SaveActiveNoteCommand}" Background="Transparent" BorderThickness="0" Padding="3,1" FontSize="12" Foreground="{DynamicResource AppleFg2Brush}" ToolTip.Tip="Attach File" />
+                    <TextBlock Text="|" FontSize="11" Foreground="{DynamicResource AppleBorderBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="⌄" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Border>
+
+                <!-- Bottom-Right Floating Keyboard & Emoji Buttons -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <Button Content="⌨️" Command="{Binding ToggleCommandPaletteCommand}" Classes="apple-btn-secondary" Padding="7,4" FontSize="11.5" ToolTip.Tip="Command Palette (⌘P)" />
+                  <Button Content="😊" Command="{Binding ToggleFolderStudioCommand}" Classes="apple-btn-secondary" Padding="7,4" FontSize="11.5" ToolTip.Tip="Emoji &amp; Icon Picker" />
+                </StackPanel>
+              </Grid>
             </Border>
           </Grid>
+
+          <!-- FLOATING '•••' CONTEXT MENU POPOVER (MIRRORS SCREENSHOT 1) -->
+          <Border IsVisible="{Binding IsNoteMenuOpen}"
+                  HorizontalAlignment="Right"
+                  VerticalAlignment="Top"
+                  Width="225"
+                  Margin="0,6,14,0"
+                  Background="{DynamicResource AppleSurfaceWarmBrush}"
+                  BorderBrush="{DynamicResource AppleBorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="10"
+                  Padding="8,8">
+            <StackPanel Spacing="2">
+              <Button Command="{Binding TogglePinActiveNoteCommand}" Background="Transparent" BorderThickness="0" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                  <TextBlock Text="♡" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" Width="16" />
+                  <TextBlock Text="Add to favorites" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding TogglePinActiveNoteCommand}" Background="Transparent" BorderThickness="0" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                  <TextBlock Text="📌" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" Width="16" />
+                  <TextBlock Text="Pin note" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" />
+                </StackPanel>
+              </Button>
+              <Grid ColumnDefinitions="Auto,*,Auto" Margin="8,4">
+                <TextBlock Grid.Column="0" Text="🎨" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" Width="25" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="Set color" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Border Width="10" Height="10" CornerRadius="999" Background="#EF4444" />
+                  <Border Width="10" Height="10" CornerRadius="999" Background="#F59E0B" />
+                  <Border Width="10" Height="10" CornerRadius="999" Background="#10B981" />
+                  <Border Width="10" Height="10" CornerRadius="999" Background="#3B82F6" />
+                </StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="Auto,*,Auto" Margin="8,4">
+                <TextBlock Grid.Column="0" Text="⛶" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" Width="25" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="Focus mode" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" VerticalAlignment="Center" />
+                <Border Grid.Column="2" Width="26" Height="14" CornerRadius="999" Background="{DynamicResource AppleBorderBrush}" Padding="2">
+                  <Border Width="10" Height="10" CornerRadius="999" Background="#FFFFFF" HorizontalAlignment="Left" />
+                </Border>
+              </Grid>
+              <Button Command="{Binding NextDesignSystemCommand}" Background="Transparent" BorderThickness="0" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <TextBlock Grid.Column="0" Text="⚙️" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" Width="25" />
+                  <TextBlock Grid.Column="1" Text="Appearance" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" />
+                  <TextBlock Grid.Column="2" Text="›" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" />
+                </Grid>
+              </Button>
+
+              <Border Height="1" Background="{DynamicResource AppleBorderBrush}" Margin="4,3" />
+
+              <Button Command="{Binding ToggleCommandPaletteCommand}" Background="Transparent" BorderThickness="0" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                  <TextBlock Text="🔍" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" Width="16" />
+                  <TextBlock Text="Find in note" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding MoveActiveNoteToSelectedFolderCommand}" Background="Transparent" BorderThickness="0" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                  <TextBlock Text="📁" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" Width="16" />
+                  <TextBlock Text="Move to" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding SaveActiveNoteCommand}" Background="Transparent" BorderThickness="0" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                  <TextBlock Text="📋" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" Width="16" />
+                  <TextBlock Text="Copy to" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding ToggleRightSidebarCommand}" Background="Transparent" BorderThickness="0" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                  <TextBlock Text="ℹ️" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" Width="16" />
+                  <TextBlock Text="Note info" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" />
+                </StackPanel>
+              </Button>
+
+              <Border Height="1" Background="{DynamicResource AppleBorderBrush}" Margin="4,3" />
+
+              <Button Command="{Binding RestorePreviousSnapshotCommand}" Background="Transparent" BorderThickness="0" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                  <TextBlock Text="↩" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" Width="16" />
+                  <TextBlock Text="Undo" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding SaveMilestoneSnapshotCommand}" Background="Transparent" BorderThickness="0" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                  <TextBlock Text="↪" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" Width="16" />
+                  <TextBlock Text="Redo" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" />
+                </StackPanel>
+              </Button>
+
+              <Border Height="1" Background="{DynamicResource AppleBorderBrush}" Margin="4,3" />
+
+              <Button Command="{Binding DeleteActiveNoteCommand}" Background="Transparent" BorderThickness="0" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                  <TextBlock Text="🗑️" FontSize="11.5" Foreground="#EF4444" Width="16" />
+                  <TextBlock Text="Delete" FontSize="12" Foreground="#EF4444" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+          </Border>
 
           <!-- SCREEN 2: OBSIDIAN FORCE-DIRECTED KNOWLEDGE GRAPH -->
           <Grid IsVisible="{Binding IsGraphView}" ColumnDefinitions="*,270" Margin="14,10" ColumnSpacing="12">
@@ -651,7 +1006,6 @@
 
           <!-- SCREEN 4: CAPACITIES OBJECT STUDIO & OBSIDIAN BASES (GALLERY / WALL / TABLE / CALENDAR) -->
           <Grid IsVisible="{Binding IsBasesView}" RowDefinitions="Auto,Auto,*" Margin="14,10" RowSpacing="8">
-            <!-- Row 0: Studio Header & 4-Mode View Switcher -->
             <Border Grid.Row="0" Classes="apple-surface-card" Padding="12,8">
               <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="6">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
@@ -665,10 +1019,8 @@
               </Grid>
             </Border>
 
-            <!-- Row 1: Capacities Object Type Schemas, Custom Schema Creator & Collections Bar -->
             <Border Grid.Row="1" Classes="apple-card" Padding="12,8">
               <StackPanel Spacing="6">
-                <!-- Object Type Schemas + Quick Object & Custom Type Creator -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                   <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
@@ -705,7 +1057,7 @@
                   </StackPanel>
                 </Grid>
 
-                <!-- Capacities Collections Filter Bar -->
+                <!-- Collections Filter Bar -->
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                   <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                     <TextBlock Text="COLLECTIONS:" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
@@ -732,6 +1084,34 @@
                     </ItemsControl>
                   </StackPanel>
                 </ScrollViewer>
+
+                <!-- Visual Subfolder Cards Strip -->
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                  <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                    <TextBlock Text="FOLDERS &amp; SUBFOLDERS:" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                    <Button Content="🗂️ All Folders" Command="{Binding SelectFolderFilterCommand}" CommandParameter="All" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
+                    <ItemsControl ItemsSource="{Binding VisibleFolderNodes}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Orientation="Horizontal" Spacing="5" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Button Command="{Binding $parent[UserControl].DataContext.SelectFolderFilterCommand}"
+                                  CommandParameter="{Binding}"
+                                  Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                              <TextBlock Text="{Binding IconEmoji}" />
+                              <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                              <TextBlock Text="{Binding TotalNoteCount, StringFormat='· {0}'}" Foreground="{DynamicResource AppleLinkBrush}" FontWeight="Bold" />
+                            </StackPanel>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </ScrollViewer>
               </StackPanel>
             </Border>
 
@@ -747,7 +1127,6 @@
                   <DataTemplate>
                     <Border Classes="apple-card" Margin="5" Padding="12,10">
                       <StackPanel Spacing="7">
-                        <!-- Top Object Type Pill & Folder/Subfolder Badge -->
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="5">
                           <Border Grid.Column="0" Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}" Padding="7,2">
                             <StackPanel Orientation="Horizontal" Spacing="4">
@@ -763,11 +1142,9 @@
                           </Border>
                         </Grid>
 
-                        <!-- Object Title & Summary Snippet -->
                         <TextBlock Text="{Binding Title}" Classes="display-heading" FontSize="14.5" Foreground="{DynamicResource AppleFgBrush}" TextWrapping="Wrap" />
                         <TextBlock Text="{Binding SummarySnippet}" FontSize="11.5" Foreground="{DynamicResource AppleFg2Brush}" TextWrapping="Wrap" MaxLines="3" />
 
-                        <!-- Collection, Status & Priority Metadata Chips -->
                         <WrapPanel Orientation="Horizontal">
                           <Border Classes="apple-pill" Background="{DynamicResource AppleSurfaceBrush}" Margin="0,2,4,2" Padding="6,2">
                             <TextBlock Text="{Binding CollectionName, StringFormat='⭐ {0}'}" FontSize="10" Foreground="{DynamicResource AppleFg2Brush}" />
@@ -780,7 +1157,6 @@
                           </Border>
                         </WrapPanel>
 
-                        <!-- Card Footer Actions -->
                         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="5">
                           <TextBlock Grid.Column="0" Text="{Binding WordCount, StringFormat='{}{0} words'}" FontSize="10" Foreground="{DynamicResource AppleMetaBrush}" VerticalAlignment="Center" />
                           <Button Grid.Column="1" Content="⟳ Status" Command="{Binding $parent[UserControl].DataContext.CycleRowStatusCommand}" CommandParameter="{Binding}" Classes="apple-btn-secondary" Padding="7,3" FontSize="10.5" />
@@ -1068,10 +1444,10 @@
       </Grid>
 
       <!-- ===================================================================== -->
-      <!-- COL 3: OBSIDIAN COLLAPSIBLE RIGHT SIDEBAR (BACKLINKS / OUTLINE / AI)  -->
+      <!-- COL 3: COLLAPSIBLE RIGHT SIDEBAR (BACKLINKS / OUTLINE / AI)           -->
       <!-- ===================================================================== -->
       <Border Grid.Row="0" Grid.Column="3"
-              Width="285"
+              Width="265"
               IsVisible="{Binding IsRightSidebarOpen}"
               Background="{DynamicResource AppleSurfaceBrush}"
               BorderBrush="{DynamicResource AppleBorderBrush}"
@@ -1124,36 +1500,6 @@
               </StackPanel>
             </Border>
 
-            <!-- Unlinked Mentions (1-Click Link) -->
-            <Border Classes="apple-card" Padding="10,8">
-              <StackPanel Spacing="5">
-                <TextBlock Text="🔍 UNLINKED MENTIONS (1-CLICK LINK)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" />
-                <ItemsControl ItemsSource="{Binding ActiveUnlinkedMentions}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Border Padding="7,5" CornerRadius="{DynamicResource AppleSecondaryBtnCornerRadius}" Background="{DynamicResource AppleSurfaceBrush}" Margin="0,2">
-                        <StackPanel Spacing="3">
-                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
-                            <Button Grid.Column="0"
-                                    Command="{Binding $parent[UserControl].DataContext.OpenNoteByTitleOrPathCommand}"
-                                    CommandParameter="{Binding SourceNotePath}"
-                                    Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Left">
-                              <TextBlock Text="{Binding SourceNoteTitle}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppleFgBrush}" />
-                            </Button>
-                            <Button Grid.Column="1" Content="🔗 Link [[]]"
-                                    Command="{Binding $parent[UserControl].DataContext.ConvertUnlinkedMentionCommand}"
-                                    CommandParameter="{Binding}"
-                                    Classes="apple-btn-secondary" Padding="6,2" FontSize="10" />
-                          </Grid>
-                          <TextBlock Text="{Binding ContextSnippet}" FontSize="10.5" Foreground="{DynamicResource AppleMutedBrush}" TextWrapping="Wrap" />
-                        </StackPanel>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </StackPanel>
-            </Border>
-
             <!-- Semantically Related Notes -->
             <Border Classes="apple-card" Padding="10,8">
               <StackPanel Spacing="5">
@@ -1191,22 +1537,22 @@
       </Border>
 
       <!-- ===================================================================== -->
-      <!-- ROW 1: OBSIDIAN BOTTOM STATUS BAR (28px)                              -->
+      <!-- ROW 1: BOTTOM TELEMETRY & STATUS BAR (26px)                           -->
       <!-- ===================================================================== -->
       <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"
               Background="{DynamicResource AppleSurfaceWarmBrush}"
               BorderBrush="{DynamicResource AppleBorderBrush}"
               BorderThickness="0,1,0,0"
-              Padding="10,0">
+              Padding="12,0">
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-            <TextBlock Text="{Binding SaveTelemetryText}" FontSize="11" Foreground="{DynamicResource AppleSuccessBrush}" FontWeight="Medium" />
-            <TextBlock Text="·" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
-            <TextBlock Text="{Binding StatusBarRightText}" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+            <TextBlock Text="{Binding SaveTelemetryText}" FontSize="10.5" Foreground="{DynamicResource AppleSuccessBrush}" FontWeight="Medium" />
+            <TextBlock Text="·" FontSize="10.5" Foreground="{DynamicResource AppleMutedBrush}" />
+            <TextBlock Text="{Binding StatusBarRightText}" FontSize="10.5" Foreground="{DynamicResource AppleMutedBrush}" />
           </StackPanel>
           <TextBlock Grid.Column="1"
                      Text="{Binding ObsidianBottomRightStatusText}"
-                     FontSize="11"
+                     FontSize="10.5"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource AppleFg2Brush}"
                      VerticalAlignment="Center" />

@@ -90,10 +90,16 @@ public partial class MainViewModel : ViewModelBase
     private bool _isLeftSidebarOpen = true;
 
     [ObservableProperty]
-    private bool _isRightSidebarOpen = true;
+    private bool _isRightSidebarOpen;
 
     [ObservableProperty]
     private bool _isPropertiesExpanded = true;
+
+    [ObservableProperty]
+    private bool _isFolderStudioOpen;
+
+    [ObservableProperty]
+    private bool _isNoteMenuOpen;
 
     [ObservableProperty]
     private string _leftSidebarTab = "Files";
@@ -262,6 +268,7 @@ public partial class MainViewModel : ViewModelBase
     public ObservableCollection<VaultNote> PinnedNotes { get; } = [];
     public ObservableCollection<VaultNote> FilteredCommandPaletteNotes { get; } = [];
     public ObservableCollection<VaultFolderNode> VisibleFolderNodes { get; } = [];
+    public ObservableCollection<VaultTreeItem> UnifiedExplorerItems { get; } = [];
     public ObservableCollection<CapacitiesObjectTypeSchema> ObjectTypeSchemas { get; } = [];
     public ObservableCollection<CapacitiesCollection> Collections { get; } = [];
     public ObservableCollection<CapacitiesCalendarEntry> CalendarEntries { get; } = [];
@@ -462,6 +469,20 @@ public partial class MainViewModel : ViewModelBase
 
         RefreshBasesViews();
         RefreshCommandPaletteNotes();
+        RefreshUnifiedExplorerTree();
+    }
+
+    private void RefreshUnifiedExplorerTree()
+    {
+        UnifiedExplorerItems.Clear();
+        foreach (var item in _vaultEngine.GetUnifiedExplorerTree(
+            SearchFilter,
+            ActiveObjectTypeFilter,
+            SelectedNote?.RelativePath,
+            SelectedFolderNode?.FolderPath))
+        {
+            UnifiedExplorerItems.Add(item);
+        }
     }
 
     private void RefreshCommandPaletteNotes()
@@ -486,7 +507,9 @@ public partial class MainViewModel : ViewModelBase
         if (note is null) return;
         SelectedNote = note;
         EditableNoteTitle = note.Title;
-        ActiveNoteFolderBreadcrumb = string.IsNullOrWhiteSpace(note.FolderPath) ? "Vault Root" : note.FolderPath;
+        ActiveNoteFolderBreadcrumb = string.IsNullOrWhiteSpace(note.FolderPath)
+            ? "Vault Root"
+            : $"{note.FolderIconEmoji} {note.FolderPath.Replace("/", " › ")}";
         EditorMarkdownText = note.RawMarkdown;
         ReadingPreviewBodyText = note.BodyWithoutFrontmatter;
         SaveTelemetryText = $"✓ Flushed to .md in {note.LastWriteMilliseconds:0.00} ms · AST {note.LastParseMilliseconds:0.00} ms · SQLite WAL";
@@ -523,6 +546,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         RefreshDiffPreview(note);
+        RefreshUnifiedExplorerTree();
     }
 
     private void RefreshDiffPreview(VaultNote note)
@@ -1548,6 +1572,35 @@ public partial class MainViewModel : ViewModelBase
         if (folder is null) return;
         _vaultEngine.ToggleFolderExpanded(folder.FolderPath);
         RefreshCollectionsFromEngine();
+    }
+
+    [RelayCommand]
+    public void ToggleFolderStudio() => IsFolderStudioOpen = !IsFolderStudioOpen;
+
+    [RelayCommand]
+    public void ToggleNoteMenu() => IsNoteMenuOpen = !IsNoteMenuOpen;
+
+    [RelayCommand]
+    public void SelectExplorerItem(VaultTreeItem? item)
+    {
+        if (item is null) return;
+        if (item.IsFolder && item.FolderNode is not null)
+        {
+            SelectedFolderNode = item.FolderNode;
+            SelectedEmojiInput = item.FolderNode.IconEmoji;
+            NewFolderPathInput = $"{item.FolderNode.FolderPath}/Subfolder";
+            _vaultEngine.ToggleFolderExpanded(item.FolderNode.FolderPath);
+            RefreshCollectionsFromEngine();
+            StatusBarRightText = $"🗂️ Folder '{item.IconEmoji} {item.FolderNode.FolderPath}' ({item.FolderNode.TotalNoteCount} notes)";
+        }
+        else if (item.IsNote && item.Note is not null)
+        {
+            SelectNote(item.Note);
+            if (!string.Equals(ActiveScreen, "Studio", StringComparison.OrdinalIgnoreCase))
+            {
+                SwitchScreen("Studio");
+            }
+        }
     }
 
     [RelayCommand]

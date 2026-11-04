@@ -355,6 +355,60 @@ flowchart TD
   * Authored `docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md` detailing the 3-tier hybrid architecture, Obsidian 1.8+ & Capacities.io parity matrices, and GPU compositor transition design.
   * Added Test #13 (`ObsidianFolderSubfolderHierarchy_EmojiAssignment_AndCapacitiesObjectStudio_WorkEndToEnd`), passing in `51 ms` (`13/13` total xUnit suites passing in `0.6683s`).
 
+---
+
+## 8. Phase 7 Multi-Agent Verification — Unified Hierarchical Folder & File Explorer Architecture (`DESIGN.md`) & 3-Pane Master-Detail Editorial Workspace
+
+```mermaid
+flowchart TD
+    Parent7["Parent Architect Agent (4856753c-95e3-456d-946a-2918b10117ab)"]
+    Lead7["Lead Orchestration & Verification Architect (bff50619-217b-440d-9b0a-7507627932cd)"]
+
+    subgraph Phase7Specialists["Phase 7 Parallel Specialist Implementation Engineers"]
+        P7S1["Specialist 1: Core Unified Explorer Tree Engineer\n(7f12a07d-f066-48df-b14a-2608d49c4220)\nTarget: VaultModels.cs, HybridVaultEngine.cs"]
+        P7S2["Specialist 2: 3-Pane Master-Detail Editorial UI & Progressive Disclosure Engineer\n(2e75df26-00e8-4180-bb9b-44dfc35554a3)\nTarget: MainViewModel.cs, MainView.axaml, Program.cs"]
+        P7S3["Specialist 3: Verification & Documentation Engineer\n(469ca988-685c-4714-8409-dfe185fe9ec7)\nTarget: DESIGN.md, README.md, EnterpriseDevExIntegrationTests.cs"]
+    end
+
+    Parent7 -->|"Spawns 3 Specialists with Disjoint Scopes"| P7S1 & P7S2 & P7S3
+    P7S1 <-->|"VaultTreeItem & GetUnifiedExplorerTree Sync"| P7S3
+    P7S1 & P7S2 & P7S3 -->|"Completion Reports + Complexity Justifications"| Lead7
+    Lead7 -->|"Audit + Build (0 Warn / 0 Err) + Test (13/13 Pass) + 12 Mockups"| Verified7["Phase 7 Verified & Signed Off"]
+```
+
+### 8.1 Specialist 1 — Core Unified Explorer Tree Engineer (`7f12a07d-f066-48df-b14a-2608d49c4220`)
+* **Audited Files**:
+  * [`src/Rhyolite.Core/Models/VaultModels.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Models/VaultModels.cs#L205-L279)
+  * [`src/Rhyolite.Core/Storage/HybridVaultEngine.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Storage/HybridVaultEngine.cs#L1386-L1558)
+* **Delivered Capabilities**:
+  * Added [`VaultTreeItem`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Models/VaultModels.cs#L205-L279) with `Id`, `DisplayName`, `FolderPath`, `RelativePath`, `Depth`, `IsFolder`, `IsNote`, `IconEmoji`, `AccentColorHex`, `IsExpanded`, `IsSelected`, `DirectNoteCount`, `TotalNoteCount`, `ObjectTypeBadge`, `SubtleMetaText`, `NoteRef`, `FolderRef`, `ChevronGlyph` (`▾` / `▸`), `IndentMargin` (`$"{Depth * 16},0,0,0"`), `GuideLineMargin` (`Depth > 0 ? $"{(Depth - 1) * 16 + 7},0,0,0" : "0"`), and `HasTreeGuideLine` (`Depth > 0`).
+  * Added [`HybridVaultEngine.GetUnifiedExplorerTree`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Storage/HybridVaultEngine.cs#L1386-L1558) performing pre-order traversal over the hierarchical folder tree, emitting each visible folder at `Depth`, recursively emitting its subfolders at `Depth + 1` (when `IsExpanded == true`), emitting direct notes inside that folder at `Depth + 1` (`IconEmoji = "📄"`), and appending root notes at `Depth = 0`.
+* **Algorithmic Efficiency Justification**:
+  * **Single-Pass $\mathcal{O}(F + N)$ Pre-Order Tree Flattening**: `GetUnifiedExplorerTree` reuses `GetFolderHierarchyTree()` and prunes collapsed subtrees in $\mathcal{O}(1)$ per collapsed branch without allocating nested XAML `TreeViewItem` containers.
+
+### 8.2 Specialist 2 — 3-Pane Master-Detail Editorial UI & Progressive Disclosure Engineer (`2e75df26-00e8-4180-bb9b-44dfc35554a3`)
+* **Audited Files**:
+  * [`src/Rhyolite.UI/ViewModels/MainViewModel.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/ViewModels/MainViewModel.cs)
+  * [`src/Rhyolite.UI/Views/MainView.axaml`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Views/MainView.axaml)
+  * [`src/Rhyolite.Desktop/Program.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Desktop/Program.cs)
+* **Delivered Capabilities**:
+  * Implemented the **3-Pane Master-Detail Editorial Workspace Architecture** adhering to [`DESIGN.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/DESIGN.md):
+    * **Pane 1 (`210px` Left Navigation Sidebar)**: macOS window traffic lights + `R Rhyolite ▾` badge; `Quick links` with full-capsule (`CornerRadius="999"`) active `📄 All notes` button + clean unselected rows (`Reminders`, `Tasks`, `Favorites`, `Highlights`, `Activity` with red indicator dot, `Saved search`); `Folders` with progressive-disclosure `🎨 Folder & Emoji Studio` popover (`IsFolderStudioOpen`) and hierarchical folders/subfolders with `direct/total` counts (`5/6`, `0/0`, `1/1`, `0/2`); `Tags`; `Trash`; `Studios`; and bottom `Dustin Blad / Personal` profile footer with `⌘P` launcher.
+    * **Pane 2 (`285px` Middle Note Feed Column)**: Pill-shaped `🔍 Search` box + circular accent `＋` button (`28x28`, `CornerRadius="999"`), `📄 All notes ▾` header, and scrollable note feed cards with `9px` colored status circle dot (`CoverColorHex`), bold title, 2-line preview snippet, and tinted reminder/object-type pill (`🔔 04 NOV 15:00 · Architecture ADR`).
+    * **Pane 3 (`*` Right Main Editorial Note Studio)**: Minimal top bar (`🏛️ 01 — Architecture ▾ | 🏷️ Add tags` + compact screen/design switchers + right action icons `📎 ☑️ 🔔 🔗 ⤢ •••`), hero gradient banner (`Height="104"`) with floating top-right `✨ Templates` pill, `●` 24px bold title, clean editorial body, embedded bordered `🔺 SQLite WAL Sidecar & Vault Drive` card, bottom `Type "/" or add` formatting bar, and floating top-right `•••` Context Menu Popover (`IsNoteMenuOpen`).
+  * Re-exported all 12 high-resolution mockups (`01_note_studio_light.png` through `12_capacities_wall_calendar_light.png`) into [`docs/mockups/`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/mockups/) and [`docs/screenshots/`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/screenshots/).
+
+### 8.3 Specialist 3 — Verification & Documentation Engineer (`469ca988-685c-4714-8409-dfe185fe9ec7`)
+* **Audited Files**:
+  * [`DESIGN.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/DESIGN.md)
+  * [`README.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/README.md)
+  * [`tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs#L890-L952)
+* **Delivered Capabilities**:
+  * Extended [`ObsidianFolderSubfolderHierarchy_EmojiAssignment_AndCapacitiesObjectStudio_WorkEndToEnd`](file:///Volumes/dockdata/dev/projects/Rhyolite/tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs#L890-L952) with Step 5 verifying `GetUnifiedExplorerTree` pre-order traversal (`01 — Architecture` depth `0` -> `01 — Architecture/Storage` depth `1` -> `01 — Architecture/Storage/Caching` depth `2` -> `L1 Cache Design` note depth `3` -> `SQLite WAL Indexer` note depth `2` -> `Storage Architecture` note depth `1`), `IsSelected` tracking, and subtree collapse/re-expand pruning.
+  * Updated [`README.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/README.md) with references to [`DESIGN.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/DESIGN.md) and [`docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md).
+  * **Final Build & Test Verification**: `0 Warning(s), 0 Error(s)`, `13/13 Passed` in `0.6864 Seconds`.
+
+
 
 
 
