@@ -1,11 +1,11 @@
 <Project>
   <PropertyGroup>
     <!-- Canonical Rhyolite Release Version (starts at 0.1.0, increments by 0.0.1 per release) -->
-    <Version>0.1.4</Version>
-    <AssemblyVersion>0.1.4.0</AssemblyVersion>
-    <FileVersion>0.1.4.0</FileVersion>
-    <InformationalVersion>0.1.4</InformationalVersion>
-    <ApplicationDisplayVersion>0.1.4</ApplicationDisplayVersion>
+    <Version>0.1.5</Version>
+    <AssemblyVersion>0.1.5.0</AssemblyVersion>
+    <FileVersion>0.1.5.0</FileVersion>
+    <InformationalVersion>0.1.5</InformationalVersion>
+    <ApplicationDisplayVersion>0.1.5</ApplicationDisplayVersion>
     <Product>Rhyolite</Product>
     <Company>Dustin Blad</Company>
     <Authors>Dustin Blad</Authors>
