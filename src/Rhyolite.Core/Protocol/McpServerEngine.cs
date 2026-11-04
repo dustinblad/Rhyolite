@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Rhyolite.Core.Design;
 using Rhyolite.Core.Enterprise;
+using Rhyolite.Core.Storage;
 
 namespace Rhyolite.Core.Protocol;
 
@@ -71,19 +73,37 @@ public sealed class McpServerEngine
 
     private readonly RhyoliteAuthEngine _authEngine;
     private readonly PeerSyncEngine _vaultEngine;
+    private readonly HybridVaultEngine? _vault;
     private readonly IReadOnlyList<McpToolDescriptor> _tools;
+    private string _activeDesignSystemId = DesignSystemCatalog.DefaultPresetId;
+    private string _activeThemeMode = "light";
 
-    public McpServerEngine(RhyoliteAuthEngine authEngine, PeerSyncEngine vaultEngine)
+    public McpServerEngine(
+        RhyoliteAuthEngine authEngine,
+        PeerSyncEngine vaultEngine,
+        HybridVaultEngine? vault = null)
     {
         ArgumentNullException.ThrowIfNull(authEngine);
         ArgumentNullException.ThrowIfNull(vaultEngine);
 
         _authEngine = authEngine;
         _vaultEngine = vaultEngine;
+        _vault = vault;
         _tools = BuildToolCatalog();
     }
 
+    public McpServerEngine(HybridVaultEngine vault)
+        : this(new RhyoliteAuthEngine(), new PeerSyncEngine("local-node"), vault)
+    {
+    }
+
     public IReadOnlyList<McpToolDescriptor> Tools => _tools;
+
+    public string ActiveDesignSystemId =>
+        _vault?.GetUiPreference("active_design_system") ?? _activeDesignSystemId;
+
+    public string ActiveThemeMode =>
+        _vault?.GetUiPreference("active_theme_mode") ?? _activeThemeMode;
 
     /// <summary>
     /// Processes a raw JSON-RPC 2.0 request string (over stdio or Streamable HTTP/SSE) and returns a serialized JSON-RPC 2.0 response.
@@ -206,7 +226,33 @@ public sealed class McpServerEngine
             "rhyolite.scan_secrets" => ExecuteScanSecretsTool(id, args, authToken, startTick),
             "rhyolite.analyze_github_pr" => ExecuteAnalyzeGitHubPrTool(id, args, authToken, startTick),
             "rhyolite.verify_workspace_connectors" => ExecuteVerifyWorkspaceConnectorsTool(id, args, authToken, startTick),
+            "rhyolite.list_design_systems" => ExecuteListDesignSystemsToolAsync(id, args, authToken, startTick).GetAwaiter().GetResult(),
+            "rhyolite.set_design_system" => ExecuteSetDesignSystemToolAsync(id, args, authToken, startTick).GetAwaiter().GetResult(),
             _ => CreateErrorResponse(id, -32602, $"Unknown Rhyolite MCP tool '{toolName}'.", startTick)
+        };
+    }
+
+    /// <summary>
+    /// Asynchronously executes an MCP tool call by name with optional arguments and RBAC token.
+    /// </summary>
+    public async Task<McpRpcResponse> ExecuteToolCallAsync(
+        string toolName,
+        JsonObject? arguments = null,
+        string? authToken = null,
+        CancellationToken ct = default)
+    {
+        var startTick = Stopwatch.GetTimestamp();
+        if (string.IsNullOrWhiteSpace(toolName))
+        {
+            return CreateErrorResponse(null, -32602, "Missing required 'name' parameter in tools/call.", startTick);
+        }
+
+        var args = arguments ?? new JsonObject();
+        return toolName switch
+        {
+            "rhyolite.list_design_systems" => await ExecuteListDesignSystemsToolAsync(null, args, authToken, startTick, ct).ConfigureAwait(false),
+            "rhyolite.set_design_system" => await ExecuteSetDesignSystemToolAsync(null, args, authToken, startTick, ct).ConfigureAwait(false),
+            _ => HandleToolsCall(null, new JsonObject { ["name"] = toolName, ["arguments"] = args.DeepClone() }, authToken, startTick)
         };
     }
 
@@ -663,6 +709,150 @@ public sealed class McpServerEngine
         return CreateToolPayloadResponse(id, payload, decision.EffectiveRole, startTick);
     }
 
+    private async Task<McpRpcResponse> ExecuteListDesignSystemsToolAsync(
+        JsonNode? id,
+        JsonObject args,
+        string? authToken,
+        long startTick,
+        CancellationToken ct = default)
+    {
+        var effectiveRole = VaultRole.VaultOwner;
+        if (!string.IsNullOrWhiteSpace(authToken))
+        {
+            var decision = _authEngine.CheckAccess(authToken, VaultOperation.ReadNote);
+            if (!decision.IsAllowed)
+            {
+                return CreateErrorResponse(id, -32001, $"RBAC Access Denied: {decision.Reason}", startTick);
+            }
+            effectiveRole = decision.EffectiveRole;
+        }
+
+        var savedDesignId = _vault is not null
+            ? await _vault.GetUiPreferenceAsync("active_design_system", ct).ConfigureAwait(false)
+            : null;
+        var activeDesignSystem = string.IsNullOrWhiteSpace(savedDesignId) ? _activeDesignSystemId : savedDesignId;
+
+        var savedThemeMode = _vault is not null
+            ? await _vault.GetUiPreferenceAsync("active_theme_mode", ct).ConfigureAwait(false)
+            : null;
+        var activeThemeMode = string.IsNullOrWhiteSpace(savedThemeMode) ? _activeThemeMode : savedThemeMode;
+
+        var presetsArray = new JsonArray();
+        foreach (var preset in DesignSystemCatalog.All)
+        {
+            presetsArray.Add(new JsonObject
+            {
+                ["id"] = preset.Id,
+                ["name"] = preset.Name,
+                ["category"] = preset.Category,
+                ["tagline"] = preset.Tagline,
+                ["designMdSourcePath"] = preset.DesignMdSourcePath,
+                ["prefersDarkByDefault"] = preset.PrefersDarkByDefault,
+                ["cardCornerRadius"] = preset.CardCornerRadius,
+                ["buttonCornerRadius"] = preset.ButtonCornerRadius,
+                ["lightAccent"] = preset.LightAccent,
+                ["darkAccent"] = preset.DarkAccent
+            });
+        }
+
+        var payload = new JsonObject
+        {
+            ["active_design_system"] = activeDesignSystem,
+            ["activeDesignSystem"] = activeDesignSystem,
+            ["active_theme_mode"] = activeThemeMode,
+            ["activeThemeMode"] = activeThemeMode,
+            ["count"] = presetsArray.Count,
+            ["presets"] = presetsArray,
+            ["designSystems"] = presetsArray.DeepClone()
+        };
+
+        return CreateToolPayloadResponse(id, payload, effectiveRole, startTick);
+    }
+
+    private async Task<McpRpcResponse> ExecuteSetDesignSystemToolAsync(
+        JsonNode? id,
+        JsonObject args,
+        string? authToken,
+        long startTick,
+        CancellationToken ct = default)
+    {
+        var effectiveRole = VaultRole.VaultOwner;
+        if (!string.IsNullOrWhiteSpace(authToken))
+        {
+            var decision = _authEngine.CheckAccess(authToken, VaultOperation.WriteNote);
+            if (!decision.IsAllowed)
+            {
+                return CreateErrorResponse(id, -32001, $"RBAC Access Denied: {decision.Reason}", startTick);
+            }
+            effectiveRole = decision.EffectiveRole;
+        }
+
+        var designId = args["designId"]?.GetValue<string>()
+            ?? args["id"]?.GetValue<string>()
+            ?? args["presetId"]?.GetValue<string>();
+        var preset = DesignSystemCatalog.GetOrDefault(designId);
+        var isDark = args["darkMode"]?.GetValue<bool>() ?? preset.PrefersDarkByDefault;
+        var themeMode = isDark ? "dark" : "light";
+
+        _activeDesignSystemId = preset.Id;
+        _activeThemeMode = themeMode;
+
+        if (_vault is not null)
+        {
+            await _vault.SaveUiPreferenceAsync("active_design_system", preset.Id, ct).ConfigureAwait(false);
+            await _vault.SaveUiPreferenceAsync("active_theme_mode", themeMode, ct).ConfigureAwait(false);
+        }
+
+        var palette = preset.GetPalette(isDark);
+        var presetObj = new JsonObject
+        {
+            ["id"] = preset.Id,
+            ["name"] = preset.Name,
+            ["category"] = preset.Category,
+            ["tagline"] = preset.Tagline,
+            ["designMdSourcePath"] = preset.DesignMdSourcePath,
+            ["prefersDarkByDefault"] = preset.PrefersDarkByDefault,
+            ["cardCornerRadius"] = preset.CardCornerRadius,
+            ["buttonCornerRadius"] = preset.ButtonCornerRadius,
+            ["lightAccent"] = preset.LightAccent,
+            ["darkAccent"] = preset.DarkAccent
+        };
+
+        var paletteObj = new JsonObject
+        {
+            ["bgHex"] = palette.BgHex,
+            ["surfaceHex"] = palette.SurfaceHex,
+            ["surfaceWarmHex"] = palette.SurfaceWarmHex,
+            ["surfaceElevatedHex"] = palette.SurfaceElevatedHex,
+            ["fgHex"] = palette.FgHex,
+            ["fg2Hex"] = palette.Fg2Hex,
+            ["mutedHex"] = palette.MutedHex,
+            ["metaHex"] = palette.MetaHex,
+            ["borderHex"] = palette.BorderHex,
+            ["borderSoftHex"] = palette.BorderSoftHex,
+            ["accentHex"] = palette.AccentHex,
+            ["accentHoverHex"] = palette.AccentHoverHex,
+            ["linkHex"] = palette.LinkHex,
+            ["calloutBgHex"] = palette.CalloutBgHex,
+            ["successHex"] = palette.SuccessHex,
+            ["warnHex"] = palette.WarnHex,
+            ["dangerHex"] = palette.DangerHex
+        };
+
+        var payload = new JsonObject
+        {
+            ["active_design_system"] = preset.Id,
+            ["activeDesignSystem"] = preset.Id,
+            ["active_theme_mode"] = themeMode,
+            ["activeThemeMode"] = themeMode,
+            ["darkMode"] = isDark,
+            ["preset"] = presetObj,
+            ["palette"] = paletteObj
+        };
+
+        return CreateToolPayloadResponse(id, payload, effectiveRole, startTick);
+    }
+
     private McpRpcResponse HandleResourcesList(JsonNode? id, string? authToken, long startTick)
     {
         var resourcesArray = new JsonArray();
@@ -1000,6 +1190,14 @@ public sealed class McpServerEngine
             }
         };
 
+        foreach (var (key, value) in payload)
+        {
+            if (key is not ("content" or "isError" or "_meta"))
+            {
+                result[key] = value?.DeepClone();
+            }
+        }
+
         return new McpRpcResponse("2.0", id, result, null, elapsedUs);
     }
 
@@ -1189,6 +1387,29 @@ public sealed class McpServerEngine
             {
                 ["type"] = "object",
                 ["properties"] = new JsonObject()
+            }),
+        new McpToolDescriptor(
+            "rhyolite.list_design_systems",
+            "Lists all 9 feimacode/open-design-agent-kit design system presets (Apple, Linear, Notion, Vercel, Claude, GitHub, Raycast, Stripe, Supabase) and the active design system ID.",
+            VaultOperation.ReadNote,
+            new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject()
+            }),
+        new McpToolDescriptor(
+            "rhyolite.set_design_system",
+            "Switches the active Rhyolite design system preset and theme mode, persisting preferences to the SQLite WAL sidecar and returning the resolved palette tokens.",
+            VaultOperation.WriteNote,
+            new JsonObject
+            {
+                ["type"] = "object",
+                ["required"] = new JsonArray("designId"),
+                ["properties"] = new JsonObject
+                {
+                    ["designId"] = new JsonObject { ["type"] = "string", ["description"] = "Design system preset ID (apple, linear-app, notion, vercel, claude, github, raycast, stripe, supabase)." },
+                    ["darkMode"] = new JsonObject { ["type"] = "boolean", ["description"] = "Optional dark mode override." }
+                }
             })
     ];
 }

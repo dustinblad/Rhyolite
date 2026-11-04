@@ -3,7 +3,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Rhyolite.Core.Design;
 using Rhyolite.Core.Enterprise;
+using Rhyolite.Core.Storage;
 
 namespace Rhyolite.Core.Protocol;
 
@@ -49,19 +51,27 @@ public sealed partial class GraphQlEngine
 
     private readonly RhyoliteAuthEngine _authEngine;
     private readonly PeerSyncEngine _vaultEngine;
+    private readonly HybridVaultEngine? _vault;
     private readonly McpServerEngine _mcpEngine;
 
     public GraphQlEngine(
         RhyoliteAuthEngine authEngine,
         PeerSyncEngine vaultEngine,
-        McpServerEngine? mcpEngine = null)
+        McpServerEngine? mcpEngine = null,
+        HybridVaultEngine? vault = null)
     {
         ArgumentNullException.ThrowIfNull(authEngine);
         ArgumentNullException.ThrowIfNull(vaultEngine);
 
         _authEngine = authEngine;
         _vaultEngine = vaultEngine;
-        _mcpEngine = mcpEngine ?? new McpServerEngine(authEngine, vaultEngine);
+        _vault = vault;
+        _mcpEngine = mcpEngine ?? new McpServerEngine(authEngine, vaultEngine, vault);
+    }
+
+    public GraphQlEngine(HybridVaultEngine vault)
+        : this(new RhyoliteAuthEngine(), new PeerSyncEngine("local-node"), null, vault)
+    {
     }
 
     /// <summary>
@@ -83,6 +93,8 @@ public sealed partial class GraphQlEngine
           authProviders: [OAuthProviderDescriptor!]!
           devExPrPreview(prNumber: Int = 142): DevExPrPreview!
           workspaceConnectors: [WorkspaceConnectorDescriptor!]!
+          designSystems: [DesignSystemPresetDescriptor!]!
+          activeDesignSystem: String!
         }
 
         type Mutation {
@@ -206,6 +218,20 @@ public sealed partial class GraphQlEngine
           protocol: String!
           status: String!
           enabled: Boolean!
+        }
+
+        type DesignSystemPresetDescriptor {
+          id: String!
+          name: String!
+          category: String!
+          tagline: String!
+          designMdSourcePath: String!
+          prefersDarkByDefault: Boolean!
+          cardCornerRadius: Float!
+          buttonCornerRadius: Float!
+          lightAccent: String!
+          darkAccent: String!
+          isActive: Boolean!
         }
         """;
 
@@ -581,6 +607,50 @@ public sealed partial class GraphQlEngine
                         ["enabled"] = true
                     }
                 };
+            }
+        }
+
+        if (queryText.Contains("designSystems", StringComparison.OrdinalIgnoreCase))
+        {
+            var isAllowed = true;
+            if (!string.IsNullOrWhiteSpace(authToken))
+            {
+                var decision = _authEngine.CheckAccess(authToken, VaultOperation.ReadNote);
+                if (!decision.IsAllowed)
+                {
+                    errors.Add(new GraphQlError($"RBAC Denied on 'designSystems': {decision.Reason}", "FORBIDDEN"));
+                    isAllowed = false;
+                }
+            }
+
+            if (isAllowed)
+            {
+                var activeId = _vault?.GetUiPreference("active_design_system")
+                    ?? _mcpEngine.ActiveDesignSystemId
+                    ?? DesignSystemCatalog.DefaultPresetId;
+
+                var presetsArr = new JsonArray();
+                foreach (var preset in DesignSystemCatalog.All)
+                {
+                    presetsArr.Add(new JsonObject
+                    {
+                        ["id"] = preset.Id,
+                        ["name"] = preset.Name,
+                        ["category"] = preset.Category,
+                        ["tagline"] = preset.Tagline,
+                        ["designMdSourcePath"] = preset.DesignMdSourcePath,
+                        ["prefersDarkByDefault"] = preset.PrefersDarkByDefault,
+                        ["cardCornerRadius"] = preset.CardCornerRadius,
+                        ["buttonCornerRadius"] = preset.ButtonCornerRadius,
+                        ["lightAccent"] = preset.LightAccent,
+                        ["darkAccent"] = preset.DarkAccent,
+                        ["isActive"] = string.Equals(preset.Id, activeId, StringComparison.OrdinalIgnoreCase)
+                    });
+                }
+
+                data["activeDesignSystem"] = activeId;
+                data["active_design_system"] = activeId;
+                data["designSystems"] = presetsArr;
             }
         }
     }

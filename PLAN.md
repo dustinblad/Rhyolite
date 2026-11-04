@@ -100,6 +100,33 @@ We will integrate the exact tokens and craft rules from `feimacode/open-design-a
 - **Monospace** (`SF Mono`, `JetBrains Mono`, Menlo, Consolas):
   - Code blocks, inline code spans, YAML frontmatter source, and search query syntax.
 
+### 2.4 Multi-Design System Switcher Engine (9 Most Popular `feimacode/open-design-agent-kit` Design Systems)
+
+Users can switch back and forth in real time across the **9 most popular design systems** from [`feimacode/open-design-agent-kit`](https://github.com/feimacode/open-design-agent-kit) (`packages/content/assets/open-design/design-systems/<id>/DESIGN.md`), each supporting both **Light Mode** and **Dark Mode** (`18` complete token palettes) with zero restart required:
+
+| # | Design System ID (`open-design-agent-kit`) | Display Name & Category | Light Mode Canvas / Surface | Dark Mode Canvas / Surface | Brand Accent & Link Tokens | Corner Radius (`Card` / `Button`) |
+| :- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **1** | `apple` | **Apple HIG** (`Media & Consumer`) | `#FFFFFF` / `#F5F5F7` | `#000000` / `#1C1C1E` | `#0071E3` / `#2997FF` | `12px` / `8px` |
+| **2** | `linear-app` | **Linear** (`Productivity & SaaS`) | `#FFFFFF` / `#F7F8F8` | `#08090A` / `#0F1011` | `#5E6AD2` / `#7170FF` | `8px` / `6px` |
+| **3** | `notion` | **Notion** (`Warm Minimal Workspace`) | `#FFFFFF` / `#F6F5F4` | `#191919` / `#252422` | `#0075DE` / `#2A9D99` | `8px` / `6px` |
+| **4** | `vercel` | **Vercel Geist** (`Developer Infrastructure`) | `#FFFFFF` / `#FAFAFA` | `#000000` / `#0A0A0A` | `#0A72EF` / `#0070F3` | `6px` / `6px` |
+| **5** | `claude` | **Claude (Anthropic)** (`AI & Editorial Salon`) | `#FAF9F5` / `#F5F4ED` | `#141413` / `#21211F` | `#C96442` / `#D97757` | `12px` / `8px` |
+| **6** | `github` | **GitHub Primer** (`Code & PR Engineering`) | `#FFFFFF` / `#F6F8FA` | `#0D1117` / `#161B22` | `#0969DA` / `#2F81F7` | `6px` / `6px` |
+| **7** | `raycast` | **Raycast** (`Dark Chrome Launcher`) | `#FFFFFF` / `#F8F9FB` | `#07080A` / `#101111` | `#FF6363` / `#55B3FF` | `10px` / `8px` |
+| **8** | `stripe` | **Stripe** (`Fintech & Twilight Navy`) | `#FFFFFF` / `#F6F9FC` | `#061B31` / `#0D253D` | `#533AFD` / `#665EFD` | `8px` / `6px` |
+| **9** | `supabase` | **Supabase** (`Emerald Code Terminal`) | `#FFFFFF` / `#FAFAFA` | `#0F0F0F` / `#171717` | `#3ECF8E` / `#00C573` | `8px` / `6px` |
+
+#### Architectural Implementation of the Multi-Design System Engine
+1. **`DesignSystemCatalog.cs` (`src/Rhyolite.Core/Design/DesignSystemCatalog.cs`)**:
+   - Thread-safe, zero-allocation `FrozenDictionary<string, DesignSystemPreset>` holding all 9 `feimacode/open-design-agent-kit` presets, their Light & Dark `DesignSystemPalette` hex tokens (`Bg`, `Surface`, `SurfaceWarm`, `SurfaceElevated`, `Fg`, `Fg2`, `Muted`, `Meta`, `Border`, `BorderSoft`, `Accent`, `AccentHover`, `Link`, `CalloutBg`, `Success`, `Warn`, `Danger`), `CardCornerRadius`, `ButtonCornerRadius`, `PrefersDarkByDefault`, and `DesignMdSourcePath`.
+2. **SQLite WAL Persistence (`ui_preferences` in `HybridVaultEngine.cs`)**:
+   - Stores and retrieves `(pref_key, pref_value, updated_utc)` in `.rhyolite/cache.db` so switching design systems (`active_design_system` and `active_theme_mode`) persists in `< 0.2 ms` across sessions.
+3. **MCP & GraphQL Protocol Exposure (`McpServerEngine.cs` & `GraphQlEngine.cs`)**:
+   - Adds MCP tools `rhyolite.list_design_systems` and `rhyolite.set_design_system` plus GraphQL query field `designSystems` so AI agents and connected peers can inspect or switch the active `open-design-agent-kit` design preset.
+4. **Instant Live UI Switcher (`App.axaml.cs`, `MainViewModel.cs`, `MainView.axaml`)**:
+   - Top-bar **Design System Selector (`ComboBox`)** + **`⇄ Next Design` quick-cycle button** + **Interactive Design System Swatch Strip** allowing 1-click switching back and forth between `Apple`, `Linear`, `Notion`, `Vercel`, `Claude`, `GitHub`, `Raycast`, `Stripe`, and `Supabase` in both Light and Dark variants.
+   - `App.ApplyDesignSystem(DesignSystemPreset preset, bool isDark)` mutates Avalonia's live `Resources` dictionary (`AppleBgBrush`, `AppleSurfaceBrush`, `AppleAccentBrush`, `AppleLinkBrush`, `AppleCardCornerRadius`, `AppleBtnCornerRadius`, etc.) in `< 0.5 ms` with immediate visual repaint across all screens and custom Skia canvases.
+
 ---
 
 ## 3. Obsidian Feature Parity + Rhyolite Next-Gen Expansions
@@ -411,3 +438,6 @@ If you want to replicate **Rhyolite** from scratch in **Claude Code** (or anothe
    - Update builds so all `.dll`s and native runtime libraries (`SkiaSharp`, `HarfBuzzSharp`, `e_sqlite3`, .NET 10 runtime) are combined into single-file executables (`PublishSingleFile=true`, `SelfContained=true`, `IncludeNativeLibrariesForSelfExtract=true`).
    - Embed a Win32 DIB+PNG multi-resolution `.ico` (`16×16` through `128×128` 32-bpp BGRA DIB + `256×256` PNG) into `Rhyolite.exe` and `Rhyolite-UserSetup.exe` PE `.rsrc` sections (`RT_GROUP_ICON` / `RT_ICON`) and call `SHChangeNotify(SHCNE_ASSOCCHANGED)` on Windows to flush any cached blank icon.
    - Build per-user installers requiring zero Administrator / UAC elevation (`Rhyolite-UserSetup-vX.Y.Z-win-x64.exe` installing to `%LocalAppData%\Programs\Rhyolite`, `Rhyolite-UserInstaller-vX.Y.Z-macos-arm64.dmg` installing to `~/Applications`, and `Rhyolite-UserInstaller-vX.Y.Z-linux-x64.sh` installing to `~/.local/bin`).
+10. **Prompt 10 (Multi-Design System Switcher Engine — 9 Popular `feimacode/open-design-agent-kit` Presets)**:
+    - Add real-time UI switching across the **9 most popular design systems** from `https://github.com/feimacode/open-design-agent-kit` (`Apple HIG`, `Linear`, `Notion`, `Vercel Geist`, `Claude Anthropic`, `GitHub Primer`, `Raycast`, `Stripe`, and `Supabase`) in both Light and Dark modes (`18` total palettes).
+    - Persist the active design preset and theme mode in `.rhyolite/cache.db` (`ui_preferences` table), expose MCP/GraphQL inspection & switching tools, and execute via the Lead Orchestration & Verification Architect + Specialist Agents.

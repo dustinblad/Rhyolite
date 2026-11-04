@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Rhyolite.Core.Bases;
 using Rhyolite.Core.Canvas;
+using Rhyolite.Core.Design;
 using Rhyolite.Core.Enterprise;
 using Rhyolite.Core.Expansions;
 using Rhyolite.Core.Graph;
@@ -24,6 +25,19 @@ public partial class MainViewModel : ViewModelBase
     private string _ownerBearerToken = string.Empty;
     private readonly List<FlashcardItem> _allFlashcards = [];
     private int _currentFlashcardIndex;
+    private bool _isApplyingDesignSystem;
+    private bool _hasExplicitDesignSelection;
+
+    public ObservableCollection<DesignSystemPreset> DesignSystems { get; } = new(DesignSystemCatalog.All);
+
+    [ObservableProperty]
+    private DesignSystemPreset _selectedDesignSystem = DesignSystemCatalog.GetOrDefault("apple");
+
+    [ObservableProperty]
+    private string _activeDesignBadgeText = "Apple HIG · .NET 10";
+
+    [ObservableProperty]
+    private string _activeDesignSubtitleText = "feimacode/open-design-agent-kit · apple (Light)";
 
     [ObservableProperty]
     private string _activeScreen = "Studio";
@@ -199,6 +213,19 @@ public partial class MainViewModel : ViewModelBase
         foreach (var note in _vaultEngine.Notes)
         {
             _peerSyncEngine.UpsertNote(note.RelativePath, note.RawMarkdown);
+        }
+
+        if (!_hasExplicitDesignSelection)
+        {
+            var savedPresetId = await _vaultEngine.GetUiPreferenceAsync("active_design_system");
+            var savedThemeMode = await _vaultEngine.GetUiPreferenceAsync("active_theme_mode");
+            if (!string.IsNullOrWhiteSpace(savedPresetId) && !_hasExplicitDesignSelection)
+            {
+                bool? forceDark = savedThemeMode is null
+                    ? null
+                    : string.Equals(savedThemeMode, "dark", StringComparison.OrdinalIgnoreCase);
+                SelectDesignSystem(savedPresetId, forceDark);
+            }
         }
 
         RefreshCollectionsFromEngine();
@@ -481,14 +508,90 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsMobileView));
     }
 
+    partial void OnSelectedDesignSystemChanged(DesignSystemPreset value)
+    {
+        if (_isApplyingDesignSystem || value is null) return;
+        ApplyDesignSystemInternal(value, forceDark: null);
+    }
+
+    public void SelectDesignSystem(string presetId, bool? forceDark = null)
+    {
+        var preset = DesignSystemCatalog.GetOrDefault(presetId);
+        ApplyDesignSystemInternal(preset, forceDark);
+    }
+
+    [RelayCommand]
+    private void SwitchDesignSystem(string presetId)
+    {
+        SelectDesignSystem(presetId);
+    }
+
+    [RelayCommand]
+    private void NextDesignSystem()
+    {
+        var next = DesignSystemCatalog.GetNext(SelectedDesignSystem?.Id);
+        ApplyDesignSystemInternal(next, forceDark: null);
+    }
+
+    [RelayCommand]
+    private void PreviousDesignSystem()
+    {
+        var prev = DesignSystemCatalog.GetPrevious(SelectedDesignSystem?.Id);
+        ApplyDesignSystemInternal(prev, forceDark: null);
+    }
+
     [RelayCommand]
     public void ToggleAppleTheme()
     {
+        _hasExplicitDesignSelection = true;
         IsDarkTheme = !IsDarkTheme;
-        ThemeButtonLabel = IsDarkTheme ? "☀️ Apple Light" : "🌙 True-Black Dark";
+        var preset = SelectedDesignSystem ?? DesignSystemCatalog.GetOrDefault("apple");
+        UpdateDesignSystemLabelsAndApply(preset);
+        _ = PersistDesignPreferencesSafeAsync(preset.Id, IsDarkTheme);
+    }
+
+    private void ApplyDesignSystemInternal(DesignSystemPreset preset, bool? forceDark)
+    {
+        _hasExplicitDesignSelection = true;
+        _isApplyingDesignSystem = true;
+        try
+        {
+            SelectedDesignSystem = preset;
+        }
+        finally
+        {
+            _isApplyingDesignSystem = false;
+        }
+
+        IsDarkTheme = forceDark ?? preset.PrefersDarkByDefault;
+        UpdateDesignSystemLabelsAndApply(preset);
+        _ = PersistDesignPreferencesSafeAsync(preset.Id, IsDarkTheme);
+    }
+
+    private void UpdateDesignSystemLabelsAndApply(DesignSystemPreset preset)
+    {
+        string modeLabel = IsDarkTheme ? "Dark" : "Light";
+        ThemeButtonLabel = IsDarkTheme ? $"☀️ {preset.Name} Light" : $"🌙 {preset.Name} Dark";
+        ActiveDesignBadgeText = $"{preset.Name} · .NET 10";
+        ActiveDesignSubtitleText = $"open-design/{preset.Id} · {preset.Tagline} ({modeLabel})";
+
         if (Application.Current is App app)
         {
-            app.SetAppleTheme(IsDarkTheme);
+            app.ApplyDesignSystem(preset, IsDarkTheme);
+        }
+    }
+
+    private async Task PersistDesignPreferencesSafeAsync(string presetId, bool isDark)
+    {
+        if (_vaultEngine is null) return;
+        try
+        {
+            await _vaultEngine.SaveUiPreferenceAsync("active_design_system", presetId).ConfigureAwait(false);
+            await _vaultEngine.SaveUiPreferenceAsync("active_theme_mode", isDark ? "dark" : "light").ConfigureAwait(false);
+        }
+        catch
+        {
+            // Ignore background persistence errors on disposed/temp vaults
         }
     }
 

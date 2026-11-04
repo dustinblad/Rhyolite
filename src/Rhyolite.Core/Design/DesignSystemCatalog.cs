@@ -1,0 +1,516 @@
+using System.Collections.Frozen;
+
+namespace Rhyolite.Core.Design;
+
+/// <summary>
+/// Semantic light or dark color token palette for a Design System preset from open-design-agent-kit.
+/// </summary>
+public sealed record DesignSystemPalette(
+    string BgHex,
+    string SurfaceHex,
+    string SurfaceWarmHex,
+    string SurfaceElevatedHex,
+    string FgHex,
+    string Fg2Hex,
+    string MutedHex,
+    string MetaHex,
+    string BorderHex,
+    string BorderSoftHex,
+    string AccentHex,
+    string AccentHoverHex,
+    string LinkHex,
+    string CalloutBgHex,
+    string SuccessHex,
+    string WarnHex,
+    string DangerHex);
+
+/// <summary>
+/// Immutable descriptor for one of the 9 flagship design systems from feimacode/open-design-agent-kit.
+/// </summary>
+public sealed record DesignSystemPreset(
+    string Id,
+    string Name,
+    string Category,
+    string Tagline,
+    string DesignMdSourcePath,
+    bool PrefersDarkByDefault,
+    double CardCornerRadius,
+    double ButtonCornerRadius,
+    DesignSystemPalette LightPalette,
+    DesignSystemPalette DarkPalette)
+{
+    public string LightAccent => LightPalette.AccentHex;
+    public string DarkAccent => DarkPalette.AccentHex;
+
+    public DesignSystemPalette GetPalette(bool isDarkMode) => isDarkMode ? DarkPalette : LightPalette;
+
+    public override string ToString() => $"{Name} ({Category})";
+}
+
+/// <summary>
+/// O(1) FrozenDictionary-backed catalog of the 9 most popular design systems from feimacode/open-design-agent-kit.
+/// </summary>
+public static class DesignSystemCatalog
+{
+    public const string DefaultPresetId = "apple";
+
+    public static IReadOnlyList<DesignSystemPreset> All { get; } =
+    [
+        new DesignSystemPreset(
+            Id: "apple",
+            Name: "Apple HIG",
+            Category: "Media & Consumer",
+            Tagline: "Precision editorial gallery calm",
+            DesignMdSourcePath: "packages/content/assets/open-design/design-systems/apple/DESIGN.md",
+            PrefersDarkByDefault: false,
+            CardCornerRadius: 12,
+            ButtonCornerRadius: 8,
+            LightPalette: new DesignSystemPalette(
+                BgHex: "#FFFFFF",
+                SurfaceHex: "#F5F5F7",
+                SurfaceWarmHex: "#FBFBFD",
+                SurfaceElevatedHex: "#FFFFFF",
+                FgHex: "#1D1D1F",
+                Fg2Hex: "#424245",
+                MutedHex: "#6E6E73",
+                MetaHex: "#86868B",
+                BorderHex: "#D2D2D7",
+                BorderSoftHex: "#E8E8ED",
+                AccentHex: "#0071E3",
+                AccentHoverHex: "#0077ED",
+                LinkHex: "#0066CC",
+                CalloutBgHex: "#120071E3",
+                SuccessHex: "#16A34A",
+                WarnHex: "#EAB308",
+                DangerHex: "#DC2626"),
+            DarkPalette: new DesignSystemPalette(
+                BgHex: "#000000",
+                SurfaceHex: "#1C1C1E",
+                SurfaceWarmHex: "#272729",
+                SurfaceElevatedHex: "#2A2A2C",
+                FgHex: "#FFFFFF",
+                Fg2Hex: "#EBEBF5",
+                MutedHex: "#98989D",
+                MetaHex: "#8E8E93",
+                BorderHex: "#38383A",
+                BorderSoftHex: "#2C2C2E",
+                AccentHex: "#0071E3",
+                AccentHoverHex: "#0077ED",
+                LinkHex: "#2997FF",
+                CalloutBgHex: "#202997FF",
+                SuccessHex: "#34C759",
+                WarnHex: "#FF9500",
+                DangerHex: "#FF3B30")),
+
+        new DesignSystemPreset(
+            Id: "linear-app",
+            Name: "Linear",
+            Category: "Productivity & SaaS",
+            Tagline: "Starlight precision & indigo-violet",
+            DesignMdSourcePath: "packages/content/assets/open-design/design-systems/linear-app/DESIGN.md",
+            PrefersDarkByDefault: true,
+            CardCornerRadius: 8,
+            ButtonCornerRadius: 6,
+            LightPalette: new DesignSystemPalette(
+                BgHex: "#FFFFFF",
+                SurfaceHex: "#F7F8F8",
+                SurfaceWarmHex: "#F0F2F5",
+                SurfaceElevatedHex: "#FFFFFF",
+                FgHex: "#08090A",
+                Fg2Hex: "#28282C",
+                MutedHex: "#62666D",
+                MetaHex: "#8A8F98",
+                BorderHex: "#E2E4E9",
+                BorderSoftHex: "#ECEEF2",
+                AccentHex: "#5E6AD2",
+                AccentHoverHex: "#7170FF",
+                LinkHex: "#5E6AD2",
+                CalloutBgHex: "#145E6AD2",
+                SuccessHex: "#27A644",
+                WarnHex: "#E59900",
+                DangerHex: "#E5484D"),
+            DarkPalette: new DesignSystemPalette(
+                BgHex: "#08090A",
+                SurfaceHex: "#0F1011",
+                SurfaceWarmHex: "#191A1B",
+                SurfaceElevatedHex: "#28282C",
+                FgHex: "#F7F8F8",
+                Fg2Hex: "#D0D6E0",
+                MutedHex: "#8A8F98",
+                MetaHex: "#62666D",
+                BorderHex: "#222326",
+                BorderSoftHex: "#191A1B",
+                AccentHex: "#5E6AD2",
+                AccentHoverHex: "#828FFF",
+                LinkHex: "#7170FF",
+                CalloutBgHex: "#245E6AD2",
+                SuccessHex: "#10B981",
+                WarnHex: "#F59E0B",
+                DangerHex: "#EF4444")),
+
+        new DesignSystemPreset(
+            Id: "notion",
+            Name: "Notion",
+            Category: "Productivity & SaaS",
+            Tagline: "Warm paper minimalism & editorial ink",
+            DesignMdSourcePath: "packages/content/assets/open-design/design-systems/notion/DESIGN.md",
+            PrefersDarkByDefault: false,
+            CardCornerRadius: 8,
+            ButtonCornerRadius: 6,
+            LightPalette: new DesignSystemPalette(
+                BgHex: "#FFFFFF",
+                SurfaceHex: "#F6F5F4",
+                SurfaceWarmHex: "#FAF9F8",
+                SurfaceElevatedHex: "#FFFFFF",
+                FgHex: "#191919",
+                Fg2Hex: "#31302E",
+                MutedHex: "#615D59",
+                MetaHex: "#A39E98",
+                BorderHex: "#E6E4E0",
+                BorderSoftHex: "#EFECE6",
+                AccentHex: "#0075DE",
+                AccentHoverHex: "#005BAB",
+                LinkHex: "#0075DE",
+                CalloutBgHex: "#140075DE",
+                SuccessHex: "#1AAE39",
+                WarnHex: "#DD5B00",
+                DangerHex: "#E03E3E"),
+            DarkPalette: new DesignSystemPalette(
+                BgHex: "#191919",
+                SurfaceHex: "#202020",
+                SurfaceWarmHex: "#262626",
+                SurfaceElevatedHex: "#31302E",
+                FgHex: "#F6F5F4",
+                Fg2Hex: "#D4D2CE",
+                MutedHex: "#9B9A97",
+                MetaHex: "#787774",
+                BorderHex: "#31302E",
+                BorderSoftHex: "#262626",
+                AccentHex: "#2383E2",
+                AccentHoverHex: "#499DF0",
+                LinkHex: "#2A9D99",
+                CalloutBgHex: "#222383E2",
+                SuccessHex: "#2A9D99",
+                WarnHex: "#FFA344",
+                DangerHex: "#FF7369")),
+
+        new DesignSystemPreset(
+            Id: "vercel",
+            Name: "Vercel Geist",
+            Category: "Developer Tools",
+            Tagline: "High-contrast monochrome Swiss compiler",
+            DesignMdSourcePath: "packages/content/assets/open-design/design-systems/vercel/DESIGN.md",
+            PrefersDarkByDefault: false,
+            CardCornerRadius: 6,
+            ButtonCornerRadius: 6,
+            LightPalette: new DesignSystemPalette(
+                BgHex: "#FFFFFF",
+                SurfaceHex: "#FAFAFA",
+                SurfaceWarmHex: "#F2F2F2",
+                SurfaceElevatedHex: "#FFFFFF",
+                FgHex: "#171717",
+                Fg2Hex: "#333333",
+                MutedHex: "#666666",
+                MetaHex: "#888888",
+                BorderHex: "#EAEAEA",
+                BorderSoftHex: "#F2F2F2",
+                AccentHex: "#0A72EF",
+                AccentHoverHex: "#0070F3",
+                LinkHex: "#0072F5",
+                CalloutBgHex: "#120A72EF",
+                SuccessHex: "#0E9F6E",
+                WarnHex: "#F5A623",
+                DangerHex: "#FF5B4F"),
+            DarkPalette: new DesignSystemPalette(
+                BgHex: "#000000",
+                SurfaceHex: "#0A0A0A",
+                SurfaceWarmHex: "#111111",
+                SurfaceElevatedHex: "#171717",
+                FgHex: "#EDEDED",
+                Fg2Hex: "#D4D4D4",
+                MutedHex: "#888888",
+                MetaHex: "#666666",
+                BorderHex: "#262626",
+                BorderSoftHex: "#171717",
+                AccentHex: "#0070F3",
+                AccentHoverHex: "#3291FF",
+                LinkHex: "#3291FF",
+                CalloutBgHex: "#220070F3",
+                SuccessHex: "#50E3C2",
+                WarnHex: "#F5A623",
+                DangerHex: "#FF5B4F")),
+
+        new DesignSystemPreset(
+            Id: "claude",
+            Name: "Claude (Anthropic)",
+            Category: "AI & Editorial",
+            Tagline: "Warm parchment & terracotta literary salon",
+            DesignMdSourcePath: "packages/content/assets/open-design/design-systems/claude/DESIGN.md",
+            PrefersDarkByDefault: false,
+            CardCornerRadius: 12,
+            ButtonCornerRadius: 8,
+            LightPalette: new DesignSystemPalette(
+                BgHex: "#FAF9F5",
+                SurfaceHex: "#F5F4ED",
+                SurfaceWarmHex: "#E8E6DC",
+                SurfaceElevatedHex: "#FFFFFF",
+                FgHex: "#141413",
+                Fg2Hex: "#4D4C48",
+                MutedHex: "#5E5D59",
+                MetaHex: "#87867F",
+                BorderHex: "#E0DDD1",
+                BorderSoftHex: "#ECEAE0",
+                AccentHex: "#C96442",
+                AccentHoverHex: "#D97757",
+                LinkHex: "#C96442",
+                CalloutBgHex: "#16C96442",
+                SuccessHex: "#2E7D32",
+                WarnHex: "#C77700",
+                DangerHex: "#B53333"),
+            DarkPalette: new DesignSystemPalette(
+                BgHex: "#141413",
+                SurfaceHex: "#1E1E1C",
+                SurfaceWarmHex: "#262624",
+                SurfaceElevatedHex: "#30302E",
+                FgHex: "#FAF9F5",
+                Fg2Hex: "#E8E6DC",
+                MutedHex: "#A6A49B",
+                MetaHex: "#87867F",
+                BorderHex: "#30302E",
+                BorderSoftHex: "#262624",
+                AccentHex: "#D97757",
+                AccentHoverHex: "#E68A6B",
+                LinkHex: "#D97757",
+                CalloutBgHex: "#24D97757",
+                SuccessHex: "#66BB6A",
+                WarnHex: "#FFA726",
+                DangerHex: "#EF5350")),
+
+        new DesignSystemPreset(
+            Id: "github",
+            Name: "GitHub Primer",
+            Category: "Developer Tools",
+            Tagline: "Code-forward Primer panes & merge green",
+            DesignMdSourcePath: "packages/content/assets/open-design/design-systems/github/DESIGN.md",
+            PrefersDarkByDefault: true,
+            CardCornerRadius: 6,
+            ButtonCornerRadius: 6,
+            LightPalette: new DesignSystemPalette(
+                BgHex: "#FFFFFF",
+                SurfaceHex: "#F6F8FA",
+                SurfaceWarmHex: "#EAEEF2",
+                SurfaceElevatedHex: "#FFFFFF",
+                FgHex: "#1F2328",
+                Fg2Hex: "#424A53",
+                MutedHex: "#656D76",
+                MetaHex: "#8C959F",
+                BorderHex: "#D0D7DE",
+                BorderSoftHex: "#EAEEF2",
+                AccentHex: "#0969DA",
+                AccentHoverHex: "#0550AE",
+                LinkHex: "#0969DA",
+                CalloutBgHex: "#160969DA",
+                SuccessHex: "#1A7F37",
+                WarnHex: "#9A6700",
+                DangerHex: "#CF222E"),
+            DarkPalette: new DesignSystemPalette(
+                BgHex: "#0D1117",
+                SurfaceHex: "#161B22",
+                SurfaceWarmHex: "#21262D",
+                SurfaceElevatedHex: "#292E36",
+                FgHex: "#E6EDF3",
+                Fg2Hex: "#C9D1D9",
+                MutedHex: "#8B949E",
+                MetaHex: "#6E7681",
+                BorderHex: "#30363D",
+                BorderSoftHex: "#21262D",
+                AccentHex: "#2F81F7",
+                AccentHoverHex: "#58A6FF",
+                LinkHex: "#58A6FF",
+                CalloutBgHex: "#222F81F7",
+                SuccessHex: "#238636",
+                WarnHex: "#D29922",
+                DangerHex: "#F85149")),
+
+        new DesignSystemPreset(
+            Id: "raycast",
+            Name: "Raycast",
+            Category: "Developer Tools",
+            Tagline: "Obsidian launcher chrome & coral-red pulse",
+            DesignMdSourcePath: "packages/content/assets/open-design/design-systems/raycast/DESIGN.md",
+            PrefersDarkByDefault: true,
+            CardCornerRadius: 10,
+            ButtonCornerRadius: 8,
+            LightPalette: new DesignSystemPalette(
+                BgHex: "#FFFFFF",
+                SurfaceHex: "#F5F6F8",
+                SurfaceWarmHex: "#ECEEF2",
+                SurfaceElevatedHex: "#FFFFFF",
+                FgHex: "#101111",
+                Fg2Hex: "#2C2E33",
+                MutedHex: "#636875",
+                MetaHex: "#888E9E",
+                BorderHex: "#DCE0E8",
+                BorderSoftHex: "#EAECEF",
+                AccentHex: "#FF6363",
+                AccentHoverHex: "#E84C4C",
+                LinkHex: "#0088EE",
+                CalloutBgHex: "#16FF6363",
+                SuccessHex: "#23A566",
+                WarnHex: "#E59400",
+                DangerHex: "#FF4D4D"),
+            DarkPalette: new DesignSystemPalette(
+                BgHex: "#07080A",
+                SurfaceHex: "#101111",
+                SurfaceWarmHex: "#18191A",
+                SurfaceElevatedHex: "#1B1C1E",
+                FgHex: "#FFFFFF",
+                Fg2Hex: "#DCE0E8",
+                MutedHex: "#888E9E",
+                MetaHex: "#5E6472",
+                BorderHex: "#26282D",
+                BorderSoftHex: "#1B1C1E",
+                AccentHex: "#FF6363",
+                AccentHoverHex: "#FF7B7B",
+                LinkHex: "#55B3FF",
+                CalloutBgHex: "#22FF6363",
+                SuccessHex: "#5FC992",
+                WarnHex: "#FFBC33",
+                DangerHex: "#FF6363")),
+
+        new DesignSystemPreset(
+            Id: "stripe",
+            Name: "Stripe",
+            Category: "Fintech & Infrastructure",
+            Tagline: "Twilight navy authority & saturated blurple",
+            DesignMdSourcePath: "packages/content/assets/open-design/design-systems/stripe/DESIGN.md",
+            PrefersDarkByDefault: false,
+            CardCornerRadius: 8,
+            ButtonCornerRadius: 6,
+            LightPalette: new DesignSystemPalette(
+                BgHex: "#FFFFFF",
+                SurfaceHex: "#F6F9FC",
+                SurfaceWarmHex: "#EDF2F7",
+                SurfaceElevatedHex: "#FFFFFF",
+                FgHex: "#061B31",
+                Fg2Hex: "#1C1E54",
+                MutedHex: "#425466",
+                MetaHex: "#697386",
+                BorderHex: "#E3E8EE",
+                BorderSoftHex: "#EEF2F6",
+                AccentHex: "#533AFD",
+                AccentHoverHex: "#4434D4",
+                LinkHex: "#533AFD",
+                CalloutBgHex: "#14533AFD",
+                SuccessHex: "#09825D",
+                WarnHex: "#D97706",
+                DangerHex: "#EA2261"),
+            DarkPalette: new DesignSystemPalette(
+                BgHex: "#061B31",
+                SurfaceHex: "#0D253D",
+                SurfaceWarmHex: "#132F4C",
+                SurfaceElevatedHex: "#1C1E54",
+                FgHex: "#FFFFFF",
+                Fg2Hex: "#E3E8EE",
+                MutedHex: "#A3ACB9",
+                MetaHex: "#697386",
+                BorderHex: "#1E3A5F",
+                BorderSoftHex: "#132F4C",
+                AccentHex: "#665EFD",
+                AccentHoverHex: "#8079FF",
+                LinkHex: "#B9B9F9",
+                CalloutBgHex: "#26665EFD",
+                SuccessHex: "#3ECF8E",
+                WarnHex: "#FBBF24",
+                DangerHex: "#EA2261")),
+
+        new DesignSystemPreset(
+            Id: "supabase",
+            Name: "Supabase",
+            Category: "Backend & Data",
+            Tagline: "Dark terminal carbon & PostgreSQL emerald",
+            DesignMdSourcePath: "packages/content/assets/open-design/design-systems/supabase/DESIGN.md",
+            PrefersDarkByDefault: true,
+            CardCornerRadius: 8,
+            ButtonCornerRadius: 6,
+            LightPalette: new DesignSystemPalette(
+                BgHex: "#FFFFFF",
+                SurfaceHex: "#FAFAFA",
+                SurfaceWarmHex: "#F2F4F3",
+                SurfaceElevatedHex: "#FFFFFF",
+                FgHex: "#171717",
+                Fg2Hex: "#2E2E2E",
+                MutedHex: "#666666",
+                MetaHex: "#898989",
+                BorderHex: "#E2E8F0",
+                BorderSoftHex: "#EDF2F7",
+                AccentHex: "#00C573",
+                AccentHoverHex: "#00A862",
+                LinkHex: "#00A862",
+                CalloutBgHex: "#1600C573",
+                SuccessHex: "#00C573",
+                WarnHex: "#EAB308",
+                DangerHex: "#EF4444"),
+            DarkPalette: new DesignSystemPalette(
+                BgHex: "#0F0F0F",
+                SurfaceHex: "#171717",
+                SurfaceWarmHex: "#1F1F1F",
+                SurfaceElevatedHex: "#242424",
+                FgHex: "#FAFAFA",
+                Fg2Hex: "#D4D4D4",
+                MutedHex: "#898989",
+                MetaHex: "#666666",
+                BorderHex: "#2E2E2E",
+                BorderSoftHex: "#242424",
+                AccentHex: "#3ECF8E",
+                AccentHoverHex: "#00C573",
+                LinkHex: "#3ECF8E",
+                CalloutBgHex: "#223ECF8E",
+                SuccessHex: "#3ECF8E",
+                WarnHex: "#F59E0B",
+                DangerHex: "#F43F5E"))
+    ];
+
+    public static FrozenDictionary<string, DesignSystemPreset> ById { get; } =
+        All.ToFrozenDictionary(p => p.Id, p => p, StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenDictionary<string, int> IndexById =
+        Enumerable.Range(0, All.Count)
+            .ToFrozenDictionary(i => All[i].Id, i => i, StringComparer.OrdinalIgnoreCase);
+
+    public static DesignSystemPreset Default => All[0];
+
+    /// <summary>
+    /// Resolves a DesignSystemPreset by ID in O(1) time, falling back to "apple" (Apple HIG) if null or unknown.
+    /// </summary>
+    public static DesignSystemPreset GetOrDefault(string? id)
+    {
+        if (!string.IsNullOrWhiteSpace(id) && ById.TryGetValue(id.Trim(), out var preset))
+        {
+            return preset;
+        }
+        return All[0];
+    }
+
+    /// <summary>
+    /// Cycles forward to the next design system preset in O(1) time (wrapping around after the 9th preset).
+    /// </summary>
+    public static DesignSystemPreset GetNext(string? currentId)
+    {
+        int idx = !string.IsNullOrWhiteSpace(currentId) && IndexById.TryGetValue(currentId.Trim(), out int found)
+            ? found
+            : 0;
+        return All[(idx + 1) % All.Count];
+    }
+
+    /// <summary>
+    /// Cycles backward to the previous design system preset in O(1) time (wrapping around before the 1st preset).
+    /// </summary>
+    public static DesignSystemPreset GetPrevious(string? currentId)
+    {
+        int idx = !string.IsNullOrWhiteSpace(currentId) && IndexById.TryGetValue(currentId.Trim(), out int found)
+            ? found
+            : 0;
+        return All[(idx - 1 + All.Count) % All.Count];
+    }
+}

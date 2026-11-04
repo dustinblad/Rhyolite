@@ -60,7 +60,7 @@ flowchart TD
 
 ## 2. Design System: `open-design-agent-kit` Apple Design Implementation
 
-We will integrate the exact tokens and craft rules from `feimacode/open-design-agent-kit/claude-design-systems/apple` (../Desktop/Editorial) and `apple-music-ios` (../Mobile/iOS HIG + Dark Mode) into Avalonia's styling system (`AppleDesignTokens.axaml` and `AppleControls.axaml`):
+We will integrate the exact tokens and craft rules from `feimacode/open-design-agent-kit/claude-design-systems/apple` (Desktop/Editorial) and `apple-music-ios` (Mobile/iOS HIG + Dark Mode) into Avalonia's styling system (`AppleDesignTokens.axaml` and `AppleControls.axaml`):
 
 > [!IMPORTANT]
 > **Apple Design Rules Enforced Across Rhyolite**
@@ -99,6 +99,33 @@ We will integrate the exact tokens and craft rules from `feimacode/open-design-a
   - `text-xs` (`12px` Micro UI, keyboard shortcut pills, status bar metadata)
 - **Monospace** (`SF Mono`, `JetBrains Mono`, Menlo, Consolas):
   - Code blocks, inline code spans, YAML frontmatter source, and search query syntax.
+
+### 2.4 Multi-Design System Switcher Engine (9 Most Popular `feimacode/open-design-agent-kit` Design Systems)
+
+Users can switch back and forth in real time across the **9 most popular design systems** from [`feimacode/open-design-agent-kit`](https://github.com/feimacode/open-design-agent-kit) (`packages/content/assets/open-design/design-systems/<id>/DESIGN.md`), each supporting both **Light Mode** and **Dark Mode** (`18` complete token palettes) with zero restart required:
+
+| # | Design System ID (`open-design-agent-kit`) | Display Name & Category | Light Mode Canvas / Surface | Dark Mode Canvas / Surface | Brand Accent & Link Tokens | Corner Radius (`Card` / `Button`) |
+| :- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **1** | `apple` | **Apple HIG** (`Media & Consumer`) | `#FFFFFF` / `#F5F5F7` | `#000000` / `#1C1C1E` | `#0071E3` / `#2997FF` | `12px` / `8px` |
+| **2** | `linear-app` | **Linear** (`Productivity & SaaS`) | `#FFFFFF` / `#F7F8F8` | `#08090A` / `#0F1011` | `#5E6AD2` / `#7170FF` | `8px` / `6px` |
+| **3** | `notion` | **Notion** (`Warm Minimal Workspace`) | `#FFFFFF` / `#F6F5F4` | `#191919` / `#252422` | `#0075DE` / `#2A9D99` | `8px` / `6px` |
+| **4** | `vercel` | **Vercel Geist** (`Developer Infrastructure`) | `#FFFFFF` / `#FAFAFA` | `#000000` / `#0A0A0A` | `#0A72EF` / `#0070F3` | `6px` / `6px` |
+| **5** | `claude` | **Claude (Anthropic)** (`AI & Editorial Salon`) | `#FAF9F5` / `#F5F4ED` | `#141413` / `#21211F` | `#C96442` / `#D97757` | `12px` / `8px` |
+| **6** | `github` | **GitHub Primer** (`Code & PR Engineering`) | `#FFFFFF` / `#F6F8FA` | `#0D1117` / `#161B22` | `#0969DA` / `#2F81F7` | `6px` / `6px` |
+| **7** | `raycast` | **Raycast** (`Dark Chrome Launcher`) | `#FFFFFF` / `#F8F9FB` | `#07080A` / `#101111` | `#FF6363` / `#55B3FF` | `10px` / `8px` |
+| **8** | `stripe` | **Stripe** (`Fintech & Twilight Navy`) | `#FFFFFF` / `#F6F9FC` | `#061B31` / `#0D253D` | `#533AFD` / `#665EFD` | `8px` / `6px` |
+| **9** | `supabase` | **Supabase** (`Emerald Code Terminal`) | `#FFFFFF` / `#FAFAFA` | `#0F0F0F` / `#171717` | `#3ECF8E` / `#00C573` | `8px` / `6px` |
+
+#### Architectural Implementation of the Multi-Design System Engine
+1. **`DesignSystemCatalog.cs` (`src/Rhyolite.Core/Design/DesignSystemCatalog.cs`)**:
+   - Thread-safe, zero-allocation `FrozenDictionary<string, DesignSystemPreset>` holding all 9 `feimacode/open-design-agent-kit` presets, their Light & Dark `DesignSystemPalette` hex tokens (`Bg`, `Surface`, `SurfaceWarm`, `SurfaceElevated`, `Fg`, `Fg2`, `Muted`, `Meta`, `Border`, `BorderSoft`, `Accent`, `AccentHover`, `Link`, `CalloutBg`, `Success`, `Warn`, `Danger`), `CardCornerRadius`, `ButtonCornerRadius`, `PrefersDarkByDefault`, and `DesignMdSourcePath`.
+2. **SQLite WAL Persistence (`ui_preferences` in `HybridVaultEngine.cs`)**:
+   - Stores and retrieves `(pref_key, pref_value, updated_utc)` in `.rhyolite/cache.db` so switching design systems (`active_design_system` and `active_theme_mode`) persists in `< 0.2 ms` across sessions.
+3. **MCP & GraphQL Protocol Exposure (`McpServerEngine.cs` & `GraphQlEngine.cs`)**:
+   - Adds MCP tools `rhyolite.list_design_systems` and `rhyolite.set_design_system` plus GraphQL query field `designSystems` so AI agents and connected peers can inspect or switch the active `open-design-agent-kit` design preset.
+4. **Instant Live UI Switcher (`App.axaml.cs`, `MainViewModel.cs`, `MainView.axaml`)**:
+   - Top-bar **Design System Selector (`ComboBox`)** + **`⇄ Next Design` quick-cycle button** + **Interactive Design System Swatch Strip** allowing 1-click switching back and forth between `Apple`, `Linear`, `Notion`, `Vercel`, `Claude`, `GitHub`, `Raycast`, `Stripe`, and `Supabase` in both Light and Dark variants.
+   - `App.ApplyDesignSystem(DesignSystemPreset preset, bool isDark)` mutates Avalonia's live `Resources` dictionary (`AppleBgBrush`, `AppleSurfaceBrush`, `AppleAccentBrush`, `AppleLinkBrush`, `AppleCardCornerRadius`, `AppleBtnCornerRadius`, etc.) in `< 0.5 ms` with immediate visual repaint across all screens and custom Skia canvases.
 
 ---
 
@@ -152,7 +179,7 @@ We will integrate the exact tokens and craft rules from `feimacode/open-design-a
    - **Peer-to-Peer (P2P) Rhyolite Mesh**: Direct installation-to-installation synchronization using Merkle-tree SHA-256 vault digests, Hybrid Logical Clocks (HLC), and delta block transfer.
    - **Identity, RBAC & Extensible OAuth2/OIDC SSO**:
      - Built-in Email & Account authentication (`PBKDF2-SHA512` password hashing, stateless `HMAC-SHA256` bearer tokens, and scoped Agent API keys) with granular roles (`VaultOwner`, `Admin`, `Editor`, `Reader`, `AiAgentReadWrite`, `AiAgentReadOnly`, `TrustedPeerNode`) and path/`#tag` ACL rules.
-     - Pluggable OAuth2/OIDC provider architecture ready for **Enterprise SSO (../OIDC/SAML)**, **Google**, **GitHub**, **Microsoft Entra ID**, and **Sign in with Apple**.
+     - Pluggable OAuth2/OIDC provider architecture ready for **Enterprise SSO (OIDC/SAML)**, **Google**, **GitHub**, **Microsoft Entra ID**, and **Sign in with Apple**.
 8. **External Collaborative Workspace Connectors — Docmost Space & Bladbase Workspace Sync (`Rhyolite.Core.Protocol.WorkspaceConnectorsEngine`)**:
    - **Bladbase Workspace Bidirectional Sync ([`dustinblad/bladbase`](https://github.com/dustinblad/bladbase) / `bladbase.com`)**:
      - **Dual-Authorship & Native MCP / REST / Yjs Bridge**: Synchronizes local Rhyolite `.md` folders with a remote **Bladbase Workspace** (`workspaceId`, nested pages, and collections). Preserves Bladbase's human + AI agent dual-authorship metadata (`bladbase_author_type: human | agent`, `bladbase_agent_id`, `bladbase_role`, `bladbase_workspace_id`, `bladbase_page_id`, `bladbase_etag`) inside non-destructive YAML frontmatter while keeping the Markdown body 100% clean.
@@ -229,19 +256,19 @@ We will integrate the exact tokens and craft rules from `feimacode/open-design-a
 
 ## 5. External Collaborative Workspace Sync Architecture: Bladbase Workspace & Docmost Space
 
-Rhyolite bridges **local-first `.md` vaults** with collaborative cloud/self-hosted team workspaces through two native bidirectional connectors in [`WorkspaceConnectorsEngine.cs`](../src/Rhyolite.Core/Protocol/WorkspaceConnectorsEngine.cs):
+Rhyolite bridges **local-first `.md` vaults** with collaborative cloud/self-hosted team workspaces through two native bidirectional connectors in [`WorkspaceConnectorsEngine.cs`](src/Rhyolite.Core/Protocol/WorkspaceConnectorsEngine.cs):
 
 ```mermaid
 flowchart LR
     subgraph Local["Rhyolite Local Vault (.NET 10)"]
         MD["Plain .md Files + YAML Frontmatter"]
-        WAL["SQLite WAL Sidecar (../.rhyolite/cache.db)"]
+        WAL["SQLite WAL Sidecar (.rhyolite/cache.db)"]
         CONN["WorkspaceConnectorsEngine (HLC + SHA-256 3-Way Merge)"]
         MD <--> CONN
         WAL <--> CONN
     end
 
-    subgraph Bladbase["Bladbase Workspace (../dustinblad/bladbase)"]
+    subgraph Bladbase["Bladbase Workspace (dustinblad/bladbase)"]
         BB_MCP["Bladbase MCP Server (Dual Authorship: Human + Agent)"]
         BB_FS["Firestore / Yjs / TipTap Pages + Cloud Storage"]
         BB_TS["Typesense Typo-Tolerant Search Index"]
@@ -250,7 +277,7 @@ flowchart LR
     end
 
     subgraph Docmost["Docmost Space (Self-Hosted / Enterprise)"]
-        DM_API["Docmost REST & Import/Export API (..//api/spaces, /api/pages/*)"]
+        DM_API["Docmost REST & Import/Export API (/api/spaces, /api/pages/*)"]
         DM_PM["ProseMirror / TipTap Page Tree & Sub-Pages"]
         DM_API <--> DM_PM
     end
@@ -287,7 +314,7 @@ flowchart LR
 
 ## 6. Enterprise DevEx, 1Password / KeePassXC CLI Secret Injection & GitHub PR Studio (`EnterpriseDevExEngine`)
 
-All 5 enterprise developer experience pillars are architected in [`EnterpriseDevExEngine.cs`](../src/Rhyolite.Core/Enterprise/EnterpriseDevExEngine.cs) and surfaced in **Screen 7: PR & DevEx Studio** ([`MainView.axaml`](../src/Rhyolite.UI/Views/MainView.axaml#L509-L600)):
+All 5 enterprise developer experience pillars are architected in [`EnterpriseDevExEngine.cs`](src/Rhyolite.Core/Enterprise/EnterpriseDevExEngine.cs) and surfaced in **Screen 7: PR & DevEx Studio** ([`MainView.axaml`](src/Rhyolite.UI/Views/MainView.axaml#L509-L600)):
 
 ### 6.1 Shift-Left Secret Scanner + 1Password CLI (`op`) & KeePassXC CLI (`keepassxc-cli`) Integration
 1. **Real-Time Detection & Redaction (`ScanAndRedactSecrets`)**:
@@ -315,7 +342,7 @@ All 5 enterprise developer experience pillars are architected in [`EnterpriseDev
   4. Zero unredacted secrets & zero drifted `[[code:...]]` symbol anchors
 
 ### 6.5 High-Efficiency GitHub PR Preview, Comment Ingestion & Architectural Blast-Radius Analyzer
-To make reviewing and acting on GitHub Pull Requests inside Rhyolite faster than switching to a browser, [`EnterpriseDevExEngine.cs`](../src/Rhyolite.Core/Enterprise/EnterpriseDevExEngine.cs) implements a 4-stage pipeline:
+To make reviewing and acting on GitHub Pull Requests inside Rhyolite faster than switching to a browser, [`EnterpriseDevExEngine.cs`](src/Rhyolite.Core/Enterprise/EnterpriseDevExEngine.cs) implements a 4-stage pipeline:
 
 1. **Single-RTT GitHub GraphQL v4 Subgraph Fetch + SQLite WAL `ETag` / `headRefOid` Caching (`BuildSingleRttPullRequestGraphQlQuery` & `ComputePrSqliteWalCacheKey`)**:
    - Standard REST v3 PR clients make 6–10 serial HTTP calls per PR (`pulls/{n}`, `pulls/{n}/files`, `pulls/{n}/comments`, `issues/{n}/comments`, `pulls/{n}/reviews`, `commits/{sha}/check-runs`).
@@ -334,16 +361,16 @@ To make reviewing and acting on GitHub Pull Requests inside Rhyolite faster than
 
 ## 7. Verification & Automated End-to-End Test Matrix
 
-All core engines, workspace connectors, enterprise DevEx tools, and cross-platform UI targets are verified via [`RhyoliteEngineTests.cs`](../tests/Rhyolite.Tests/RhyoliteEngineTests.cs) and multi-RID builds:
+All core engines, workspace connectors, enterprise DevEx tools, and cross-platform UI targets are verified via [`RhyoliteEngineTests.cs`](tests/Rhyolite.Tests/RhyoliteEngineTests.cs) and multi-RID builds:
 
 | Verification Suite | Target Engine / Subsystem | Verified Assertions |
 | :--- | :--- | :--- |
-| **1. Hybrid Storage & Auto-Refactor** (`HybridVaultEngine_SeedsStarterVault_WritesMarkdownFast_AndRefactorsWikiLinksOnRename`) | [`HybridVaultEngine.cs`](../src/Rhyolite.Core/Storage/HybridVaultEngine.cs) | • `< 0.2 ms` atomic `.md` write + `.rhyolite/cache.db` SQLite WAL persistence.<br>• Automatic vault-wide `[[WikiLink]]` rename refactoring. |
-| **2. Markdown AST & Extraction** (`MarkdownAstEngine_ParsesFrontmatter_WikiLinks_Callouts_Tasks_AndFlashcards`) | [`MarkdownAstEngine.cs`](../src/Rhyolite.Core/Parsing/MarkdownAstEngine.cs) | • YAML frontmatter properties, `[[WikiLinks]]`, `![[Embeds]]`, `#tags`, `> [!IMPORTANT]` callouts, tasks (`⏫ 📅`), and `Q:/A:` + `{{c1::cloze}}` flashcards. |
-| **3. Graph, Bases, Canvas & Expansions** (`KnowledgeGraph_Bases_Canvas_AndExpansions_WorkEndToEnd`) | [`KnowledgeGraphEngine.cs`](../src/Rhyolite.Core/Graph/KnowledgeGraphEngine.cs), [`BasesQueryEngine.cs`](../src/Rhyolite.Core/Bases/BasesQueryEngine.cs), [`JsonCanvasEngine.cs`](../src/Rhyolite.Core/Canvas/JsonCanvasEngine.cs) | • Bidirectional backlinks, unlinked mentions, PageRank centrality, 2D Fruchterman-Reingold layout, Bases Table/Kanban, JSON Canvas 1.0 roundtrip, FSRS v4 scheduler, Local RAG Copilot, LCS Diff, and Apple HTML export. |
-| **4. MCP, GraphQL, P2P Mesh & RBAC/OAuth** (`ProtocolEngine_Auth_Rbac_OAuth_Mcp_GraphQl_AndP2pMesh_WorkEndToEnd`) | [`RhyoliteAuthEngine.cs`](../src/Rhyolite.Core/Protocol/RhyoliteAuthEngine.cs), [`McpServerEngine.cs`](../src/Rhyolite.Core/Protocol/McpServerEngine.cs), [`GraphQlEngine.cs`](../src/Rhyolite.Core/Protocol/GraphQlEngine.cs), [`PeerSyncEngine.cs`](../src/Rhyolite.Core/Protocol/PeerSyncEngine.cs) | • PBKDF2-SHA512 Email/Account auth, HMAC-SHA256 tokens, scoped AI Agent PATs, folder/`#tag` ACLs, PKCE OAuth2 (`Enterprise SSO`, `Google`, `GitHub`, `Microsoft`, `Apple`), MCP JSON-RPC 2.0, GraphQL queries, and HLC Merkle P2P sync. |
-| **5. Bladbase & Docmost Workspace Sync** (`WorkspaceConnectorsEngine_SyncsBladbaseWorkspace_AndDocmostSpace_Bidirectionally`) | [`WorkspaceConnectorsEngine.cs`](../src/Rhyolite.Core/Protocol/WorkspaceConnectorsEngine.cs) | • Bidirectional sync with **Bladbase Workspaces** ([`dustinblad/bladbase`](https://github.com/dustinblad/bladbase) Dual-Authorship Human + AI Agent frontmatter) and **Docmost Spaces** (`[[WikiLink]]` ↔ `/s/{spaceSlug}/p/{pageSlug}` normalization). |
-| **6. Enterprise DevEx, 1Password/KeePassXC & GitHub PR Studio** (`EnterpriseDevExEngine_OnePassword_KeePassXc_Runbooks_CodeDrift_Scorecard_AndGitHubPrAnalysis_WorkEndToEnd` & [`EnterpriseDevExIntegrationTests.cs`](../tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs)) | [`EnterpriseDevExEngine.cs`](../src/Rhyolite.Core/Enterprise/EnterpriseDevExEngine.cs) | • `1Password CLI` (`op://`) & `KeePassXC CLI` (`keepassxc://`) secret redaction & runtime injection (`< 25 ms`).<br>• Executable Runbook cells + `DROP TABLE` destructive guardrail.<br>• `[[code:File.cs#Symbol]]` drift detection & IDP **Gold/Silver/Bronze** maturity scorecard.<br>• Single-RTT GitHub GraphQL v4 PR query, SQLite WAL `github_pr_cache` & `external_sync_bindings` tables, blast-radius analysis, comment task extraction, and bidirectional thread reply/resolve mutation. |
+| **1. Hybrid Storage & Auto-Refactor** (`HybridVaultEngine_SeedsStarterVault_WritesMarkdownFast_AndRefactorsWikiLinksOnRename`) | [`HybridVaultEngine.cs`](src/Rhyolite.Core/Storage/HybridVaultEngine.cs) | • `< 0.2 ms` atomic `.md` write + `.rhyolite/cache.db` SQLite WAL persistence.<br>• Automatic vault-wide `[[WikiLink]]` rename refactoring. |
+| **2. Markdown AST & Extraction** (`MarkdownAstEngine_ParsesFrontmatter_WikiLinks_Callouts_Tasks_AndFlashcards`) | [`MarkdownAstEngine.cs`](src/Rhyolite.Core/Parsing/MarkdownAstEngine.cs) | • YAML frontmatter properties, `[[WikiLinks]]`, `![[Embeds]]`, `#tags`, `> [!IMPORTANT]` callouts, tasks (`⏫ 📅`), and `Q:/A:` + `{{c1::cloze}}` flashcards. |
+| **3. Graph, Bases, Canvas & Expansions** (`KnowledgeGraph_Bases_Canvas_AndExpansions_WorkEndToEnd`) | [`KnowledgeGraphEngine.cs`](src/Rhyolite.Core/Graph/KnowledgeGraphEngine.cs), [`BasesQueryEngine.cs`](src/Rhyolite.Core/Bases/BasesQueryEngine.cs), [`JsonCanvasEngine.cs`](src/Rhyolite.Core/Canvas/JsonCanvasEngine.cs) | • Bidirectional backlinks, unlinked mentions, PageRank centrality, 2D Fruchterman-Reingold layout, Bases Table/Kanban, JSON Canvas 1.0 roundtrip, FSRS v4 scheduler, Local RAG Copilot, LCS Diff, and Apple HTML export. |
+| **4. MCP, GraphQL, P2P Mesh & RBAC/OAuth** (`ProtocolEngine_Auth_Rbac_OAuth_Mcp_GraphQl_AndP2pMesh_WorkEndToEnd`) | [`RhyoliteAuthEngine.cs`](src/Rhyolite.Core/Protocol/RhyoliteAuthEngine.cs), [`McpServerEngine.cs`](src/Rhyolite.Core/Protocol/McpServerEngine.cs), [`GraphQlEngine.cs`](src/Rhyolite.Core/Protocol/GraphQlEngine.cs), [`PeerSyncEngine.cs`](src/Rhyolite.Core/Protocol/PeerSyncEngine.cs) | • PBKDF2-SHA512 Email/Account auth, HMAC-SHA256 tokens, scoped AI Agent PATs, folder/`#tag` ACLs, PKCE OAuth2 (`Enterprise SSO`, `Google`, `GitHub`, `Microsoft`, `Apple`), MCP JSON-RPC 2.0, GraphQL queries, and HLC Merkle P2P sync. |
+| **5. Bladbase & Docmost Workspace Sync** (`WorkspaceConnectorsEngine_SyncsBladbaseWorkspace_AndDocmostSpace_Bidirectionally`) | [`WorkspaceConnectorsEngine.cs`](src/Rhyolite.Core/Protocol/WorkspaceConnectorsEngine.cs) | • Bidirectional sync with **Bladbase Workspaces** ([`dustinblad/bladbase`](https://github.com/dustinblad/bladbase) Dual-Authorship Human + AI Agent frontmatter) and **Docmost Spaces** (`[[WikiLink]]` ↔ `/s/{spaceSlug}/p/{pageSlug}` normalization). |
+| **6. Enterprise DevEx, 1Password/KeePassXC & GitHub PR Studio** (`EnterpriseDevExEngine_OnePassword_KeePassXc_Runbooks_CodeDrift_Scorecard_AndGitHubPrAnalysis_WorkEndToEnd` & [`EnterpriseDevExIntegrationTests.cs`](tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs)) | [`EnterpriseDevExEngine.cs`](src/Rhyolite.Core/Enterprise/EnterpriseDevExEngine.cs) | • `1Password CLI` (`op://`) & `KeePassXC CLI` (`keepassxc://`) secret redaction & runtime injection (`< 25 ms`).<br>• Executable Runbook cells + `DROP TABLE` destructive guardrail.<br>• `[[code:File.cs#Symbol]]` drift detection & IDP **Gold/Silver/Bronze** maturity scorecard.<br>• Single-RTT GitHub GraphQL v4 PR query, SQLite WAL `github_pr_cache` & `external_sync_bindings` tables, blast-radius analysis, comment task extraction, and bidirectional thread reply/resolve mutation. |
 
 ---
 
@@ -352,10 +379,10 @@ All core engines, workspace connectors, enterprise DevEx tools, and cross-platfo
 ### 8.1 Official Rhyolite App Icon & Visual Identity
 - **Design**: Apple macOS Sequoia / iOS squircle icon featuring a precision-faceted obsidian/rhyolite crystal prism with glowing Apple Action Blue (`#0071E3` / `#2997FF`) and cyan (`#5AC8FA`) knowledge-graph constellation nodes.
 - **Asset Locations**:
-  - [`assets/logo/rhyolite-logo.png`](../assets/logo/rhyolite-logo.png) (`1024×1024` PNG)
-  - [`assets/logo/rhyolite-logo.jpg`](../assets/logo/rhyolite-logo.jpg) (`1024×1024` JPG)
-  - [`assets/logo/rhyolite-logo.svg`](../assets/logo/rhyolite-logo.svg) (Vector SVG)
-  - [`src/Rhyolite.UI/Assets/Icon.png`](../src/Rhyolite.UI/Assets/Icon.png) & [`src/Rhyolite.Android/Icon.png`](../src/Rhyolite.Android/Icon.png) (Embedded application icon rendered in the top-left header of `MainView.axaml` and native app bundles).
+  - [`assets/logo/rhyolite-logo.png`](assets/logo/rhyolite-logo.png) (`1024×1024` PNG)
+  - [`assets/logo/rhyolite-logo.jpg`](assets/logo/rhyolite-logo.jpg) (`1024×1024` JPG)
+  - [`assets/logo/rhyolite-logo.svg`](assets/logo/rhyolite-logo.svg) (Vector SVG)
+  - [`src/Rhyolite.UI/Assets/Icon.png`](src/Rhyolite.UI/Assets/Icon.png) & [`src/Rhyolite.Android/Icon.png`](src/Rhyolite.Android/Icon.png) (Embedded application icon rendered in the top-left header of `MainView.axaml` and native app bundles).
 - **Placement**: Displayed centered at the very top of [`README.md`](README.md), inside every GitHub Release body, and uploaded as a downloadable release asset.
 
 ### 8.2 Comprehensive `README.md` with Official Tech-Stack Logos & Simple Documentation
@@ -365,7 +392,7 @@ All core engines, workspace connectors, enterprise DevEx tools, and cross-platfo
 
 ### 8.3 Deterministic Release Pattern (`0.1.0` Baseline + `+0.0.1` Increment)
 - **Version Source of Truth**: [`VERSION`](VERSION) (initialized at `0.1.0`) and [`Directory.Build.props`](Directory.Build.props) (`<Version>0.1.0</Version>`).
-- **Increment Rules ([`scripts/release.sh`](../scripts/release.sh) & [`.github/workflows/release.yml`](../.github/workflows/release.yml))**:
+- **Increment Rules ([`scripts/release.sh`](scripts/release.sh) & [`.github/workflows/release.yml`](.github/workflows/release.yml))**:
   - **Default / Standard Release (`./scripts/release.sh` or `./scripts/release.sh patch`)**: Increments version by **`+0.0.1`** (`0.1.0` → `0.1.1` → `0.1.2`).
   - **Big Milestone Release (`./scripts/release.sh minor` or `./scripts/release.sh major`)**: Increments minor (`+0.1.0`, e.g., `0.2.0`) or major (`+1.0.0`, e.g., `1.0.0`).
   - **Release Packaging**: Runs all 10 xUnit suites in `Release` mode, builds and zips `Rhyolite-v<VER>-macos-arm64.zip`, `Rhyolite-v<VER>-win-x64.zip`, and `Rhyolite-v<VER>-linux-x64.tar.gz`, verifies `net10.0-ios` & `net10.0-android` compilation, generates `SHA256SUMS.txt`, attaches `rhyolite-logo.png`/`.svg`, tags `v<VER>`, pushes to GitHub, and publishes the GitHub Release via `gh release create`.
@@ -377,7 +404,7 @@ All core engines, workspace connectors, enterprise DevEx tools, and cross-platfo
 To implement and verify the plan at maximum velocity and quality, the work was executed using a 4-agent hierarchy:
 
 1. **Lead Orchestration & Verification Architect**:
-   - Coordinates all specialist agents, receives their completion reports and algorithmic complexity justifications (`O(1)` lookups, single-RTT queries, zero-allocation regexes), audits every modified file, executes `dotnet test` (`10/10 passing`), writes [`docs/MULTI_AGENT_VERIFICATION_REPORT.md`](../docs/MULTI_AGENT_VERIFICATION_REPORT.md), and pushes verified commits to `origin/main`.
+   - Coordinates all specialist agents, receives their completion reports and algorithmic complexity justifications (`O(1)` lookups, single-RTT queries, zero-allocation regexes), audits every modified file, executes `dotnet test` (`10/10 passing`), writes [`docs/MULTI_AGENT_VERIFICATION_REPORT.md`](docs/MULTI_AGENT_VERIFICATION_REPORT.md), and pushes verified commits to `origin/main`.
 2. **Specialist 1 — SQLite WAL & Storage Cache Engineer**:
    - Implements `github_pr_cache` (`head_sha` + `etag`) and `external_sync_bindings` (Bladbase & Docmost) SQLite WAL tables and $O(1)$ primary-key lookup/upsert methods in `HybridVaultEngine.cs`.
 3. **Specialist 2 — MCP, GraphQL & Workspace Sync Protocol Engineer**:
@@ -389,7 +416,7 @@ To implement and verify the plan at maximum velocity and quality, the work was e
 
 ## 10. Chronological Specification & Prompt Log (For Replicating & Comparing in Claude Code)
 
-If you want to replicate **Rhyolite** from scratch in **Claude Code** (or another agentic harness) to compare architectural quality, UI fidelity, and execution speed against this build, see [`docs/CLAUDE_CODE_REPLICATION_SPEC.md`](../docs/CLAUDE_CODE_REPLICATION_SPEC.md), which captures the exact chronological prompts and requirements given during this session:
+If you want to replicate **Rhyolite** from scratch in **Claude Code** (or another agentic harness) to compare architectural quality, UI fidelity, and execution speed against this build, see [`docs/CLAUDE_CODE_REPLICATION_SPEC.md`](docs/CLAUDE_CODE_REPLICATION_SPEC.md), which captures the exact chronological prompts and requirements given during this session:
 
 1. **Prompt 1 (Core Vision & Tech Stack)**: Build **Rhyolite**, a cross-platform Obsidian + local `.md` project built on C# 14 and latest `.NET 10.0` using **Avalonia UI 12** (`https://avaloniaui.net/`) and **`feimacode/open-design-agent-kit`** with the **Apple Design System** (`apple` & `apple-music-ios`). Meet Obsidian features and expand on them (FSRS v4 flashcards, Local AI RAG Copilot, Snapshot Time-Machine LCS diffs, PageRank graph analytics). Build for Windows, macOS, iOS, Android, and Linux, followed by a Feature Gap Analysis.
 2. **Prompt 2 (Storage Speed Decision)**: Updating an `.md` file must be sub-millisecond fast — use a **3-tier Hybrid Storage Engine** (plain `.md` files on disk as canonical source of truth with `~0.14 ms` atomic temp-file swap + hot in-memory Markdig AST + **SQLite WAL sidecar `.rhyolite/cache.db`** for `< 25 ms` cold startup).
@@ -411,3 +438,6 @@ If you want to replicate **Rhyolite** from scratch in **Claude Code** (or anothe
    - Update builds so all `.dll`s and native runtime libraries (`SkiaSharp`, `HarfBuzzSharp`, `e_sqlite3`, .NET 10 runtime) are combined into single-file executables (`PublishSingleFile=true`, `SelfContained=true`, `IncludeNativeLibrariesForSelfExtract=true`).
    - Embed a Win32 DIB+PNG multi-resolution `.ico` (`16×16` through `128×128` 32-bpp BGRA DIB + `256×256` PNG) into `Rhyolite.exe` and `Rhyolite-UserSetup.exe` PE `.rsrc` sections (`RT_GROUP_ICON` / `RT_ICON`) and call `SHChangeNotify(SHCNE_ASSOCCHANGED)` on Windows to flush any cached blank icon.
    - Build per-user installers requiring zero Administrator / UAC elevation (`Rhyolite-UserSetup-vX.Y.Z-win-x64.exe` installing to `%LocalAppData%\Programs\Rhyolite`, `Rhyolite-UserInstaller-vX.Y.Z-macos-arm64.dmg` installing to `~/Applications`, and `Rhyolite-UserInstaller-vX.Y.Z-linux-x64.sh` installing to `~/.local/bin`).
+10. **Prompt 10 (Multi-Design System Switcher Engine — 9 Popular `feimacode/open-design-agent-kit` Presets)**:
+    - Add real-time UI switching across the **9 most popular design systems** from `https://github.com/feimacode/open-design-agent-kit` (`Apple HIG`, `Linear`, `Notion`, `Vercel Geist`, `Claude Anthropic`, `GitHub Primer`, `Raycast`, `Stripe`, and `Supabase`) in both Light and Dark modes (`18` total palettes).
+    - Persist the active design preset and theme mode in `.rhyolite/cache.db` (`ui_preferences` table), expose MCP/GraphQL inspection & switching tools, and execute via the Lead Orchestration & Verification Architect + Specialist Agents.

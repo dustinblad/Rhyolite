@@ -53,6 +53,13 @@ public sealed class HybridVaultEngine : IDisposable
         EnsureSqliteSchema();
     }
 
+    public Task InitializeSqliteSidecarAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        EnsureSqliteSchema();
+        return Task.CompletedTask;
+    }
+
     public void EnsureSqliteSchema()
     {
         using var conn = OpenConnection();
@@ -97,6 +104,12 @@ public sealed class HybridVaultEngine : IDisposable
                 workspace_or_space_id TEXT NOT NULL,
                 relative_path TEXT NOT NULL,
                 last_synced_sha256 TEXT NOT NULL,
+                updated_utc TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ui_preferences (
+                pref_key TEXT PRIMARY KEY,
+                pref_value TEXT NOT NULL,
                 updated_utc TEXT NOT NULL
             );
             """;
@@ -392,6 +405,83 @@ public sealed class HybridVaultEngine : IDisposable
 
     private static string BuildSyncBindingKey(string connectorKind, string workspaceOrSpaceId, string normalizedPath) =>
         $"{connectorKind.Trim()}:{workspaceOrSpaceId.Trim()}:{normalizedPath}";
+
+    /// <summary>
+    /// Persists a UI preference key-value pair (e.g. "design_system_id", "dark_mode") to the SQLite WAL sidecar in O(1) time.
+    /// </summary>
+    public async Task SaveUiPreferenceAsync(string key, string value, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO ui_preferences (pref_key, pref_value, updated_utc)
+            VALUES ($key, $val, $utc)
+            ON CONFLICT(pref_key) DO UPDATE SET
+                pref_value = excluded.pref_value,
+                updated_utc = excluded.updated_utc;
+            """;
+        cmd.Parameters.AddWithValue("$key", key);
+        cmd.Parameters.AddWithValue("$val", value ?? string.Empty);
+        cmd.Parameters.AddWithValue("$utc", DateTime.UtcNow.ToString("O"));
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Synchronously persists a UI preference key-value pair to the SQLite WAL sidecar in O(1) time.
+    /// </summary>
+    public void SaveUiPreference(string key, string value)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO ui_preferences (pref_key, pref_value, updated_utc)
+            VALUES ($key, $val, $utc)
+            ON CONFLICT(pref_key) DO UPDATE SET
+                pref_value = excluded.pref_value,
+                updated_utc = excluded.updated_utc;
+            """;
+        cmd.Parameters.AddWithValue("$key", key);
+        cmd.Parameters.AddWithValue("$val", value ?? string.Empty);
+        cmd.Parameters.AddWithValue("$utc", DateTime.UtcNow.ToString("O"));
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Reads a persisted UI preference value in O(1) via the pref_key PRIMARY KEY B-tree index.
+    /// </summary>
+    public async Task<string?> GetUiPreferenceAsync(string key, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT pref_value
+            FROM ui_preferences
+            WHERE pref_key = $key
+            LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("$key", key);
+        var result = await cmd.ExecuteScalarAsync(ct);
+        return result as string;
+    }
+
+    /// <summary>
+    /// Synchronously reads a persisted UI preference value in O(1) via the pref_key PRIMARY KEY B-tree index.
+    /// </summary>
+    public string? GetUiPreference(string key)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT pref_value
+            FROM ui_preferences
+            WHERE pref_key = $key
+            LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("$key", key);
+        return cmd.ExecuteScalar() as string;
+    }
 
     private void RecordSnapshotInternal(VaultNote note, string label)
     {

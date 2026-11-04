@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text.Json.Nodes;
+using Rhyolite.Core.Design;
 using Rhyolite.Core.Enterprise;
 using Rhyolite.Core.Models;
 using Rhyolite.Core.Parsing;
@@ -137,7 +139,7 @@ public sealed class EnterpriseDevExIntegrationTests
                 status: Accepted
                 ---
                 # ADR-001 Hybrid SQLite WAL Storage
-                 Governs atomic writes in [[code:src/Rhyolite.Core/Storage/HybridVaultEngine.cs#SaveNoteAsync]].
+                Governs atomic writes in [[code:src/Rhyolite.Core/Storage/HybridVaultEngine.cs#SaveNoteAsync]].
                 """
         };
 
@@ -324,6 +326,170 @@ public sealed class EnterpriseDevExIntegrationTests
     }
 
     [Fact]
+    public async Task MultiDesignSystemCatalog_SqlitePreferences_McpAndGraphQl_WorkEndToEnd()
+    {
+        // 1. Verify DesignSystemCatalog.All contains all 9 popular feimacode/open-design-agent-kit design systems
+        string[] expectedIds =
+        [
+            "apple",
+            "linear-app",
+            "notion",
+            "vercel",
+            "claude",
+            "github",
+            "raycast",
+            "stripe",
+            "supabase"
+        ];
+
+        Assert.Equal(9, DesignSystemCatalog.All.Count);
+        Assert.Equal(expectedIds, DesignSystemCatalog.All.Select(p => p.Id).ToArray());
+
+        foreach (var preset in DesignSystemCatalog.All)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(preset.Name));
+            Assert.False(string.IsNullOrWhiteSpace(preset.Category));
+            Assert.Contains(preset.Id, preset.DesignMdSourcePath, StringComparison.OrdinalIgnoreCase);
+
+            foreach (var palette in new[] { preset.LightPalette, preset.DarkPalette })
+            {
+                string[] hexTokens =
+                [
+                    palette.BgHex,
+                    palette.SurfaceHex,
+                    palette.SurfaceWarmHex,
+                    palette.SurfaceElevatedHex,
+                    palette.FgHex,
+                    palette.Fg2Hex,
+                    palette.MutedHex,
+                    palette.MetaHex,
+                    palette.BorderHex,
+                    palette.BorderSoftHex,
+                    palette.AccentHex,
+                    palette.AccentHoverHex,
+                    palette.LinkHex,
+                    palette.CalloutBgHex,
+                    palette.SuccessHex,
+                    palette.WarnHex,
+                    palette.DangerHex
+                ];
+
+                foreach (var hex in hexTokens)
+                {
+                    Assert.StartsWith("#", hex, StringComparison.Ordinal);
+                    Assert.True(hex.Length is 7 or 9, $"Invalid hex token '{hex}' in preset '{preset.Id}'.");
+                }
+            }
+        }
+
+        // 2. Benchmark cycling forward (GetNext) 9 times and backward (GetPrevious) 9 times in < 2 ms
+        _ = DesignSystemCatalog.GetNext("apple");
+        _ = DesignSystemCatalog.GetPrevious("apple");
+
+        var cycleSw = Stopwatch.StartNew();
+        var current = DesignSystemCatalog.Default;
+        var visitedForward = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < 9; i++)
+        {
+            current = DesignSystemCatalog.GetNext(current.Id);
+            visitedForward.Add(current.Id);
+        }
+        Assert.Equal("apple", current.Id);
+        Assert.Equal(9, visitedForward.Count);
+
+        for (int i = 0; i < 9; i++)
+        {
+            current = DesignSystemCatalog.GetPrevious(current.Id);
+        }
+        cycleSw.Stop();
+
+        Assert.Equal("apple", current.Id);
+        Assert.True(
+            cycleSw.Elapsed.TotalMilliseconds < 2.0,
+            $"Expected 18 O(1) design system cycle lookups to complete in < 2 ms, but took {cycleSw.Elapsed.TotalMilliseconds:F4} ms.");
+
+        // 3. Verify HybridVaultEngine SQLite WAL ui_preferences persistence (.rhyolite/cache.db)
+        //    and 4. Verify McpServerEngine (rhyolite.list_design_systems & rhyolite.set_design_system) + GraphQlEngine (designSystems)
+        string tempDir = Path.Combine(Path.GetTempPath(), "RhyoliteDesignPrefTest_" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            using var vault = new HybridVaultEngine(tempDir);
+            await vault.SaveUiPreferenceAsync("active_design_system", "linear-app");
+            string? persistedPreset = await vault.GetUiPreferenceAsync("active_design_system");
+            Assert.Equal("linear-app", persistedPreset);
+
+            var auth = new RhyoliteAuthEngine();
+            var peerEngine = new PeerSyncEngine("node-design-test");
+            var mcp = new McpServerEngine(auth, peerEngine, vault);
+            var gql = new GraphQlEngine(auth, peerEngine, mcp, vault);
+
+            _ = auth.RegisterAccount("designer@rhyolite.dev", "Design Lead", "StrongPass!2026", VaultRole.VaultOwner);
+            var token = auth.LoginWithEmailPassword("designer@rhyolite.dev", "StrongPass!2026");
+            Assert.NotNull(token);
+
+            string listRpc = """
+                {
+                  "jsonrpc": "2.0",
+                  "id": 401,
+                  "method": "tools/call",
+                  "params": {
+                    "name": "rhyolite.list_design_systems",
+                    "arguments": {}
+                  }
+                }
+                """;
+            string listResp = mcp.HandleJsonRpc(listRpc, token!.RawBearerToken);
+            Assert.DoesNotContain("\"error\"", listResp, StringComparison.OrdinalIgnoreCase);
+            foreach (var expectedId in expectedIds)
+            {
+                Assert.Contains(expectedId, listResp, StringComparison.OrdinalIgnoreCase);
+            }
+
+            string setRpc = """
+                {
+                  "jsonrpc": "2.0",
+                  "id": 402,
+                  "method": "tools/call",
+                  "params": {
+                    "name": "rhyolite.set_design_system",
+                    "arguments": {
+                      "designId": "claude",
+                      "id": "claude",
+                      "presetId": "claude"
+                    }
+                  }
+                }
+                """;
+            string setResp = mcp.HandleJsonRpc(setRpc, token.RawBearerToken);
+            Assert.DoesNotContain("\"error\"", setResp, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("claude", setResp, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("claude", await vault.GetUiPreferenceAsync("active_design_system"));
+
+            var gqlResp = gql.Execute(
+                new GraphQlRequest("query { designSystems { id name category } }"),
+                token.RawBearerToken);
+            Assert.False(gqlResp.HasErrors);
+            Assert.NotNull(gqlResp.Data);
+
+            var designSystemsArray = gqlResp.Data!["designSystems"] as JsonArray;
+            Assert.NotNull(designSystemsArray);
+            Assert.Equal(9, designSystemsArray!.Count);
+            string serializedGqlData = designSystemsArray.ToJsonString();
+            foreach (var expectedId in expectedIds)
+            {
+                Assert.Contains(expectedId, serializedGqlData, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void SqliteWalPrCache_SyncBindings_And_McpGraphQlDevExEndpoints_Benchmark()
     {
         string tempDir = Path.Combine(Path.GetTempPath(), "RhyoliteWalMcpGqlTest_" + Guid.NewGuid().ToString("N")[..8]);
@@ -332,7 +498,7 @@ public sealed class EnterpriseDevExIntegrationTests
             using var vault = new HybridVaultEngine(tempDir);
             vault.EnsureSqliteSchema();
 
-            // 1. Verify Specialist 1: SQLite WAL github_pr_cache O(1) B-tree primary key upsert & lookup
+            // 1. Verify SQLite WAL github_pr_cache O(1) B-tree primary key upsert & lookup
             string prKey = EnterpriseDevExEngine.ComputePrSqliteWalCacheKey("dustinblad/rhyolite", 142, "9f4b2c8e1a7d305b");
             vault.UpsertGitHubPrCache(
                 prKey,
@@ -359,13 +525,13 @@ public sealed class EnterpriseDevExIntegrationTests
             Assert.Equal("sha256-bb-sync-999", vault.GetLastSyncedHash("Bladbase", "ws-bladbase-core", "01 — Architecture/Storage Architecture.md"));
             Assert.Equal("sha256-dm-sync-888", vault.GetLastSyncedHash("Docmost", "spc-docmost-arch", "01 — Architecture/Storage Architecture.md"));
 
-            // 2. Verify Specialist 2: MCP JSON-RPC 2.0 tools (rhyolite.scan_secrets, rhyolite.analyze_github_pr, rhyolite.verify_workspace_connectors)
+            // 2. Verify MCP JSON-RPC 2.0 DevEx tools (rhyolite.scan_secrets, rhyolite.analyze_github_pr, rhyolite.verify_workspace_connectors)
             var auth = new RhyoliteAuthEngine();
             _ = auth.RegisterAccount("architect@rhyolite.dev", "Architect", "Rhyolite!AppleDesign#2026", VaultRole.VaultOwner);
             var login = auth.LoginWithEmailPassword("architect@rhyolite.dev", "Rhyolite!AppleDesign#2026");
             Assert.NotNull(login);
             var peerSync = new PeerSyncEngine("node-verify");
-            var mcp = new McpServerEngine(auth, peerSync);
+            var mcp = new McpServerEngine(auth, peerSync, vault);
 
             Assert.Contains(mcp.Tools, t => t.Name == "rhyolite.scan_secrets");
             Assert.Contains(mcp.Tools, t => t.Name == "rhyolite.analyze_github_pr");
@@ -385,7 +551,7 @@ public sealed class EnterpriseDevExIntegrationTests
                     }
                   }
                 }
-                """, login.RawBearerToken);
+                """, login!.RawBearerToken);
             Assert.Contains("keepassxc://Engineering/GitHub-Enterprise/GITHUB_TOKEN", scanRpc);
 
             string prRpc = mcp.HandleJsonRpc("""
@@ -419,8 +585,8 @@ public sealed class EnterpriseDevExIntegrationTests
             Assert.Contains("dustinblad/bladbase", connRpc);
             Assert.Contains("Docmost", connRpc);
 
-            // 3. Verify Specialist 2: GraphQL fields (devExPrPreview & workspaceConnectors)
-            var gql = new GraphQlEngine(auth, peerSync, mcp);
+            // 3. Verify GraphQL fields (devExPrPreview & workspaceConnectors)
+            var gql = new GraphQlEngine(auth, peerSync, mcp, vault);
             var gqlRes = gql.ExecuteQuery("""
                 query {
                   devExPrPreview(prNumber: 142) {

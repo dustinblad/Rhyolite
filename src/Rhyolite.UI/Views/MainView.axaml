@@ -11,54 +11,91 @@
   <Grid RowDefinitions="Auto,*,Auto">
 
     <!-- =================================================================== -->
-    <!-- TOP APPLE TRANSLUCENT NAVIGATION BAR                                -->
+    <!-- TOP MULTI-DESIGN NAVIGATION BAR & LIVE DESIGN SYSTEM SWITCHER       -->
     <!-- =================================================================== -->
-    <Border Grid.Row="0"
-            Background="{DynamicResource AppleSurfaceBrush}"
-            BorderBrush="{DynamicResource AppleBorderBrush}"
-            BorderThickness="0,0,0,1"
-            Padding="18,10">
-      <Grid ColumnDefinitions="Auto,*,Auto">
-        <!-- Brand Header -->
-        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-          <Border Width="32" Height="32" CornerRadius="8" ClipToBounds="True" Background="#0B0D14">
-            <Image Source="avares://Rhyolite.UI/Assets/Icon.png" Width="32" Height="32" Stretch="UniformToFill" />
-          </Border>
-          <StackPanel VerticalAlignment="Center">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBlock Text="Rhyolite" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource AppleFgBrush}" />
-              <Border Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}">
-                <TextBlock Text="Apple Design · .NET 10" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppleLinkBrush}" />
-              </Border>
+    <StackPanel Grid.Row="0">
+      <Border Background="{DynamicResource AppleSurfaceBrush}"
+              BorderBrush="{DynamicResource AppleBorderBrush}"
+              BorderThickness="0,0,0,1"
+              Padding="18,10">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <!-- Brand Header -->
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <Border Width="32" Height="32" CornerRadius="8" ClipToBounds="True" Background="#0B0D14">
+              <Image Source="avares://Rhyolite.UI/Assets/Icon.png" Width="32" Height="32" Stretch="UniformToFill" />
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Rhyolite" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource AppleFgBrush}" />
+                <Border Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}">
+                  <TextBlock Text="{Binding ActiveDesignBadgeText}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppleLinkBrush}" />
+                </Border>
+              </StackPanel>
+              <TextBlock Text="{Binding VaultSummaryText}" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" />
             </StackPanel>
-            <TextBlock Text="{Binding VaultSummaryText}" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" />
           </StackPanel>
-        </StackPanel>
 
-        <!-- Center Screen Switcher Segmented Control -->
-        <Border Grid.Column="1" HorizontalAlignment="Center"
-                Background="{DynamicResource AppleBorderSoftBrush}"
-                CornerRadius="10" Padding="3">
-          <StackPanel Orientation="Horizontal" Spacing="3">
-            <Button Content="1. Studio" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Studio" Classes="apple-btn-secondary" />
-            <Button Content="2. Graph" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Graph" Classes="apple-btn-secondary" />
-            <Button Content="3. Canvas" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Canvas" Classes="apple-btn-secondary" />
-            <Button Content="4. Bases" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Bases" Classes="apple-btn-secondary" />
-            <Button Content="5. Study" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Study" Classes="apple-btn-secondary" />
-            <Button Content="6. MCP/P2P" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Protocol" Classes="apple-btn-secondary" />
-            <Button Content="7. PR &amp; DevEx" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="DevEx" Classes="apple-btn-secondary" />
-            <Button Content="8. Mobile" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Mobile" Classes="apple-btn-secondary" />
+          <!-- Center Screen Switcher Segmented Control -->
+          <Border Grid.Column="1" HorizontalAlignment="Center"
+                  Background="{DynamicResource AppleBorderSoftBrush}"
+                  CornerRadius="10" Padding="3">
+            <StackPanel Orientation="Horizontal" Spacing="3">
+              <Button Content="1. Studio" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Studio" Classes="apple-btn-secondary" />
+              <Button Content="2. Graph" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Graph" Classes="apple-btn-secondary" />
+              <Button Content="3. Canvas" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Canvas" Classes="apple-btn-secondary" />
+              <Button Content="4. Bases" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Bases" Classes="apple-btn-secondary" />
+              <Button Content="5. Study" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Study" Classes="apple-btn-secondary" />
+              <Button Content="6. MCP/P2P" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Protocol" Classes="apple-btn-secondary" />
+              <Button Content="7. PR &amp; DevEx" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="DevEx" Classes="apple-btn-secondary" />
+              <Button Content="8. Mobile" Padding="8,5" Command="{Binding SwitchScreenCommand}" CommandParameter="Mobile" Classes="apple-btn-secondary" />
+            </StackPanel>
+          </Border>
+
+          <!-- Right Action Controls -->
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <Button Content="📅 Daily Note" Command="{Binding OpenDailyNoteCommand}" Classes="apple-btn-secondary" />
+            <Button Content="⌘P Command" Command="{Binding ToggleCommandPaletteCommand}" Classes="apple-btn-secondary" />
+            <Button Content="◀" Padding="8,6" Command="{Binding PreviousDesignSystemCommand}" Classes="apple-btn-secondary" />
+            <ComboBox ItemsSource="{Binding DesignSystems}"
+                      SelectedItem="{Binding SelectedDesignSystem}"
+                      Width="185"
+                      FontSize="12"
+                      VerticalAlignment="Center" />
+            <Button Content="▶" Padding="8,6" Command="{Binding NextDesignSystemCommand}" Classes="apple-btn-secondary" />
+            <Button Content="{Binding ThemeButtonLabel}" Command="{Binding ToggleAppleThemeCommand}" Classes="apple-btn-primary" />
           </StackPanel>
-        </Border>
+        </Grid>
+      </Border>
 
-        <!-- Right Action Controls -->
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Button Content="📅 Daily Note" Command="{Binding OpenDailyNoteCommand}" Classes="apple-btn-secondary" />
-          <Button Content="⌘P Command" Command="{Binding ToggleCommandPaletteCommand}" Classes="apple-btn-secondary" />
-          <Button Content="{Binding ThemeButtonLabel}" Command="{Binding ToggleAppleThemeCommand}" Classes="apple-btn-primary" />
-        </StackPanel>
-      </Grid>
-    </Border>
+      <!-- Compact 1-Click Design System Quick-Switcher Bar (feimacode/open-design-agent-kit) -->
+      <Border Background="{DynamicResource AppleSurfaceWarmBrush}"
+              BorderBrush="{DynamicResource AppleBorderSoftBrush}"
+              BorderThickness="0,0,0,1"
+              Padding="18,6">
+        <Grid ColumnDefinitions="Auto,*">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+            <TextBlock Text="DESIGN SYSTEM:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppleMetaBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <Button Content="🍎 Apple" Padding="9,3" FontSize="12" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="apple" Classes="apple-btn-secondary" />
+            <Button Content="📐 Linear" Padding="9,3" FontSize="12" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="linear-app" Classes="apple-btn-secondary" />
+            <Button Content="📝 Notion" Padding="9,3" FontSize="12" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="notion" Classes="apple-btn-secondary" />
+            <Button Content="▲ Vercel" Padding="9,3" FontSize="12" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="vercel" Classes="apple-btn-secondary" />
+            <Button Content="✴️ Claude" Padding="9,3" FontSize="12" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="claude" Classes="apple-btn-secondary" />
+            <Button Content="🐙 GitHub" Padding="9,3" FontSize="12" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="github" Classes="apple-btn-secondary" />
+            <Button Content="🚀 Raycast" Padding="9,3" FontSize="12" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="raycast" Classes="apple-btn-secondary" />
+            <Button Content="💳 Stripe" Padding="9,3" FontSize="12" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="stripe" Classes="apple-btn-secondary" />
+            <Button Content="⚡ Supabase" Padding="9,3" FontSize="12" Command="{Binding SwitchDesignSystemCommand}" CommandParameter="supabase" Classes="apple-btn-secondary" />
+          </StackPanel>
+
+          <TextBlock Grid.Column="1"
+                     Text="{Binding ActiveDesignSubtitleText}"
+                     FontSize="12"
+                     Foreground="{DynamicResource AppleMutedBrush}"
+                     HorizontalAlignment="Right"
+                     VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" />
+        </Grid>
+      </Border>
+    </StackPanel>
 
     <!-- =================================================================== -->
     <!-- MAIN STAGE CONTAINER (7 SWITCHABLE APPLE DESIGN SCREENS)            -->
@@ -551,7 +588,7 @@
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                           <TextBlock Grid.Column="0" Text="{Binding AuthorLogin, StringFormat='@{0}'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" />
                           <TextBlock Grid.Column="1" Text="{Binding AuthorRole}" FontSize="12" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
-                          <TextBlock Grid.Column="2" Text="{Binding FilePath}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppleWarningBrush}" />
+                          <TextBlock Grid.Column="2" Text="{Binding FilePath}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppleWarnBrush}" />
                         </Grid>
                         <TextBlock Text="{Binding DiffHunk}" FontSize="12" Foreground="{DynamicResource AppleMetaBrush}" IsVisible="{Binding DiffHunk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                         <TextBlock Text="{Binding Body}" FontSize="13" Foreground="{DynamicResource AppleFgBrush}" TextWrapping="Wrap" />
@@ -664,7 +701,8 @@
             <Button Content="📅 Open Today's Daily Note" Command="{Binding OpenDailyNoteCommand}" Classes="apple-btn-secondary" HorizontalAlignment="Stretch" />
             <Button Content="🕸️ Switch to Interactive Knowledge Graph" Command="{Binding SwitchScreenCommand}" CommandParameter="Graph" Classes="apple-btn-secondary" HorizontalAlignment="Stretch" />
             <Button Content="⚡ Open MCP / GraphQL / P2P Console" Command="{Binding SwitchScreenCommand}" CommandParameter="Protocol" Classes="apple-btn-secondary" HorizontalAlignment="Stretch" />
-            <Button Content="🌗 Toggle Apple Light / True-Black Dark Theme" Command="{Binding ToggleAppleThemeCommand}" Classes="apple-btn-primary" HorizontalAlignment="Stretch" />
+            <Button Content="🎨 Cycle Next Design System (open-design-agent-kit)" Command="{Binding NextDesignSystemCommand}" Classes="apple-btn-secondary" HorizontalAlignment="Stretch" />
+            <Button Content="🌗 Toggle Light / Dark Theme Mode" Command="{Binding ToggleAppleThemeCommand}" Classes="apple-btn-primary" HorizontalAlignment="Stretch" />
           </StackPanel>
         </Border>
       </Border>

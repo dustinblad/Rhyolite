@@ -13,18 +13,20 @@
       <ResourceDictionary.MergedDictionaries>
         <ResourceInclude Source="avares://Rhyolite.UI/Themes/AppleDesignTokens.axaml" />
       </ResourceDictionary.MergedDictionaries>
+      <CornerRadius x:Key="AppleCardCornerRadius">12</CornerRadius>
+      <CornerRadius x:Key="AppleBtnCornerRadius">8</CornerRadius>
     </ResourceDictionary>
   </Application.Resources>
 
   <Application.Styles>
     <FluentTheme />
 
-    <!-- Apple Design System Reusable Styles (feimacode/open-design-agent-kit) -->
+    <!-- Multi-Design System Reusable Styles (feimacode/open-design-agent-kit) -->
     <Style Selector="Border.apple-card">
       <Setter Property="Background" Value="{DynamicResource AppleBgBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AppleBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="CornerRadius" Value="{DynamicResource AppleCardCornerRadius}" />
       <Setter Property="Padding" Value="14" />
     </Style>
 
@@ -32,7 +34,7 @@
       <Setter Property="Background" Value="{DynamicResource AppleSurfaceBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AppleBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="CornerRadius" Value="{DynamicResource AppleCardCornerRadius}" />
       <Setter Property="Padding" Value="14" />
     </Style>
 
@@ -44,7 +46,7 @@
     <Style Selector="Button.apple-btn-primary">
       <Setter Property="Background" Value="{DynamicResource AppleAccentBrush}" />
       <Setter Property="Foreground" Value="#FFFFFF" />
-      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="CornerRadius" Value="{DynamicResource AppleBtnCornerRadius}" />
       <Setter Property="Padding" Value="14,7" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="FontSize" Value="13" />
@@ -55,7 +57,7 @@
       <Setter Property="Foreground" Value="{DynamicResource AppleFgBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AppleBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="CornerRadius" Value="{DynamicResource AppleBtnCornerRadius}" />
       <Setter Property="Padding" Value="12,6" />
       <Setter Property="FontWeight" Value="Medium" />
       <Setter Property="FontSize" Value="13" />
