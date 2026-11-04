@@ -150,9 +150,104 @@ public sealed class VaultNote
     public int ReadingTimeMinutes { get; set; } = 1;
     public double PageRankScore { get; set; } = 0.15;
 
+    public string FolderIconEmoji { get; set; } = "📁";
+    public string ObjectType => GetProperty("type", GetProperty("object_type", InferDefaultObjectType()));
+    public string ObjectIconEmoji => GetProperty("icon", InferDefaultObjectIcon(ObjectType));
+    public string CollectionName => GetProperty("collection", InferDefaultCollection(FolderPath));
+    public string CoverColorHex => GetProperty("cover", InferDefaultCoverColor(ObjectType));
+
     public string GetProperty(string key, string fallback = "")
     {
         var prop = Properties.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase));
         return prop?.Value ?? fallback;
     }
+
+    private string InferDefaultObjectType()
+    {
+        if (FolderPath.Contains("Daily", StringComparison.OrdinalIgnoreCase)) return "Daily Note";
+        if (FolderPath.Contains("Meeting", StringComparison.OrdinalIgnoreCase)) return "Meeting";
+        if (FolderPath.Contains("Project", StringComparison.OrdinalIgnoreCase)) return "Project";
+        if (FolderPath.Contains("Study", StringComparison.OrdinalIgnoreCase) || FolderPath.Contains("FSRS", StringComparison.OrdinalIgnoreCase)) return "Study Card";
+        if (FolderPath.Contains("People", StringComparison.OrdinalIgnoreCase) || FolderPath.Contains("Person", StringComparison.OrdinalIgnoreCase)) return "Person";
+        return "Architecture ADR";
+    }
+
+    public static string InferDefaultObjectIcon(string objectType) => objectType.ToLowerInvariant() switch
+    {
+        var t when t.Contains("daily") => "📅",
+        var t when t.Contains("meeting") => "🤝",
+        var t when t.Contains("project") => "🚀",
+        var t when t.Contains("study") || t.Contains("card") => "🧠",
+        var t when t.Contains("person") || t.Contains("people") => "👤",
+        var t when t.Contains("book") || t.Contains("link") => "📚",
+        _ => "🏛️"
+    };
+
+    public static string InferDefaultCoverColor(string objectType) => objectType.ToLowerInvariant() switch
+    {
+        var t when t.Contains("daily") => "#EAB308",
+        var t when t.Contains("meeting") => "#EC4899",
+        var t when t.Contains("project") => "#8B5CF6",
+        var t when t.Contains("study") || t.Contains("card") => "#10B981",
+        var t when t.Contains("person") => "#06B6D4",
+        _ => "#0071E3"
+    };
+
+    private static string InferDefaultCollection(string folderPath)
+    {
+        if (folderPath.Contains("Daily", StringComparison.OrdinalIgnoreCase)) return "Daily Journal";
+        if (folderPath.Contains("Study", StringComparison.OrdinalIgnoreCase)) return "Spaced Repetition";
+        if (folderPath.Contains("Capacities", StringComparison.OrdinalIgnoreCase) || folderPath.Contains("Project", StringComparison.OrdinalIgnoreCase)) return "Launch Roadmap";
+        return "Core Architecture";
+    }
 }
+
+public sealed class VaultFolderNode
+{
+    public required string FolderPath { get; init; }
+    public required string DisplayName { get; init; }
+    public string? ParentFolderPath { get; init; }
+    public int Depth { get; init; }
+    public string IconEmoji { get; set; } = "📁";
+    public string AccentColorHex { get; set; } = "#0071E3";
+    public bool IsExpanded { get; set; } = true;
+    public int DirectNoteCount { get; set; }
+    public int TotalNoteCount { get; set; }
+    public List<VaultFolderNode> Subfolders { get; init; } = [];
+    public List<VaultNote> Notes { get; init; } = [];
+    public string IndentMargin => $"{Depth * 14},1,0,1";
+    public string IndentedLabel => $"{new string(' ', Depth * 3)}{(IsExpanded ? "▾" : "▸")} {IconEmoji} {DisplayName}";
+    public string ChevronGlyph => IsExpanded ? "▾" : "▸";
+    public override string ToString() => $"{IconEmoji} {DisplayName} ({TotalNoteCount})";
+}
+
+public sealed record CapacitiesObjectTypeSchema(
+    string TypeId,
+    string SingularName,
+    string PluralName,
+    string IconEmoji,
+    string AccentColorHex,
+    string DefaultFolderPath,
+    IReadOnlyList<string> SchemaPropertyKeys,
+    string Description,
+    int ObjectCount = 0);
+
+public sealed record CapacitiesCollection(
+    string CollectionId,
+    string Name,
+    string IconEmoji,
+    string AccentColorHex,
+    string Description,
+    int ItemCount);
+
+public sealed record CapacitiesCalendarEntry(
+    string DateIso,
+    string DayOfWeekLabel,
+    string NoteRelativePath,
+    string Title,
+    string ObjectType,
+    string ObjectIconEmoji,
+    string FolderIconEmoji,
+    string FolderPath,
+    string SummaryText,
+    int TaskCount);

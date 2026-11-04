@@ -97,10 +97,11 @@ dotnet test tests/Rhyolite.Tests/Rhyolite.Tests.csproj --nologo --verbosity norm
 | 8 | `ProtocolEngine_Auth_Rbac_OAuth_Mcp_GraphQl_AndP2pMesh_WorkEndToEnd` | `RhyoliteAuthEngine`, `McpServerEngine`, `GraphQlEngine`, `PeerSyncEngine` | `157 ms` | ✅ Passed |
 | 9 | `WorkspaceConnectorsEngine_SyncsBladbaseWorkspace_AndDocmostSpace_Bidirectionally` | `WorkspaceConnectorsEngine` | `10 ms` | ✅ Passed |
 | 10 | `EnterpriseDevExEngine_OnePassword_KeePassXc_Runbooks_CodeDrift_Scorecard_AndGitHubPrAnalysis_WorkEndToEnd` | `EnterpriseDevExEngine` | `8 ms` | ✅ Passed |
-| 11 | `MultiDesignSystemCatalog_SqlitePreferences_McpAndGraphQl_WorkEndToEnd` | `DesignSystemCatalog` + `HybridVaultEngine` + `McpServerEngine` + `GraphQlEngine` | `175 ms` (18-cycle lookup `< 0.02 ms`) | ✅ Passed |
-| 12 | `FullAppUsability_SnapshotRestore_FlashcardPersistence_NoteDelete_AndLivePrFallback_WorkEndToEnd` | `HybridVaultEngine` (`flashcard_reviews`, `note_snapshots`, `DeleteNoteAsync`) + `WorkspaceConnectorsEngine` + `EnterpriseDevExEngine` | `15 ms` | ✅ Passed |
+| 11 | `MultiDesignSystemCatalog_SqlitePreferences_McpAndGraphQl_WorkEndToEnd` | `DesignSystemCatalog` + `HybridVaultEngine` + `McpServerEngine` + `GraphQlEngine` | `176 ms` (18-cycle lookup `< 0.02 ms`) | ✅ Passed |
+| 12 | `FullAppUsability_SnapshotRestore_FlashcardPersistence_NoteDelete_AndLivePrFallback_WorkEndToEnd` | `HybridVaultEngine` (`flashcard_reviews`, `note_snapshots`, `DeleteNoteAsync`) + `WorkspaceConnectorsEngine` + `EnterpriseDevExEngine` | `17 ms` | ✅ Passed |
+| 13 | `ObsidianFolderSubfolderHierarchy_EmojiAssignment_AndCapacitiesObjectStudio_WorkEndToEnd` | `HybridVaultEngine` (`folder_metadata`, `capacities_object_types`, `MoveNoteToFolderAsync`) + `BasesQueryEngine` (`QueryRows`, `GetCollections`, `BuildCalendarTimeline`) | `51 ms` | ✅ Passed |
 
-**Total Tests**: `12` · **Passed**: `12` · **Failed**: `0` · **Total Test Runner Time**: `0.6208 Seconds`
+**Total Tests**: `13` · **Passed**: `13` · **Failed**: `0` · **Total Test Runner Time**: `0.6683 Seconds`
 
 ---
 
@@ -300,6 +301,60 @@ flowchart TD
     3. **Obsidian Multi-Tab Header Bar & Breadcrumb Bar** with open tabs (`📄 Storage Architecture.md ×`, `🕸️ Graph.view`, `🎨 System.canvas`, `🗃️ Roadmap.base`), `🗄️ Vault › 01 — Architecture › [EditableNoteTitle]` breadcrumb, and `◨` Toggle Right Sidebar.
     4. **Obsidian 1.4+ Inline `Properties (YAML Frontmatter)` Accordion**, **Collapsible Right Sidebar (`285px` wide)**, and **Obsidian Bottom Status Bar (`28px` tall)**.
   * **10 High-Resolution Obsidian Multi-Design Mockups**: Generated and verified `01_note_studio_light.png` through `10_obsidian_command_palette_dark.png` in [`docs/mockups/`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/mockups/) and [`docs/screenshots/`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/screenshots/).
+
+---
+
+## 7. Phase 6 Multi-Agent Verification — Obsidian Hierarchical Folders/Subfolders with Icon/Emoji Assignment + Capacities Object Studio, Gallery/Wall/Calendar Views & GPU Performance Transitions
+
+```mermaid
+flowchart TD
+    Parent6["Parent Architect Agent (4856753c-95e3-456d-946a-2918b10117ab)"]
+    Lead6["Lead Orchestration & Verification Architect (bff50619-217b-440d-9b0a-7507627932cd)"]
+
+    subgraph Phase6Specialists["Phase 6 Parallel Specialist Implementation Engineers"]
+        P6S1["Specialist 1: Core Storage, Folder Hierarchy & Capacities Engine\n(7f12a07d-f066-48df-b14a-2608d49c4220)\nTarget: VaultModels.cs, BasesQueryEngine.cs, HybridVaultEngine.cs"]
+        P6S2["Specialist 2: Obsidian Folder Tree UI, Capacities Object Studio & GPU Transitions\n(2e75df26-00e8-4180-bb9b-44dfc35554a3)\nTarget: App.axaml, MainViewModel.cs, MainView.axaml, Program.cs"]
+        P6S3["Specialist 3: Obsidian + Capacities Architecture Doc & End-to-End Test Engineer\n(469ca988-685c-4714-8409-dfe185fe9ec7)\nTarget: OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md, EnterpriseDevExIntegrationTests.cs"]
+    end
+
+    Parent6 -->|"Spawns 3 Specialists with Disjoint Scopes"| P6S1 & P6S2 & P6S3
+    P6S1 <-->|"Method Signature Sync"| P6S3
+    P6S1 & P6S2 & P6S3 -->|"Completion Reports + Complexity Justifications"| Lead6
+    Lead6 -->|"Audit + Build (0 Warn / 0 Err) + Test (13/13 Pass) + 12 Mockups"| Verified6["Phase 6 Verified & Signed Off"]
+```
+
+### 7.1 Specialist 1 — Core Storage, Folder Hierarchy & Capacities Object Engine (`7f12a07d-f066-48df-b14a-2608d49c4220`)
+* **Audited Files**:
+  * [`src/Rhyolite.Core/Models/VaultModels.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Models/VaultModels.cs#L153-L254)
+  * [`src/Rhyolite.Core/Bases/BasesQueryEngine.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Bases/BasesQueryEngine.cs#L6-L241)
+  * [`src/Rhyolite.Core/Storage/HybridVaultEngine.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Storage/HybridVaultEngine.cs)
+* **Delivered Capabilities**:
+  * **Obsidian Hierarchical Folder & Subfolder Tree + Icon/Emoji SQLite WAL Persistence**: Added `VaultFolderNode` (`FolderPath`, `DisplayName`, `ParentFolderPath`, `Depth`, `IconEmoji`, `AccentColorHex`, `IsExpanded`, `DirectNoteCount`, `TotalNoteCount`, `Subfolders`, `Notes`), `folder_metadata` SQLite WAL table, `SetFolderIconAndColor`, `GetFolderMetadata`, `ToggleFolderExpanded`, `CreateFolderOrSubfolder`, `MoveNoteToFolderAsync`, `GetFolderHierarchyTree`, and `GetFlattenedVisibleFolderTree`.
+  * **Capacities Object Studio (`https://capacities.io/product`) & Multi-Modal Views**: Added `CapacitiesObjectTypeSchema`, `CapacitiesCollection`, `CapacitiesCalendarEntry`, `capacities_object_types` SQLite WAL table, `GetObjectTypeSchemas`, `SaveCustomObjectType`, `CreateTypedObjectNoteAsync`, `BasesQueryEngine.GetCollections`, and `BasesQueryEngine.BuildCalendarTimeline`.
+* **Algorithmic Efficiency Justification**:
+  * **$\mathcal{O}(1)$ SQLite WAL Folder & Schema Lookups**: `folder_metadata.folder_path` and `capacities_object_types.type_id` use `TEXT PRIMARY KEY` B-tree indexes with atomic `INSERT ... ON CONFLICT DO UPDATE` upserts.
+  * **Single-Pass $\mathcal{O}(F + N)$ Folder Hierarchy & Pre-Order Flattening**: `GetFolderHierarchyTree()` builds the folder dictionary, links parent-child pointers, buckets notes, and aggregates `TotalNoteCount` in a single post-order DFS pass; `GetFlattenedVisibleFolderTree()` prunes collapsed subtrees in $\mathcal{O}(V_{\text{visible}})$.
+
+### 7.2 Specialist 2 — Obsidian Folder Tree UI, Capacities Object Studio & GPU Performance Engineer (`2e75df26-00e8-4180-bb9b-44dfc35554a3`)
+* **Audited Files**:
+  * [`src/Rhyolite.UI/App.axaml`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/App.axaml)
+  * [`src/Rhyolite.UI/ViewModels/MainViewModel.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/ViewModels/MainViewModel.cs)
+  * [`src/Rhyolite.UI/Views/MainView.axaml`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Views/MainView.axaml)
+  * [`src/Rhyolite.Desktop/Program.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Desktop/Program.cs)
+* **Delivered Capabilities**:
+  * **GPU-Accelerated Avalonia 12 Render-Thread Transitions**: Added `DoubleTransition` (`Opacity`) and `TransformOperationsTransition` (`RenderTransform`, `CubicEaseOut`, `scale(1.015)` hover / `scale(0.975)` press) on buttons, cards, and list items without triggering CPU layout (`Measure`/`Arrange`) invalidation.
+  * **Obsidian Hierarchical Folder/Subfolder Tree & 1-Click Emoji Picker Strip**: Added `FOLDERS & SUBFOLDERS` explorer with `+Sub`, `📤` move active note to folder, 1-click emoji assignment strip (`🏛️ 💾 🔌 🚀 🤝 🧠 📅 🛡️ 📚 🔥`), depth-indented folder/subfolder rows, and per-row `+` quick subfolder button.
+  * **Capacities Object Studio & 4 View Modes**: Upgraded Screen 4 with `🖼️ Gallery View` (`IsBasesGalleryMode`), `🧱 Wall / Kanban` (`IsBasesKanbanMode`), `📋 Bases Table` (`IsBasesTableMode`), and `📅 Calendar Stream` (`IsBasesCalendarMode`), plus `Collections` filter bar, `+ Create Object`, and `+ Schema` custom Object Type creator.
+  * **12 High-Resolution Mockups**: Exported `01_note_studio_light.png` through `12_capacities_wall_calendar_light.png` in [`docs/mockups/`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/mockups/) and [`docs/screenshots/`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/screenshots/).
+
+### 7.3 Specialist 3 — Obsidian + Capacities Architecture Doc & End-to-End Test Engineer (`469ca988-685c-4714-8409-dfe185fe9ec7`)
+* **Audited Files**:
+  * [`docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md)
+  * [`tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs#L784-L898)
+* **Delivered Capabilities**:
+  * Authored `docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md` detailing the 3-tier hybrid architecture, Obsidian 1.8+ & Capacities.io parity matrices, and GPU compositor transition design.
+  * Added Test #13 (`ObsidianFolderSubfolderHierarchy_EmojiAssignment_AndCapacitiesObjectStudio_WorkEndToEnd`), passing in `51 ms` (`13/13` total xUnit suites passing in `0.6683s`).
+
 
 
 

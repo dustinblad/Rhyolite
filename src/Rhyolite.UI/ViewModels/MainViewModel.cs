@@ -167,12 +167,45 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private string _selectedCanvasCardBody = string.Empty;
 
-    // Bases State
+    // Bases & Capacities Object Studio State
     [ObservableProperty]
-    private bool _isBasesTableMode = true;
+    private bool _isBasesGalleryMode = true;
+
+    [ObservableProperty]
+    private bool _isBasesTableMode;
 
     [ObservableProperty]
     private bool _isBasesKanbanMode;
+
+    [ObservableProperty]
+    private bool _isBasesCalendarMode;
+
+    [ObservableProperty]
+    private VaultFolderNode? _selectedFolderNode;
+
+    [ObservableProperty]
+    private string _activeFolderFilter = "All";
+
+    [ObservableProperty]
+    private string _activeObjectTypeFilter = "All";
+
+    [ObservableProperty]
+    private string _activeCollectionFilter = "All";
+
+    [ObservableProperty]
+    private string _newFolderPathInput = "01 — Architecture/Caching";
+
+    [ObservableProperty]
+    private string _selectedEmojiInput = "🚀";
+
+    [ObservableProperty]
+    private string _newObjectTypeNameInput = "Book Review";
+
+    [ObservableProperty]
+    private string _newObjectTypeEmojiInput = "📚";
+
+    [ObservableProperty]
+    private string _newTypedObjectTitleInput = "Distributed Cache Spec";
 
     // Study & Time-Machine State
     [ObservableProperty]
@@ -228,6 +261,10 @@ public partial class MainViewModel : ViewModelBase
     public ObservableCollection<VaultNote> VaultNotes { get; } = [];
     public ObservableCollection<VaultNote> PinnedNotes { get; } = [];
     public ObservableCollection<VaultNote> FilteredCommandPaletteNotes { get; } = [];
+    public ObservableCollection<VaultFolderNode> VisibleFolderNodes { get; } = [];
+    public ObservableCollection<CapacitiesObjectTypeSchema> ObjectTypeSchemas { get; } = [];
+    public ObservableCollection<CapacitiesCollection> Collections { get; } = [];
+    public ObservableCollection<CapacitiesCalendarEntry> CalendarEntries { get; } = [];
     public ObservableCollection<FrontmatterProperty> ActiveProperties { get; } = [];
     public ObservableCollection<string> ActiveTags { get; } = [];
     public ObservableCollection<MarkdownHeading> ActiveHeadings { get; } = [];
@@ -348,6 +385,24 @@ public partial class MainViewModel : ViewModelBase
     {
         VaultNotes.Clear();
         PinnedNotes.Clear();
+        VisibleFolderNodes.Clear();
+        ObjectTypeSchemas.Clear();
+
+        foreach (var f in _vaultEngine.GetFlattenedVisibleFolderTree())
+        {
+            VisibleFolderNodes.Add(f);
+        }
+
+        if (SelectedFolderNode is not null)
+        {
+            SelectedFolderNode = VisibleFolderNodes.FirstOrDefault(f =>
+                string.Equals(f.FolderPath, SelectedFolderNode.FolderPath, StringComparison.OrdinalIgnoreCase));
+        }
+
+        foreach (var schema in _vaultEngine.GetObjectTypeSchemas())
+        {
+            ObjectTypeSchemas.Add(schema);
+        }
 
         foreach (var note in _vaultEngine.Notes)
         {
@@ -356,8 +411,39 @@ public partial class MainViewModel : ViewModelBase
                 PinnedNotes.Add(note);
             }
 
+            if (!string.IsNullOrWhiteSpace(ActiveFolderFilter) &&
+                !string.Equals(ActiveFolderFilter, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                var normFolder = ActiveFolderFilter.Replace('\\', '/').Trim('/');
+                if (!string.Equals(note.FolderPath, normFolder, StringComparison.OrdinalIgnoreCase) &&
+                    !note.FolderPath.StartsWith(normFolder + "/", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(ActiveObjectTypeFilter) &&
+                !string.Equals(ActiveObjectTypeFilter, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!string.Equals(note.ObjectType, ActiveObjectTypeFilter, StringComparison.OrdinalIgnoreCase) &&
+                    !note.ObjectType.Contains(ActiveObjectTypeFilter, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(ActiveCollectionFilter) &&
+                !string.Equals(ActiveCollectionFilter, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!string.Equals(note.CollectionName, ActiveCollectionFilter, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(SearchFilter) &&
                 !note.Title.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase) &&
+                !note.ObjectType.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase) &&
                 !note.RawMarkdown.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase) &&
                 !note.Tags.Any(t => t.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase)))
             {
@@ -368,7 +454,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         var metrics = _vaultEngine.LatestMetrics;
-        VaultSummaryText = $"{metrics.TotalNotes} Notes · {metrics.TotalEdges} Links · Boot {_vaultEngine.LastColdBootMilliseconds:0.0} ms";
+        VaultSummaryText = $"{metrics.TotalNotes} Notes · {VisibleFolderNodes.Count} Folders · Boot {_vaultEngine.LastColdBootMilliseconds:0.0} ms";
         TopologyHubLabel = $"{metrics.TopHubTitle} ({metrics.TopHubPageRank:0.00})";
         TopologyClusteringLabel = $"{metrics.ClusteringCoefficient * 100:0.0}% Dense";
         TopologyOrphanCount = metrics.OrphanCount;
@@ -456,15 +542,38 @@ public partial class MainViewModel : ViewModelBase
     private void RefreshBasesViews()
     {
         DatabaseRows.Clear();
-        foreach (var row in BasesQueryEngine.QueryRows(_vaultEngine.Notes, SearchFilter))
+        foreach (var row in BasesQueryEngine.QueryRows(
+            _vaultEngine.Notes,
+            SearchFilter,
+            ActiveFolderFilter,
+            null,
+            ActiveObjectTypeFilter,
+            ActiveCollectionFilter))
         {
             DatabaseRows.Add(row);
         }
 
         KanbanColumns.Clear();
-        foreach (var col in BasesQueryEngine.BuildKanbanBoard(_vaultEngine.Notes, SearchFilter))
+        foreach (var col in BasesQueryEngine.BuildKanbanBoard(
+            _vaultEngine.Notes,
+            SearchFilter,
+            ActiveFolderFilter,
+            ActiveObjectTypeFilter,
+            ActiveCollectionFilter))
         {
             KanbanColumns.Add(col);
+        }
+
+        Collections.Clear();
+        foreach (var col in BasesQueryEngine.GetCollections(_vaultEngine.Notes))
+        {
+            Collections.Add(col);
+        }
+
+        CalendarEntries.Clear();
+        foreach (var entry in BasesQueryEngine.BuildCalendarTimeline(_vaultEngine.Notes))
+        {
+            CalendarEntries.Add(entry);
         }
     }
 
@@ -1371,17 +1480,226 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public void ShowBasesGallery()
+    {
+        IsBasesGalleryMode = true;
+        IsBasesTableMode = false;
+        IsBasesKanbanMode = false;
+        IsBasesCalendarMode = false;
+    }
+
+    [RelayCommand]
     public void ShowBasesTable()
     {
+        IsBasesGalleryMode = false;
         IsBasesTableMode = true;
         IsBasesKanbanMode = false;
+        IsBasesCalendarMode = false;
     }
 
     [RelayCommand]
     public void ShowBasesKanban()
     {
+        IsBasesGalleryMode = false;
         IsBasesTableMode = false;
         IsBasesKanbanMode = true;
+        IsBasesCalendarMode = false;
+    }
+
+    [RelayCommand]
+    public void ShowBasesCalendar()
+    {
+        IsBasesGalleryMode = false;
+        IsBasesTableMode = false;
+        IsBasesKanbanMode = false;
+        IsBasesCalendarMode = true;
+    }
+
+    [RelayCommand]
+    public void SelectFolderFilter(object? folderParam)
+    {
+        if (folderParam is VaultFolderNode node)
+        {
+            SelectedFolderNode = node;
+            ActiveFolderFilter = node.FolderPath;
+            SelectedEmojiInput = node.IconEmoji;
+        }
+        else if (folderParam is string folderStr && !string.IsNullOrWhiteSpace(folderStr))
+        {
+            ActiveFolderFilter = folderStr;
+            if (string.Equals(folderStr, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                SelectedFolderNode = null;
+            }
+        }
+        else
+        {
+            ActiveFolderFilter = "All";
+            SelectedFolderNode = null;
+        }
+
+        RefreshCollectionsFromEngine();
+        StatusBarRightText = $"🗂️ Filtered vault by folder: {ActiveFolderFilter}";
+    }
+
+    [RelayCommand]
+    public void ToggleFolderExpand(VaultFolderNode? folder)
+    {
+        if (folder is null) return;
+        _vaultEngine.ToggleFolderExpanded(folder.FolderPath);
+        RefreshCollectionsFromEngine();
+    }
+
+    [RelayCommand]
+    public void CreateFolderOrSubfolder()
+    {
+        if (string.IsNullOrWhiteSpace(NewFolderPathInput)) return;
+        string path = NewFolderPathInput.Trim();
+        string emoji = string.IsNullOrWhiteSpace(SelectedEmojiInput) ? "📁" : SelectedEmojiInput.Trim();
+        var created = _vaultEngine.CreateFolderOrSubfolder(path, emoji, SelectedDesignSystem.LightPalette.AccentHex);
+        RefreshCollectionsFromEngine();
+        SelectedFolderNode = VisibleFolderNodes.FirstOrDefault(f =>
+            string.Equals(f.FolderPath, created.FolderPath, StringComparison.OrdinalIgnoreCase));
+        StatusBarRightText = $"✓ Created folder/subfolder '{created.IconEmoji} {created.FolderPath}'";
+    }
+
+    [RelayCommand]
+    public void QuickCreateSubfolder(VaultFolderNode? parentFolder)
+    {
+        string baseFolder = parentFolder?.FolderPath ?? SelectedFolderNode?.FolderPath ?? "01 — Architecture";
+        string subPath = $"{baseFolder}/Submodule-{DateTime.Now:mmss}";
+        string emoji = string.IsNullOrWhiteSpace(SelectedEmojiInput) ? "🚀" : SelectedEmojiInput.Trim();
+        var created = _vaultEngine.CreateFolderOrSubfolder(subPath, emoji, SelectedDesignSystem.LightPalette.AccentHex);
+        NewFolderPathInput = created.FolderPath;
+        RefreshCollectionsFromEngine();
+        SelectedFolderNode = VisibleFolderNodes.FirstOrDefault(f =>
+            string.Equals(f.FolderPath, created.FolderPath, StringComparison.OrdinalIgnoreCase));
+        StatusBarRightText = $"✓ Created nested subfolder '{created.IconEmoji} {created.FolderPath}'";
+    }
+
+    [RelayCommand]
+    public void AssignEmojiToSelectedFolder(string? emoji)
+    {
+        if (string.IsNullOrWhiteSpace(emoji)) return;
+        SelectedEmojiInput = emoji.Trim();
+        string targetFolder = SelectedFolderNode?.FolderPath
+                              ?? SelectedNote?.FolderPath
+                              ?? "01 — Architecture";
+        if (string.IsNullOrWhiteSpace(targetFolder))
+        {
+            targetFolder = "01 — Architecture";
+        }
+
+        _vaultEngine.SetFolderIconAndColor(targetFolder, SelectedEmojiInput, SelectedDesignSystem.LightPalette.AccentHex);
+        RefreshCollectionsFromEngine();
+        if (SelectedNote is not null)
+        {
+            var refreshed = _vaultEngine.Notes.FirstOrDefault(n =>
+                string.Equals(n.RelativePath, SelectedNote.RelativePath, StringComparison.OrdinalIgnoreCase));
+            if (refreshed is not null)
+            {
+                SelectNote(refreshed);
+            }
+        }
+        StatusBarRightText = $"🎨 Assigned icon {SelectedEmojiInput} to folder '{targetFolder}'";
+    }
+
+    [RelayCommand]
+    public async Task MoveActiveNoteToSelectedFolderAsync()
+    {
+        if (SelectedNote is null) return;
+        string targetFolder = SelectedFolderNode?.FolderPath ?? NewFolderPathInput?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(targetFolder)) return;
+
+        var moved = await _vaultEngine.MoveNoteToFolderAsync(SelectedNote.RelativePath, targetFolder);
+        if (moved is not null)
+        {
+            RefreshCollectionsFromEngine();
+            SelectNote(moved);
+            RebuildGraphLayout();
+            StatusBarRightText = $"↗ Moved '{moved.Title}' into '{moved.FolderIconEmoji} {moved.FolderPath}'";
+        }
+    }
+
+    [RelayCommand]
+    public void FilterByObjectType(string? objectType)
+    {
+        ActiveObjectTypeFilter = string.IsNullOrWhiteSpace(objectType) ? "All" : objectType;
+        RefreshCollectionsFromEngine();
+        StatusBarRightText = $"✨ Capacities Object Type Filter: {ActiveObjectTypeFilter}";
+    }
+
+    [RelayCommand]
+    public void SelectCollectionFilter(object? collectionParam)
+    {
+        if (collectionParam is CapacitiesCollection col)
+        {
+            ActiveCollectionFilter = col.Name;
+        }
+        else if (collectionParam is string s && !string.IsNullOrWhiteSpace(s))
+        {
+            ActiveCollectionFilter = s;
+        }
+        else
+        {
+            ActiveCollectionFilter = "All";
+        }
+
+        RefreshCollectionsFromEngine();
+        StatusBarRightText = $"⭐ Capacities Collection Filter: {ActiveCollectionFilter}";
+    }
+
+    [RelayCommand]
+    public async Task CreateTypedObjectAsync(object? typeParam)
+    {
+        string typeKey = typeParam switch
+        {
+            CapacitiesObjectTypeSchema schema => schema.TypeId,
+            string s when !string.IsNullOrWhiteSpace(s) => s,
+            _ => !string.Equals(ActiveObjectTypeFilter, "All", StringComparison.OrdinalIgnoreCase)
+                ? ActiveObjectTypeFilter
+                : "Project"
+        };
+
+        string title = string.IsNullOrWhiteSpace(NewTypedObjectTitleInput)
+            ? $"New {typeKey} {DateTime.Now:HHmm}"
+            : NewTypedObjectTitleInput.Trim();
+
+        string? targetFolder = SelectedFolderNode?.FolderPath;
+        string? collection = !string.Equals(ActiveCollectionFilter, "All", StringComparison.OrdinalIgnoreCase)
+            ? ActiveCollectionFilter
+            : null;
+
+        var created = await _vaultEngine.CreateTypedObjectNoteAsync(typeKey, title, targetFolder, collection);
+        _peerSyncEngine.UpsertNote(created.RelativePath, created.RawMarkdown);
+        RefreshCollectionsFromEngine();
+        SelectNote(created);
+        RebuildGraphLayout();
+        StatusBarRightText = $"✨ Created Capacities Object '{created.ObjectIconEmoji} {created.Title}' ({created.ObjectType}) in '{created.FolderPath}'";
+    }
+
+    [RelayCommand]
+    public void CreateCustomObjectType()
+    {
+        if (string.IsNullOrWhiteSpace(NewObjectTypeNameInput)) return;
+        string singular = NewObjectTypeNameInput.Trim();
+        string emoji = string.IsNullOrWhiteSpace(NewObjectTypeEmojiInput) ? "✨" : NewObjectTypeEmojiInput.Trim();
+        string typeId = singular.ToLowerInvariant().Replace(' ', '-');
+        string folder = SelectedFolderNode?.FolderPath ?? $"04 — Capacities Studio/{singular}s";
+
+        var schema = new CapacitiesObjectTypeSchema(
+            TypeId: typeId,
+            SingularName: singular,
+            PluralName: singular.EndsWith('s') ? singular : singular + "s",
+            IconEmoji: emoji,
+            AccentColorHex: SelectedDesignSystem.LightPalette.AccentHex,
+            DefaultFolderPath: folder,
+            SchemaPropertyKeys: ["type", "icon", "status", "collection", "priority"],
+            Description: $"Custom Capacities object schema for {singular}");
+
+        _vaultEngine.SaveCustomObjectType(schema);
+        RefreshCollectionsFromEngine();
+        StatusBarRightText = $"✨ Registered custom Capacities Object Type '{emoji} {singular}'";
     }
 
     [RelayCommand]

@@ -124,29 +124,47 @@ sealed class Program
         };
         window.Show();
 
-        var specs = new (string FileName, string Screen, string DesignId, bool DarkMode, bool OpenCommandPalette)[]
+        var specs = new (string FileName, string Screen, string DesignId, bool DarkMode, bool OpenCommandPalette, string BasesMode)[]
         {
-            ("01_note_studio_light.png", "Studio", "apple", false, false),
-            ("02_note_studio_dark.png", "Studio", "claude", true, false),
-            ("03_knowledge_graph_light.png", "Graph", "vercel", false, false),
-            ("04_spatial_canvas_dark.png", "Canvas", "raycast", true, false),
-            ("05_bases_database_light.png", "Bases", "notion", false, false),
-            ("06_study_timemachine_light.png", "Study", "stripe", false, false),
-            ("07_mcp_graphql_p2p_dark.png", "Protocol", "supabase", true, false),
-            ("08_mobile_ios_android_light.png", "Mobile", "linear-app", true, false),
-            ("09_enterprise_github_pr_devex_dark.png", "DevEx", "github", true, false),
-            ("10_obsidian_command_palette_dark.png", "Studio", "linear-app", true, true)
+            ("01_note_studio_light.png", "Studio", "apple", false, false, ""),
+            ("02_note_studio_dark.png", "Studio", "claude", true, false, ""),
+            ("03_knowledge_graph_light.png", "Graph", "vercel", false, false, ""),
+            ("04_spatial_canvas_dark.png", "Canvas", "raycast", true, false, ""),
+            ("05_bases_database_light.png", "Bases", "notion", false, false, "Table"),
+            ("06_study_timemachine_light.png", "Study", "stripe", false, false, ""),
+            ("07_mcp_graphql_p2p_dark.png", "Protocol", "supabase", true, false, ""),
+            ("08_mobile_ios_android_light.png", "Mobile", "linear-app", true, false, ""),
+            ("09_enterprise_github_pr_devex_dark.png", "DevEx", "github", true, false, ""),
+            ("10_obsidian_command_palette_dark.png", "Studio", "linear-app", true, true, ""),
+            ("11_capacities_gallery_studio_dark.png", "Bases", "claude", true, false, "Gallery"),
+            ("12_capacities_wall_calendar_light.png", "Bases", "apple", false, false, "Calendar")
         };
 
         var size = new Size(1440, 900);
         var pixelSize = new PixelSize(1440, 900);
         var dpi = new Vector(96, 96);
 
-        foreach (var (fileName, screen, designId, darkMode, openCommandPalette) in specs)
+        foreach (var (fileName, screen, designId, darkMode, openCommandPalette, basesMode) in specs)
         {
             root.RequestedThemeVariant = darkMode ? ThemeVariant.Dark : ThemeVariant.Light;
             vm.SelectDesignSystem(designId, darkMode);
             vm.SwitchScreen(screen);
+            if (basesMode == "Table")
+            {
+                vm.ShowBasesTable();
+            }
+            else if (basesMode == "Gallery")
+            {
+                vm.ShowBasesGallery();
+            }
+            else if (basesMode == "Calendar")
+            {
+                vm.ShowBasesCalendar();
+            }
+            else if (basesMode == "Kanban")
+            {
+                vm.ShowBasesKanban();
+            }
             if (openCommandPalette)
             {
                 vm.ToggleCommandPalette();

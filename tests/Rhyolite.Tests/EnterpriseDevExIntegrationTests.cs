@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json.Nodes;
+using Rhyolite.Core.Bases;
 using Rhyolite.Core.Design;
 using Rhyolite.Core.Enterprise;
 using Rhyolite.Core.Models;
@@ -770,6 +771,121 @@ public sealed class EnterpriseDevExIntegrationTests
             Assert.True(overriddenResult.Executed);
             Assert.False(overriddenResult.BlockedByGuardrail);
             Assert.Contains("[GUARDRAIL OVERRIDDEN BY USER]", overriddenResult.Output);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ObsidianFolderSubfolderHierarchy_EmojiAssignment_AndCapacitiesObjectStudio_WorkEndToEnd()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "RhyoliteFolderCapacitiesTest_" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            using var vault = new HybridVaultEngine(tempDir);
+            await vault.LoadOrSeedVaultAsync();
+
+            // 1. Create nested Obsidian folders & subfolders and assign custom icons/emojis & accent colors in SQLite WAL
+            const string nestedFolderPath = "01 — Architecture/Storage/Replication";
+            var createdSubfolder = vault.CreateFolderOrSubfolder(nestedFolderPath, iconEmoji: "💎", colorHex: "#8B5CF6");
+            Assert.Equal(nestedFolderPath, createdSubfolder.FolderPath);
+            Assert.Equal("Replication", createdSubfolder.DisplayName);
+            Assert.Equal(2, createdSubfolder.Depth);
+            Assert.Equal("💎", createdSubfolder.IconEmoji);
+            Assert.True(Directory.Exists(Path.Combine(tempDir, "01 — Architecture", "Storage", "Replication")));
+
+            vault.SetFolderIconAndColor("01 — Architecture/Storage", "🔥", "#F97316");
+            var storageMeta = vault.GetFolderMetadata("01 — Architecture/Storage");
+            Assert.Equal("🔥", storageMeta.IconEmoji);
+            Assert.Equal("#F97316", storageMeta.ColorHex);
+            Assert.True(storageMeta.IsExpanded);
+
+            var replicationMeta = vault.GetFolderMetadata(nestedFolderPath);
+            Assert.Equal("💎", replicationMeta.IconEmoji);
+            Assert.Equal("#8B5CF6", replicationMeta.ColorHex);
+
+            // Verify hierarchical tree and expand/collapse toggle in SQLite WAL
+            var rootTree = vault.GetFolderHierarchyTree();
+            Assert.NotEmpty(rootTree);
+            var archRoot = rootTree.First(r => r.FolderPath == "01 — Architecture");
+            var storageChild = archRoot.Subfolders.First(s => s.FolderPath == "01 — Architecture/Storage");
+            Assert.Equal("🔥", storageChild.IconEmoji);
+            var replicationLeaf = storageChild.Subfolders.First(s => s.FolderPath == nestedFolderPath);
+            Assert.Equal("💎", replicationLeaf.IconEmoji);
+
+            var visibleBeforeCollapse = vault.GetFlattenedVisibleFolderTree();
+            Assert.Contains(visibleBeforeCollapse, f => f.FolderPath == nestedFolderPath);
+
+            bool collapsedState = vault.ToggleFolderExpanded("01 — Architecture/Storage");
+            Assert.False(collapsedState);
+            var visibleAfterCollapse = vault.GetFlattenedVisibleFolderTree();
+            Assert.DoesNotContain(visibleAfterCollapse, f => f.FolderPath == nestedFolderPath);
+
+            bool reExpandedState = vault.ToggleFolderExpanded("01 — Architecture/Storage");
+            Assert.True(reExpandedState);
+
+            // 2. Move a note into the nested subfolder via MoveNoteToFolderAsync and verify FolderPath & FolderIconEmoji
+            var movedNote = await vault.MoveNoteToFolderAsync("01 — Architecture/Storage Architecture.md", nestedFolderPath);
+            Assert.NotNull(movedNote);
+            Assert.Equal(nestedFolderPath, movedNote!.FolderPath);
+            Assert.Equal("💎", movedNote.FolderIconEmoji);
+            Assert.Equal($"{nestedFolderPath}/Storage Architecture.md", movedNote.RelativePath);
+            Assert.True(File.Exists(movedNote.FullPath));
+
+            // 3. Create a custom Capacities Object Type in Object Studio and persist in SQLite WAL
+            var customRfcSchema = new CapacitiesObjectTypeSchema(
+                TypeId: "engineering-rfc",
+                SingularName: "Engineering RFC",
+                PluralName: "Engineering RFCs",
+                IconEmoji: "📐",
+                AccentColorHex: "#EC4899",
+                DefaultFolderPath: nestedFolderPath,
+                SchemaPropertyKeys: ["type", "status", "author", "target_release", "collection"],
+                Description: "Capacities Object Studio schema for distributed systems RFCs");
+            vault.SaveCustomObjectType(customRfcSchema);
+
+            var schemas = vault.GetObjectTypeSchemas();
+            Assert.Contains(schemas, s => s.TypeId == "engineering-rfc" && s.IconEmoji == "📐" && s.SingularName == "Engineering RFC");
+
+            // Create a typed Object note using CreateTypedObjectNoteAsync
+            var createdRfcNote = await vault.CreateTypedObjectNoteAsync(
+                "Engineering RFC",
+                "RFC-042 Multi-Region HLC Replication",
+                targetFolder: nestedFolderPath,
+                collectionName: "Distributed Storage");
+            Assert.Equal("Engineering RFC", createdRfcNote.ObjectType);
+            Assert.Equal("📐", createdRfcNote.ObjectIconEmoji);
+            Assert.Equal("💎", createdRfcNote.FolderIconEmoji);
+            Assert.Equal("Distributed Storage", createdRfcNote.CollectionName);
+            Assert.Equal(nestedFolderPath, createdRfcNote.FolderPath);
+
+            // 4. Query BasesQueryEngine.QueryRows, GetCollections, and BuildCalendarTimeline
+            var rfcRows = BasesQueryEngine.QueryRows(
+                vault.Notes,
+                folderFilter: "01 — Architecture/Storage",
+                objectTypeFilter: "Engineering RFC",
+                collectionFilter: "Distributed Storage");
+            Assert.Single(rfcRows);
+            Assert.Equal("RFC-042 Multi-Region HLC Replication", rfcRows[0].Title);
+            Assert.Equal("📐", rfcRows[0].ObjectIconEmoji);
+            Assert.Equal("💎", rfcRows[0].FolderIconEmoji);
+            Assert.Equal("Distributed Storage", rfcRows[0].CollectionName);
+
+            var collections = BasesQueryEngine.GetCollections(vault.Notes);
+            Assert.Contains(collections, c => c.Name == "Distributed Storage" && c.ItemCount >= 1);
+
+            var timeline = BasesQueryEngine.BuildCalendarTimeline(vault.Notes);
+            Assert.NotEmpty(timeline);
+            Assert.Contains(timeline, e =>
+                e.Title == "RFC-042 Multi-Region HLC Replication" &&
+                e.ObjectType == "Engineering RFC" &&
+                e.ObjectIconEmoji == "📐" &&
+                e.FolderIconEmoji == "💎");
         }
         finally
         {

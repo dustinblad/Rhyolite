@@ -156,8 +156,87 @@ public sealed class HybridVaultEngine : IDisposable
                 pref_value TEXT NOT NULL,
                 updated_utc TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS folder_metadata (
+                folder_path TEXT PRIMARY KEY,
+                icon_emoji TEXT NOT NULL,
+                color_hex TEXT NOT NULL,
+                is_expanded INTEGER NOT NULL DEFAULT 1,
+                updated_utc TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS capacities_object_types (
+                type_id TEXT PRIMARY KEY,
+                singular_name TEXT NOT NULL,
+                plural_name TEXT NOT NULL,
+                icon_emoji TEXT NOT NULL,
+                accent_color_hex TEXT NOT NULL,
+                default_folder TEXT NOT NULL,
+                schema_props_csv TEXT NOT NULL,
+                description TEXT NOT NULL
+            );
             """;
         cmd.ExecuteNonQuery();
+
+        SeedDefaultFoldersAndObjectTypes(conn);
+    }
+
+    private static void SeedDefaultFoldersAndObjectTypes(SqliteConnection conn)
+    {
+        var defaultFolders = new (string Path, string Icon, string Color)[]
+        {
+            ("01 — Architecture", "🏛️", "#0071E3"),
+            ("01 — Architecture/Storage", "💾", "#10B981"),
+            ("01 — Architecture/Protocols", "🔌", "#8B5CF6"),
+            ("02 — Daily Notes", "📅", "#EAB308"),
+            ("03 — Study & Research", "🧠", "#06B6D4"),
+            ("04 — Capacities Studio", "✨", "#EC4899"),
+            ("04 — Capacities Studio/Projects", "🚀", "#8B5CF6"),
+            ("04 — Capacities Studio/Meetings", "🤝", "#F97316")
+        };
+
+        string nowIso = DateTime.UtcNow.ToString("O");
+        foreach (var (path, icon, color) in defaultFolders)
+        {
+            using var fCmd = conn.CreateCommand();
+            fCmd.CommandText = """
+                INSERT OR IGNORE INTO folder_metadata (folder_path, icon_emoji, color_hex, is_expanded, updated_utc)
+                VALUES ($path, $icon, $color, 1, $utc);
+                """;
+            fCmd.Parameters.AddWithValue("$path", path);
+            fCmd.Parameters.AddWithValue("$icon", icon);
+            fCmd.Parameters.AddWithValue("$color", color);
+            fCmd.Parameters.AddWithValue("$utc", nowIso);
+            fCmd.ExecuteNonQuery();
+        }
+
+        var defaultTypes = new (string Id, string Singular, string Plural, string Icon, string Color, string Folder, string Props, string Desc)[]
+        {
+            ("architecture-adr", "Architecture ADR", "Architecture ADRs", "🏛️", "#0071E3", "01 — Architecture", "type,status,subsystem,priority,collection", "System architecture decision records and subsystem specifications"),
+            ("project", "Project", "Projects", "🚀", "#8B5CF6", "04 — Capacities Studio/Projects", "type,status,owner,target_date,collection", "Capacities Object Studio project workspaces and launch roadmaps"),
+            ("meeting", "Meeting", "Meetings", "🤝", "#EC4899", "04 — Capacities Studio/Meetings", "type,date,attendees,status,collection", "Engineering design reviews, sync notes, and action items"),
+            ("daily-note", "Daily Note", "Daily Notes", "📅", "#EAB308", "02 — Daily Notes", "type,date,status,priority,collection", "Chronological daily engineering logs and quick captures"),
+            ("study-card", "Study Card", "Study Cards", "🧠", "#10B981", "03 — Study & Research", "type,deck,status,difficulty,collection", "FSRS v4 spaced repetition decks and research syntheses"),
+            ("person", "Person", "People", "👤", "#06B6D4", "04 — Capacities Studio", "type,role,team,handle,collection", "Team members, maintainers, and external collaborators")
+        };
+
+        foreach (var t in defaultTypes)
+        {
+            using var tCmd = conn.CreateCommand();
+            tCmd.CommandText = """
+                INSERT OR IGNORE INTO capacities_object_types (type_id, singular_name, plural_name, icon_emoji, accent_color_hex, default_folder, schema_props_csv, description)
+                VALUES ($id, $singular, $plural, $icon, $color, $folder, $props, $desc);
+                """;
+            tCmd.Parameters.AddWithValue("$id", t.Id);
+            tCmd.Parameters.AddWithValue("$singular", t.Singular);
+            tCmd.Parameters.AddWithValue("$plural", t.Plural);
+            tCmd.Parameters.AddWithValue("$icon", t.Icon);
+            tCmd.Parameters.AddWithValue("$color", t.Color);
+            tCmd.Parameters.AddWithValue("$folder", t.Folder);
+            tCmd.Parameters.AddWithValue("$props", t.Props);
+            tCmd.Parameters.AddWithValue("$desc", t.Desc);
+            tCmd.ExecuteNonQuery();
+        }
     }
 
     private SqliteConnection OpenConnection()
@@ -199,7 +278,8 @@ public sealed class HybridVaultEngine : IDisposable
                 Title = title,
                 FolderPath = folder,
                 RawMarkdown = raw,
-                LastWriteTimeUtc = File.GetLastWriteTimeUtc(fullPath)
+                LastWriteTimeUtc = File.GetLastWriteTimeUtc(fullPath),
+                FolderIconEmoji = GetFolderMetadata(folder).IconEmoji
             };
 
             MarkdownAstEngine.ParseNoteMetadata(note);
@@ -243,6 +323,7 @@ public sealed class HybridVaultEngine : IDisposable
         File.Move(tempPath, fullPath, overwrite: true);
         writeSw.Stop();
 
+        string folderPath = Path.GetDirectoryName(normalizedRel)?.Replace('\\', '/') ?? string.Empty;
         if (!_notesByRelativePath.TryGetValue(normalizedRel, out var note))
         {
             note = new VaultNote
@@ -251,14 +332,17 @@ public sealed class HybridVaultEngine : IDisposable
                 RelativePath = normalizedRel,
                 FullPath = fullPath,
                 Title = Path.GetFileNameWithoutExtension(fullPath),
-                FolderPath = Path.GetDirectoryName(normalizedRel)?.Replace('\\', '/') ?? string.Empty,
-                RawMarkdown = updatedMarkdown
+                FolderPath = folderPath,
+                RawMarkdown = updatedMarkdown,
+                FolderIconEmoji = GetFolderMetadata(folderPath).IconEmoji
             };
             _notesByRelativePath[normalizedRel] = note;
         }
         else
         {
+            note.FolderPath = folderPath;
             note.RawMarkdown = updatedMarkdown;
+            note.FolderIconEmoji = GetFolderMetadata(folderPath).IconEmoji;
         }
 
         note.LastWriteTimeUtc = DateTime.UtcNow;
@@ -953,6 +1037,553 @@ public sealed class HybridVaultEngine : IDisposable
         return results;
     }
 
+    /// <summary>
+    /// Assigns an icon emoji and optional accent hex color to a folder or subfolder in SQLite WAL folder_metadata.
+    /// </summary>
+    public void SetFolderIconAndColor(string folderPath, string iconEmoji, string? colorHex = null)
+    {
+        string normalized = NormalizeFolderPath(folderPath);
+        if (string.IsNullOrEmpty(normalized))
+        {
+            return;
+        }
+
+        var existing = GetFolderMetadata(normalized);
+        string resolvedIcon = string.IsNullOrWhiteSpace(iconEmoji) ? existing.IconEmoji : iconEmoji.Trim();
+        string resolvedColor = string.IsNullOrWhiteSpace(colorHex) ? existing.ColorHex : colorHex.Trim();
+
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO folder_metadata (folder_path, icon_emoji, color_hex, is_expanded, updated_utc)
+            VALUES ($path, $icon, $color, $expanded, $utc)
+            ON CONFLICT(folder_path) DO UPDATE SET
+                icon_emoji = excluded.icon_emoji,
+                color_hex = excluded.color_hex,
+                updated_utc = excluded.updated_utc;
+            """;
+        cmd.Parameters.AddWithValue("$path", normalized);
+        cmd.Parameters.AddWithValue("$icon", resolvedIcon);
+        cmd.Parameters.AddWithValue("$color", resolvedColor);
+        cmd.Parameters.AddWithValue("$expanded", existing.IsExpanded ? 1 : 0);
+        cmd.Parameters.AddWithValue("$utc", DateTime.UtcNow.ToString("O"));
+        cmd.ExecuteNonQuery();
+
+        foreach (var note in _notesByRelativePath.Values)
+        {
+            if (string.Equals(note.FolderPath, normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                note.FolderIconEmoji = resolvedIcon;
+            }
+        }
+
+        Interlocked.Increment(ref _mutationVersion);
+    }
+
+    /// <summary>
+    /// Reads the icon emoji, accent color hex, and expansion state for a folder from SQLite WAL folder_metadata.
+    /// </summary>
+    public (string IconEmoji, string ColorHex, bool IsExpanded) GetFolderMetadata(string folderPath)
+    {
+        string normalized = NormalizeFolderPath(folderPath);
+        if (string.IsNullOrEmpty(normalized))
+        {
+            return ("📁", "#0071E3", true);
+        }
+
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT icon_emoji, color_hex, is_expanded
+            FROM folder_metadata
+            WHERE folder_path = $path
+            LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("$path", normalized);
+
+        using var reader = cmd.ExecuteReader();
+        if (reader.Read())
+        {
+            return (
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetInt32(2) != 0);
+        }
+
+        return InferDefaultFolderMetadata(normalized);
+    }
+
+    /// <summary>
+    /// Toggles the expanded/collapsed state of a folder in SQLite WAL folder_metadata and returns the new IsExpanded state.
+    /// </summary>
+    public bool ToggleFolderExpanded(string folderPath)
+    {
+        string normalized = NormalizeFolderPath(folderPath);
+        var current = GetFolderMetadata(normalized);
+        bool nextExpanded = !current.IsExpanded;
+
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO folder_metadata (folder_path, icon_emoji, color_hex, is_expanded, updated_utc)
+            VALUES ($path, $icon, $color, $expanded, $utc)
+            ON CONFLICT(folder_path) DO UPDATE SET
+                is_expanded = excluded.is_expanded,
+                updated_utc = excluded.updated_utc;
+            """;
+        cmd.Parameters.AddWithValue("$path", normalized);
+        cmd.Parameters.AddWithValue("$icon", current.IconEmoji);
+        cmd.Parameters.AddWithValue("$color", current.ColorHex);
+        cmd.Parameters.AddWithValue("$expanded", nextExpanded ? 1 : 0);
+        cmd.Parameters.AddWithValue("$utc", DateTime.UtcNow.ToString("O"));
+        cmd.ExecuteNonQuery();
+
+        Interlocked.Increment(ref _mutationVersion);
+        return nextExpanded;
+    }
+
+    /// <summary>
+    /// Creates a folder or nested subfolder on disk, persists its icon/color metadata in SQLite WAL, and returns its VaultFolderNode.
+    /// </summary>
+    public VaultFolderNode CreateFolderOrSubfolder(string folderPath, string iconEmoji = "📁", string colorHex = "#0071E3")
+    {
+        string normalized = NormalizeFolderPath(folderPath);
+        if (string.IsNullOrEmpty(normalized))
+        {
+            throw new ArgumentException("Folder path cannot be empty.", nameof(folderPath));
+        }
+
+        string fullDirPath = Path.Combine(VaultRootPath, normalized.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(fullDirPath);
+
+        // Ensure ancestor folders also exist in folder_metadata
+        string[] segments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        string currentPrefix = string.Empty;
+        for (int i = 0; i < segments.Length; i++)
+        {
+            currentPrefix = i == 0 ? segments[0] : $"{currentPrefix}/{segments[i]}";
+            if (i < segments.Length - 1)
+            {
+                var meta = GetFolderMetadata(currentPrefix);
+                using var conn = OpenConnection();
+                using var ancestorCmd = conn.CreateCommand();
+                ancestorCmd.CommandText = """
+                    INSERT OR IGNORE INTO folder_metadata (folder_path, icon_emoji, color_hex, is_expanded, updated_utc)
+                    VALUES ($path, $icon, $color, 1, $utc);
+                    """;
+                ancestorCmd.Parameters.AddWithValue("$path", currentPrefix);
+                ancestorCmd.Parameters.AddWithValue("$icon", meta.IconEmoji);
+                ancestorCmd.Parameters.AddWithValue("$color", meta.ColorHex);
+                ancestorCmd.Parameters.AddWithValue("$utc", DateTime.UtcNow.ToString("O"));
+                ancestorCmd.ExecuteNonQuery();
+            }
+        }
+
+        SetFolderIconAndColor(normalized, iconEmoji, colorHex);
+
+        var allNodes = GetFlattenedAllFolders();
+        return allNodes.FirstOrDefault(f => string.Equals(f.FolderPath, normalized, StringComparison.OrdinalIgnoreCase))
+            ?? new VaultFolderNode
+            {
+                FolderPath = normalized,
+                DisplayName = segments[^1],
+                ParentFolderPath = segments.Length > 1 ? string.Join('/', segments[..^1]) : null,
+                Depth = segments.Length - 1,
+                IconEmoji = iconEmoji,
+                AccentColorHex = colorHex,
+                IsExpanded = true
+            };
+    }
+
+    /// <summary>
+    /// Moves a note into a target folder or nested subfolder on disk, updating its path, FolderIconEmoji, and SQLite WAL cache row.
+    /// </summary>
+    public async Task<VaultNote?> MoveNoteToFolderAsync(
+        string noteRelativePath,
+        string targetFolderPath,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        string normalizedNoteRel = noteRelativePath.Replace('\\', '/').TrimStart('/');
+        if (!_notesByRelativePath.TryRemove(normalizedNoteRel, out var note))
+        {
+            var match = _notesByRelativePath.Values.FirstOrDefault(n =>
+                string.Equals(n.RelativePath, normalizedNoteRel, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(n.Title, Path.GetFileNameWithoutExtension(normalizedNoteRel), StringComparison.OrdinalIgnoreCase));
+            if (match is null || !_notesByRelativePath.TryRemove(match.RelativePath, out note))
+            {
+                return null;
+            }
+            normalizedNoteRel = match.RelativePath;
+        }
+
+        string normalizedFolder = NormalizeFolderPath(targetFolderPath);
+        string fileName = Path.GetFileName(note.FullPath);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = $"{note.Title}.md";
+        }
+
+        string newRelPath = string.IsNullOrEmpty(normalizedFolder)
+            ? fileName
+            : $"{normalizedFolder}/{fileName}";
+        string newFullPath = Path.Combine(VaultRootPath, newRelPath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(newFullPath)!);
+
+        if (!string.IsNullOrEmpty(normalizedFolder))
+        {
+            var meta = GetFolderMetadata(normalizedFolder);
+            SetFolderIconAndColor(normalizedFolder, meta.IconEmoji, meta.ColorHex);
+        }
+
+        if (File.Exists(note.FullPath) && !string.Equals(note.FullPath, newFullPath, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Move(note.FullPath, newFullPath, overwrite: true);
+        }
+        else if (!File.Exists(newFullPath))
+        {
+            await File.WriteAllTextAsync(newFullPath, note.RawMarkdown, Encoding.UTF8, ct);
+        }
+
+        using (var conn = OpenConnection())
+        using (var delCmd = conn.CreateCommand())
+        {
+            delCmd.CommandText = "DELETE FROM note_cache WHERE relative_path = $oldPath;";
+            delCmd.Parameters.AddWithValue("$oldPath", normalizedNoteRel);
+            delCmd.ExecuteNonQuery();
+        }
+
+        note.RelativePath = newRelPath;
+        note.FullPath = newFullPath;
+        note.FolderPath = normalizedFolder;
+        note.FolderIconEmoji = GetFolderMetadata(normalizedFolder).IconEmoji;
+        _notesByRelativePath[newRelPath] = note;
+
+        UpsertSqliteCacheRow(note);
+        LatestMetrics = KnowledgeGraphEngine.RebuildGraphRelationships(_notesByRelativePath.Values.ToList());
+        Interlocked.Increment(ref _mutationVersion);
+        return note;
+    }
+
+    /// <summary>
+    /// Builds the full hierarchical tree of root folders and nested subfolders with direct and total note counts.
+    /// </summary>
+    public IReadOnlyList<VaultFolderNode> GetFolderHierarchyTree()
+    {
+        var metadataMap = new Dictionary<string, (string Icon, string Color, bool Expanded)>(StringComparer.OrdinalIgnoreCase);
+
+        using (var conn = OpenConnection())
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "SELECT folder_path, icon_emoji, color_hex, is_expanded FROM folder_metadata;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                string path = NormalizeFolderPath(reader.GetString(0));
+                if (!string.IsNullOrEmpty(path))
+                {
+                    metadataMap[path] = (reader.GetString(1), reader.GetString(2), reader.GetInt32(3) != 0);
+                }
+            }
+        }
+
+        var allFolderPaths = new HashSet<string>(metadataMap.Keys, StringComparer.OrdinalIgnoreCase);
+        foreach (var note in _notesByRelativePath.Values)
+        {
+            string f = NormalizeFolderPath(note.FolderPath);
+            if (!string.IsNullOrEmpty(f))
+            {
+                allFolderPaths.Add(f);
+            }
+        }
+
+        // Ensure all ancestor folder prefixes exist in the set
+        foreach (string path in allFolderPaths.ToList())
+        {
+            string[] parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            string running = string.Empty;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                running = i == 0 ? parts[0] : $"{running}/{parts[i]}";
+                allFolderPaths.Add(running);
+            }
+        }
+
+        var nodesByPath = new Dictionary<string, VaultFolderNode>(StringComparer.OrdinalIgnoreCase);
+        foreach (string path in allFolderPaths.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+        {
+            int lastSlash = path.LastIndexOf('/');
+            string? parentPath = lastSlash > 0 ? path[..lastSlash] : null;
+            string displayName = lastSlash > 0 ? path[(lastSlash + 1)..] : path;
+            int depth = path.Count(c => c == '/');
+
+            (string IconEmoji, string ColorHex, bool IsExpanded) meta = metadataMap.TryGetValue(path, out var m)
+                ? m
+                : InferDefaultFolderMetadata(path);
+
+            nodesByPath[path] = new VaultFolderNode
+            {
+                FolderPath = path,
+                DisplayName = displayName,
+                ParentFolderPath = parentPath,
+                Depth = depth,
+                IconEmoji = meta.IconEmoji,
+                AccentColorHex = meta.ColorHex,
+                IsExpanded = meta.IsExpanded
+            };
+        }
+
+        foreach (var note in _notesByRelativePath.Values.OrderBy(n => n.Title, StringComparer.OrdinalIgnoreCase))
+        {
+            string f = NormalizeFolderPath(note.FolderPath);
+            if (!string.IsNullOrEmpty(f) && nodesByPath.TryGetValue(f, out var folderNode))
+            {
+                note.FolderIconEmoji = folderNode.IconEmoji;
+                folderNode.Notes.Add(note);
+                folderNode.DirectNoteCount++;
+            }
+        }
+
+        var roots = new List<VaultFolderNode>();
+        foreach (var node in nodesByPath.Values.OrderBy(n => n.FolderPath, StringComparer.OrdinalIgnoreCase))
+        {
+            if (node.ParentFolderPath is not null && nodesByPath.TryGetValue(node.ParentFolderPath, out var parentNode))
+            {
+                parentNode.Subfolders.Add(node);
+            }
+            else
+            {
+                roots.Add(node);
+            }
+        }
+
+        foreach (var root in roots)
+        {
+            ComputeTotalNotesRecursive(root);
+        }
+
+        return roots;
+    }
+
+    /// <summary>
+    /// Returns the pre-order flattened list of visible folders/subfolders, respecting IsExpanded on parent folders.
+    /// </summary>
+    public IReadOnlyList<VaultFolderNode> GetFlattenedVisibleFolderTree()
+    {
+        var roots = GetFolderHierarchyTree();
+        var visible = new List<VaultFolderNode>();
+        foreach (var root in roots)
+        {
+            AppendVisibleRecursive(root, visible);
+        }
+        return visible;
+    }
+
+    private List<VaultFolderNode> GetFlattenedAllFolders()
+    {
+        var roots = GetFolderHierarchyTree();
+        var all = new List<VaultFolderNode>();
+        foreach (var root in roots)
+        {
+            AppendAllRecursive(root, all);
+        }
+        return all;
+    }
+
+    private static int ComputeTotalNotesRecursive(VaultFolderNode node)
+    {
+        int sum = node.DirectNoteCount;
+        foreach (var sub in node.Subfolders)
+        {
+            sum += ComputeTotalNotesRecursive(sub);
+        }
+        node.TotalNoteCount = sum;
+        return sum;
+    }
+
+    private static void AppendVisibleRecursive(VaultFolderNode node, List<VaultFolderNode> target)
+    {
+        target.Add(node);
+        if (!node.IsExpanded)
+        {
+            return;
+        }
+
+        foreach (var sub in node.Subfolders)
+        {
+            AppendVisibleRecursive(sub, target);
+        }
+    }
+
+    private static void AppendAllRecursive(VaultFolderNode node, List<VaultFolderNode> target)
+    {
+        target.Add(node);
+        foreach (var sub in node.Subfolders)
+        {
+            AppendAllRecursive(sub, target);
+        }
+    }
+
+    /// <summary>
+    /// Returns all Capacities Object Studio schemas with live object counts across the vault.
+    /// </summary>
+    public IReadOnlyList<CapacitiesObjectTypeSchema> GetObjectTypeSchemas()
+    {
+        var countsByType = _notesByRelativePath.Values
+            .GroupBy(n => n.ObjectType, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+
+        var schemas = new List<CapacitiesObjectTypeSchema>();
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT type_id, singular_name, plural_name, icon_emoji, accent_color_hex, default_folder, schema_props_csv, description
+            FROM capacities_object_types
+            ORDER BY rowid ASC;
+            """;
+
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            string typeId = reader.GetString(0);
+            string singular = reader.GetString(1);
+            string plural = reader.GetString(2);
+            string icon = reader.GetString(3);
+            string color = reader.GetString(4);
+            string folder = reader.GetString(5);
+            string propsCsv = reader.GetString(6);
+            string desc = reader.GetString(7);
+
+            countsByType.TryGetValue(singular, out int count);
+            var propList = propsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            schemas.Add(new CapacitiesObjectTypeSchema(
+                typeId,
+                singular,
+                plural,
+                icon,
+                color,
+                folder,
+                propList,
+                desc,
+                count));
+        }
+
+        return schemas;
+    }
+
+    /// <summary>
+    /// Persists a custom Capacities Object Type schema in SQLite WAL capacities_object_types.
+    /// </summary>
+    public void SaveCustomObjectType(CapacitiesObjectTypeSchema schema)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO capacities_object_types (type_id, singular_name, plural_name, icon_emoji, accent_color_hex, default_folder, schema_props_csv, description)
+            VALUES ($id, $singular, $plural, $icon, $color, $folder, $props, $desc)
+            ON CONFLICT(type_id) DO UPDATE SET
+                singular_name = excluded.singular_name,
+                plural_name = excluded.plural_name,
+                icon_emoji = excluded.icon_emoji,
+                accent_color_hex = excluded.accent_color_hex,
+                default_folder = excluded.default_folder,
+                schema_props_csv = excluded.schema_props_csv,
+                description = excluded.description;
+            """;
+        cmd.Parameters.AddWithValue("$id", schema.TypeId);
+        cmd.Parameters.AddWithValue("$singular", schema.SingularName);
+        cmd.Parameters.AddWithValue("$plural", schema.PluralName);
+        cmd.Parameters.AddWithValue("$icon", schema.IconEmoji);
+        cmd.Parameters.AddWithValue("$color", schema.AccentColorHex);
+        cmd.Parameters.AddWithValue("$folder", NormalizeFolderPath(schema.DefaultFolderPath));
+        cmd.Parameters.AddWithValue("$props", string.Join(",", schema.SchemaPropertyKeys));
+        cmd.Parameters.AddWithValue("$desc", schema.Description);
+        cmd.ExecuteNonQuery();
+
+        Interlocked.Increment(ref _mutationVersion);
+    }
+
+    /// <summary>
+    /// Creates a new typed Capacities Object Markdown note with structured YAML frontmatter, icon, cover color, and collection.
+    /// </summary>
+    public async Task<VaultNote> CreateTypedObjectNoteAsync(
+        string objectTypeIdOrName,
+        string title,
+        string? targetFolder = null,
+        string? collectionName = null,
+        CancellationToken ct = default)
+    {
+        var schemas = GetObjectTypeSchemas();
+        var schema = schemas.FirstOrDefault(s =>
+            string.Equals(s.TypeId, objectTypeIdOrName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(s.SingularName, objectTypeIdOrName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(s.PluralName, objectTypeIdOrName, StringComparison.OrdinalIgnoreCase))
+            ?? schemas[0];
+
+        string folder = !string.IsNullOrWhiteSpace(targetFolder)
+            ? NormalizeFolderPath(targetFolder)
+            : NormalizeFolderPath(schema.DefaultFolderPath);
+
+        if (!string.IsNullOrEmpty(folder))
+        {
+            var folderMeta = GetFolderMetadata(folder);
+            CreateFolderOrSubfolder(folder, folderMeta.IconEmoji, folderMeta.ColorHex);
+        }
+
+        string safeTitle = string.IsNullOrWhiteSpace(title)
+            ? $"New {schema.SingularName} {DateTime.UtcNow:HHmmss}"
+            : title.Trim();
+
+        string resolvedCollection = !string.IsNullOrWhiteSpace(collectionName)
+            ? collectionName.Trim()
+            : (folder.Contains("Capacities", StringComparison.OrdinalIgnoreCase) ? "Launch Roadmap" : "Core Architecture");
+
+        string dateIso = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        string markdown = $"""
+            ---
+            type: {schema.SingularName}
+            icon: {schema.IconEmoji}
+            cover: {schema.AccentColorHex}
+            collection: {resolvedCollection}
+            status: Active
+            priority: P1 High
+            date: {dateIso}
+            tags: [capacities, {schema.TypeId}]
+            ---
+            # {schema.IconEmoji} {safeTitle}
+
+            Created in **Capacities Object Studio** as a typed `{schema.SingularName}` object inside `{folder}` (`{resolvedCollection}`).
+
+            ## Structured Object Context
+            - Connected to [[Storage Architecture]] and [[Apple Design Tokens]].
+            - [ ] Complete initial review for {safeTitle} 📅 {dateIso} #{schema.TypeId}
+            """;
+
+        string relPath = string.IsNullOrEmpty(folder) ? $"{safeTitle}.md" : $"{folder}/{safeTitle}.md";
+        return await SaveNoteAsync(relPath, markdown, $"Created {schema.SingularName}", ct);
+    }
+
+    private static string NormalizeFolderPath(string? folderPath) =>
+        string.IsNullOrWhiteSpace(folderPath)
+            ? string.Empty
+            : folderPath.Replace('\\', '/').Trim('/');
+
+    private static (string IconEmoji, string ColorHex, bool IsExpanded) InferDefaultFolderMetadata(string normalizedFolder) =>
+        normalizedFolder.ToLowerInvariant() switch
+        {
+            var f when f.Contains("storage") => ("💾", "#10B981", true),
+            var f when f.Contains("protocol") => ("🔌", "#8B5CF6", true),
+            var f when f.Contains("architecture") => ("🏛️", "#0071E3", true),
+            var f when f.Contains("daily") => ("📅", "#EAB308", true),
+            var f when f.Contains("study") => ("🧠", "#06B6D4", true),
+            var f when f.Contains("project") => ("🚀", "#8B5CF6", true),
+            var f when f.Contains("meeting") => ("🤝", "#F97316", true),
+            var f when f.Contains("capacities") => ("✨", "#EC4899", true),
+            _ => ("📁", "#0071E3", true)
+        };
+
     private void UpsertSqliteCacheRow(VaultNote note)
     {
         using var conn = OpenConnection();
@@ -982,141 +1613,261 @@ public sealed class HybridVaultEngine : IDisposable
 
     private void EnsureStarterVaultFilesOnDisk()
     {
-        var existing = Directory.EnumerateFiles(VaultRootPath, "*.md", SearchOption.AllDirectories).Any();
-        if (existing) return;
+        var mdFiles = Directory.EnumerateFiles(VaultRootPath, "*.md", SearchOption.AllDirectories)
+            .Where(f => !f.Contains(Path.DirectorySeparatorChar + ".rhyolite" + Path.DirectorySeparatorChar))
+            .ToList();
 
-        var archDir = Path.Combine(VaultRootPath, "01 — Architecture");
-        var dailyDir = Path.Combine(VaultRootPath, "02 — Daily Notes");
-        var studyDir = Path.Combine(VaultRootPath, "03 — Study & Research");
-        Directory.CreateDirectory(archDir);
-        Directory.CreateDirectory(dailyDir);
-        Directory.CreateDirectory(studyDir);
+        if (mdFiles.Count == 0)
+        {
+            var archDir = Path.Combine(VaultRootPath, "01 — Architecture");
+            var dailyDir = Path.Combine(VaultRootPath, "02 — Daily Notes");
+            var studyDir = Path.Combine(VaultRootPath, "03 — Study & Research");
+            Directory.CreateDirectory(archDir);
+            Directory.CreateDirectory(dailyDir);
+            Directory.CreateDirectory(studyDir);
 
-        File.WriteAllText(Path.Combine(archDir, "Storage Architecture.md"), """
-            ---
-            status: Shipped
-            subsystem: Rhyolite.Core
-            priority: P0 Critical
-            pinned: true
-            tags: [architecture, local-first, sqlite-wal, apple-design]
-            ---
-            # Hybrid Storage Engine: Plain Markdown + SQLite Sidecar
+            File.WriteAllText(Path.Combine(archDir, "Storage Architecture.md"), """
+                ---
+                type: Architecture ADR
+                icon: 🏛️
+                collection: Core Architecture
+                status: Shipped
+                subsystem: Rhyolite.Core
+                priority: P0 Critical
+                date: 2026-11-03
+                pinned: true
+                tags: [architecture, local-first, sqlite-wal, apple-design]
+                ---
+                # Hybrid Storage Engine: Plain Markdown + SQLite Sidecar
 
-            Rhyolite keeps plain `.md` files on disk as the canonical source of truth while pairing them with an in-memory AST delta index and a **SQLite WAL sidecar cache** (`.rhyolite/cache.db`). It feeds directly into [[Avalonia Rendering Pipeline]], [[Apple Design Tokens]], and [[MCP and GraphQL P2P Mesh]].
+                Rhyolite keeps plain `.md` files on disk as the canonical source of truth while pairing them with an in-memory AST delta index and a **SQLite WAL sidecar cache** (`.rhyolite/cache.db`). It feeds directly into [[Avalonia Rendering Pipeline]], [[Apple Design Tokens]], and [[MCP and GraphQL P2P Mesh]].
 
-            > [!IMPORTANT] Zero-Latency Typing Pipeline
-            > Keystrokes mutate the in-memory rope buffer in < 0.05 ms. A background channel debounces disk flushes (400 ms) and updates only the modified note's edges in `.rhyolite/cache.db`.
+                > [!IMPORTANT] Zero-Latency Typing Pipeline
+                > Keystrokes mutate the in-memory rope buffer in < 0.05 ms. A background channel debounces disk flushes (400 ms) and updates only the modified note's edges in `.rhyolite/cache.db`.
 
-            ## Implementation Milestones
-            - [x] Configure plain `.md` atomic writer with temp-file swap 📅 2026-11-03 #architecture
-            - [x] Enable SQLite Write-Ahead Logging (WAL) sidecar index for instant cold boots 📅 2026-11-03 #sqlite-wal
-            - [ ] Benchmark 10,000-note graph PageRank & [[FSRS Spaced Repetition]] sync ⏫ 📅 2026-11-05 #benchmark
+                ## Implementation Milestones
+                - [x] Configure plain `.md` atomic writer with temp-file swap 📅 2026-11-03 #architecture
+                - [x] Enable SQLite Write-Ahead Logging (WAL) sidecar index for instant cold boots 📅 2026-11-03 #sqlite-wal
+                - [ ] Benchmark 10,000-note graph PageRank & [[FSRS Spaced Repetition]] sync ⏫ 📅 2026-11-05 #benchmark
 
-            ## Embedded Flashcards
-            Q: Why does Rhyolite pair plain .md files with a SQLite WAL sidecar cache instead of storing note bodies inside SQLite?
-            A: Plain .md files preserve zero lock-in for Git/VS Code/iCloud, while the SQLite WAL sidecar cache provides < 50 ms cold startup and instant FTS/graph indexing.
-            """);
+                ## Embedded Flashcards
+                Q: Why does Rhyolite pair plain .md files with a SQLite WAL sidecar cache instead of storing note bodies inside SQLite?
+                A: Plain .md files preserve zero lock-in for Git/VS Code/iCloud, while the SQLite WAL sidecar cache provides < 50 ms cold startup and instant FTS/graph indexing.
+                """);
 
-        File.WriteAllText(Path.Combine(archDir, "Avalonia Rendering Pipeline.md"), """
-            ---
-            status: Shipped
-            subsystem: Rhyolite.UI
-            priority: P0 Critical
-            tags: [avalonia, skia, cross-platform, architecture]
-            ---
-            # Avalonia 11 Skia Rendering Pipeline
+            File.WriteAllText(Path.Combine(archDir, "Avalonia Rendering Pipeline.md"), """
+                ---
+                type: Architecture ADR
+                icon: 🏛️
+                collection: Core Architecture
+                status: Shipped
+                subsystem: Rhyolite.UI
+                priority: P0 Critical
+                date: 2026-11-03
+                tags: [avalonia, skia, cross-platform, architecture]
+                ---
+                # Avalonia 11 Skia Rendering Pipeline
 
-            Built on **C# 14 / .NET 10** and **Avalonia UI**, Rhyolite renders a unified hardware-accelerated interface across **Windows, macOS, Linux, iOS, and Android**.
+                Built on **C# 14 / .NET 10** and **Avalonia UI**, Rhyolite renders a unified hardware-accelerated interface across **Windows, macOS, Linux, iOS, and Android**.
 
-            It consumes incremental graph deltas from [[Storage Architecture]] and applies the [[Apple Design Tokens]] and [[Mobile HIG Adaptive Shell]].
+                It consumes incremental graph deltas from [[Storage Architecture]] and applies the [[Apple Design Tokens]] and [[Mobile HIG Adaptive Shell]].
 
-            - [x] Implement 60fps Fruchterman-Reingold force-directed graph canvas 📅 2026-11-03 #skia
-            - [x] Implement JSON Canvas 1.0 spatial workspace control 📅 2026-11-03 #canvas
-            """);
+                - [x] Implement 60fps Fruchterman-Reingold force-directed graph canvas 📅 2026-11-03 #skia
+                - [x] Implement JSON Canvas 1.0 spatial workspace control 📅 2026-11-03 #canvas
+                """);
 
-        File.WriteAllText(Path.Combine(archDir, "Apple Design Tokens.md"), """
-            ---
-            status: Shipped
-            subsystem: Rhyolite.UI
-            priority: P0 Critical
-            pinned: true
-            tags: [apple-design, open-design-agent-kit, ui]
-            ---
-            # Apple Design System (open-design-agent-kit)
+            File.WriteAllText(Path.Combine(archDir, "Apple Design Tokens.md"), """
+                ---
+                type: Architecture ADR
+                icon: 🏛️
+                collection: Core Architecture
+                status: Shipped
+                subsystem: Rhyolite.UI
+                priority: P0 Critical
+                date: 2026-11-03
+                pinned: true
+                tags: [apple-design, open-design-agent-kit, ui]
+                ---
+                # Apple Design System (open-design-agent-kit)
 
-            Rhyolite implements the exact color, typography, radius, and elevation tokens from `feimacode/open-design-agent-kit` (`claude-design-systems/apple` and `apple-music-ios`).
+                Rhyolite implements the exact color, typography, radius, and elevation tokens from `feimacode/open-design-agent-kit` (`claude-design-systems/apple` and `apple-music-ios`).
 
-            > [!TIP] Binary Canvas Cadence
-            > Light Mode alternates pure `#FFFFFF` canvases with `#F5F5F7` secondary surfaces and `#0071E3` Apple Action Blue. Dark Mode uses True Black `#000000` with `#1C1C1E` -> `#272729` graphite surface stepping.
+                > [!TIP] Binary Canvas Cadence
+                > Light Mode alternates pure `#FFFFFF` canvases with `#F5F5F7` secondary surfaces and `#0071E3` Apple Action Blue. Dark Mode uses True Black `#000000` with `#1C1C1E` -> `#272729` graphite surface stepping.
 
-            Connected subsystems: [[Avalonia Rendering Pipeline]] and [[Mobile HIG Adaptive Shell]].
+                Connected subsystems: [[Avalonia Rendering Pipeline]] and [[Mobile HIG Adaptive Shell]].
 
-            Apple Primary Action Hex :: #0071E3 (Apple Action Blue) with #0066CC inline links in light mode and #2997FF in dark mode.
-            """);
+                Apple Primary Action Hex :: #0071E3 (Apple Action Blue) with #0066CC inline links in light mode and #2997FF in dark mode.
+                """);
 
-        File.WriteAllText(Path.Combine(archDir, "MCP and GraphQL P2P Mesh.md"), """
-            ---
-            status: In Progress
-            subsystem: Rhyolite.Core.Protocol
-            priority: P0 Critical
-            pinned: true
-            tags: [mcp, graphql, p2p, auth, oauth, architecture]
-            ---
-            # High-Speed MCP + GraphQL + Peer-to-Peer Sync & Identity Engine
+            File.WriteAllText(Path.Combine(archDir, "MCP and GraphQL P2P Mesh.md"), """
+                ---
+                type: Architecture ADR
+                icon: 🔌
+                collection: Core Architecture
+                status: In Progress
+                subsystem: Rhyolite.Core.Protocol
+                priority: P0 Critical
+                date: 2026-11-03
+                pinned: true
+                tags: [mcp, graphql, p2p, auth, oauth, architecture]
+                ---
+                # High-Speed MCP + GraphQL + Peer-to-Peer Sync & Identity Engine
 
-            Rhyolite exposes a dual **Model Context Protocol (MCP)** JSON-RPC 2.0 server for AI Agent harnesses and a **GraphQL + HLC Merkle P2P Mesh** for peer Rhyolite installations, backed by [[Storage Architecture]].
+                Rhyolite exposes a dual **Model Context Protocol (MCP)** JSON-RPC 2.0 server for AI Agent harnesses and a **GraphQL + HLC Merkle P2P Mesh** for peer Rhyolite installations, backed by [[Storage Architecture]].
 
-            > [!NOTE] RBAC & Pluggable OAuth/SSO
-            > Supports local Email + Account authentication (`PBKDF2-SHA512` + `HMAC-SHA256` tokens) with granular roles (`VaultOwner`, `Editor`, `AiAgentReadWrite`, `TrustedPeerNode`) and pluggable OAuth2/OIDC adapters for **Enterprise SSO**, **Google**, **GitHub**, **Microsoft**, and **Apple**.
+                > [!NOTE] RBAC & Pluggable OAuth/SSO
+                > Supports local Email + Account authentication (`PBKDF2-SHA512` + `HMAC-SHA256` tokens) with granular roles (`VaultOwner`, `Editor`, `AiAgentReadWrite`, `TrustedPeerNode`) and pluggable OAuth2/OIDC adapters for **Enterprise SSO**, **Google**, **GitHub**, **Microsoft**, and **Apple**.
 
-            - [x] Implement JSON-RPC 2.0 MCP tools for reading, writing, patching, and graph querying 📅 2026-11-03 #mcp
-            - [x] Implement GraphQL schema & Merkle-tree HLC peer sync engine 📅 2026-11-03 #graphql #p2p
-            - [ ] Wire external OIDC discovery endpoints for enterprise SSO deployment 🔼 📅 2026-11-08 #auth
-            """);
+                - [x] Implement JSON-RPC 2.0 MCP tools for reading, writing, patching, and graph querying 📅 2026-11-03 #mcp
+                - [x] Implement GraphQL schema & Merkle-tree HLC peer sync engine 📅 2026-11-03 #graphql #p2p
+                - [ ] Wire external OIDC discovery endpoints for enterprise SSO deployment 🔼 📅 2026-11-08 #auth
+                """);
 
-        File.WriteAllText(Path.Combine(studyDir, "FSRS Spaced Repetition.md"), """
-            ---
-            status: In Progress
-            subsystem: Rhyolite.Study
-            priority: P1 High
-            tags: [fsrs, flashcards, study, expansion]
-            ---
-            # Native FSRS v4 Spaced Repetition Studio
+            File.WriteAllText(Path.Combine(studyDir, "FSRS Spaced Repetition.md"), """
+                ---
+                type: Study Card
+                icon: 🧠
+                collection: Spaced Repetition
+                status: In Progress
+                subsystem: Rhyolite.Study
+                priority: P1 High
+                date: 2026-11-03
+                tags: [fsrs, flashcards, study, expansion]
+                ---
+                # Native FSRS v4 Spaced Repetition Studio
 
-            Unlike Obsidian (which requires external plugins for flashcards), Rhyolite natively parses `Q:/A:`, `::`, and `{{c1::cloze}}` cards from any note in [[Storage Architecture]] and schedules reviews using the **FSRS v4** memory stability model.
+                Unlike Obsidian (which requires external plugins for flashcards), Rhyolite natively parses `Q:/A:`, `::`, and `{{c1::cloze}}` cards from any note in [[Storage Architecture]] and schedules reviews using the **FSRS v4** memory stability model.
 
-            {{c1::Hybrid Logical Clocks (HLC)}} combine physical wall-clock time with a logical counter for deterministic P2P conflict resolution in [[MCP and GraphQL P2P Mesh]].
-            """);
+                {{c1::Hybrid Logical Clocks (HLC)}} combine physical wall-clock time with a logical counter for deterministic P2P conflict resolution in [[MCP and GraphQL P2P Mesh]].
+                """);
 
-        File.WriteAllText(Path.Combine(archDir, "Mobile HIG Adaptive Shell.md"), """
-            ---
-            status: Planned
-            subsystem: Rhyolite.iOS / Android
-            priority: P1 High
-            tags: [mobile, ios, android, apple-design]
-            ---
-            # Cross-Platform Mobile & Tablet Adaptive Shell
+            File.WriteAllText(Path.Combine(archDir, "Mobile HIG Adaptive Shell.md"), """
+                ---
+                type: Architecture ADR
+                icon: 📱
+                collection: Core Architecture
+                status: Planned
+                subsystem: Rhyolite.iOS / Android
+                priority: P1 High
+                date: 2026-11-04
+                tags: [mobile, ios, android, apple-design]
+                ---
+                # Cross-Platform Mobile & Tablet Adaptive Shell
 
-            Targets `net10.0-ios` and `net10.0-android` using [[Apple Design Tokens]] (`apple-music-ios`), featuring 44pt minimum touch targets, `.regularMaterial` bottom navigation bars, and instant Quick Capture into [[2026-11-03]].
-            """);
+                Targets `net10.0-ios` and `net10.0-android` using [[Apple Design Tokens]] (`apple-music-ios`), featuring 44pt minimum touch targets, `.regularMaterial` bottom navigation bars, and instant Quick Capture into [[2026-11-03]].
+                """);
 
-        File.WriteAllText(Path.Combine(dailyDir, "2026-11-03.md"), """
-            ---
-            status: Active
-            subsystem: Daily Note
-            priority: P1 High
-            tags: [daily, sprint]
-            ---
-            # Daily Engineering Log — 2026-11-03
+            File.WriteAllText(Path.Combine(dailyDir, "2026-11-03.md"), """
+                ---
+                type: Daily Note
+                icon: 📅
+                collection: Daily Journal
+                status: Active
+                subsystem: Daily Note
+                priority: P1 High
+                date: 2026-11-03
+                tags: [daily, sprint]
+                ---
+                # Daily Engineering Log — 2026-11-03
 
-            Completed architectural verification of [[Storage Architecture]], [[Apple Design Tokens]], and [[MCP and GraphQL P2P Mesh]].
+                Completed architectural verification of [[Storage Architecture]], [[Apple Design Tokens]], and [[MCP and GraphQL P2P Mesh]].
 
-            - [x] Finalize 3-tier plain `.md` + SQLite WAL sidecar architecture 📅 2026-11-03 #daily
-            - [ ] Review 12 due flashcards in [[FSRS Spaced Repetition]] 📅 2026-11-03 #study
-            """);
+                - [x] Finalize 3-tier plain `.md` + SQLite WAL sidecar architecture 📅 2026-11-03 #daily
+                - [ ] Review 12 due flashcards in [[FSRS Spaced Repetition]] 📅 2026-11-03 #study
+                """);
 
-        var defaultCanvas = JsonCanvasEngine.CreateDefaultArchitectureCanvas();
-        File.WriteAllText(_canvasFilePath, JsonCanvasEngine.Serialize(defaultCanvas), Encoding.UTF8);
+            var defaultCanvas = JsonCanvasEngine.CreateDefaultArchitectureCanvas();
+            File.WriteAllText(_canvasFilePath, JsonCanvasEngine.Serialize(defaultCanvas), Encoding.UTF8);
+        }
+
+        // Seed nested subfolder & Capacities Object Studio starter notes if default vault has < 10 notes
+        bool isStarterVault = File.Exists(Path.Combine(VaultRootPath, "01 — Architecture", "Storage Architecture.md"));
+        if (mdFiles.Count == 0 || (isStarterVault && mdFiles.Count < 10))
+        {
+            var storageSubdir = Path.Combine(VaultRootPath, "01 — Architecture", "Storage");
+            var protocolsSubdir = Path.Combine(VaultRootPath, "01 — Architecture", "Protocols");
+            var projectsSubdir = Path.Combine(VaultRootPath, "04 — Capacities Studio", "Projects");
+            var meetingsSubdir = Path.Combine(VaultRootPath, "04 — Capacities Studio", "Meetings");
+
+            Directory.CreateDirectory(storageSubdir);
+            Directory.CreateDirectory(protocolsSubdir);
+            Directory.CreateDirectory(projectsSubdir);
+            Directory.CreateDirectory(meetingsSubdir);
+
+            string walNotePath = Path.Combine(storageSubdir, "SQLite WAL Indexer.md");
+            if (!File.Exists(walNotePath))
+            {
+                File.WriteAllText(walNotePath, """
+                    ---
+                    type: Architecture ADR
+                    icon: 💾
+                    cover: #10B981
+                    collection: Core Architecture
+                    status: Shipped
+                    subsystem: Rhyolite.Core.Storage
+                    priority: P0 Critical
+                    date: 2026-11-04
+                    tags: [sqlite-wal, storage,subfolder, architecture]
+                    ---
+                    # SQLite WAL Sidecar Indexer & Folder Metadata Tree
+
+                    Nested under `01 — Architecture/Storage`, this subsystem indexes [[Storage Architecture]] notes, FSRS v4 reviews, and hierarchical folder/subfolder emoji metadata in `< 0.2 ms`.
+
+                    - [x] Persist hierarchical folder icons and expansion state in `folder_metadata` 📅 2026-11-04 #sqlite-wal
+                    - [x] Support Capacities typed object schemas in `capacities_object_types` 📅 2026-11-04 #capacities
+                    """);
+            }
+
+            string launchProjectPath = Path.Combine(projectsSubdir, "Rhyolite 1.0 Launch.md");
+            if (!File.Exists(launchProjectPath))
+            {
+                File.WriteAllText(launchProjectPath, """
+                    ---
+                    type: Project
+                    icon: 🚀
+                    cover: #8B5CF6
+                    collection: Launch Roadmap
+                    status: In Progress
+                    subsystem: Rhyolite.Studio
+                    priority: P0 Critical
+                    date: 2026-11-04
+                    pinned: true
+                    tags: [capacities, project, launch, roadmap]
+                    ---
+                    # Rhyolite 1.0 Launch — Capacities Object Studio & Obsidian Bases
+
+                    Unifies **Obsidian hierarchical folders/subfolders** (with custom emoji/color badges) and **Capacities Object Studio** (`Project`, `Meeting`, `Architecture ADR`, `Daily Note`, `Study Card`, `Person`) on top of [[Storage Architecture]] and [[Avalonia Rendering Pipeline]].
+
+                    - [x] Deliver Table, Kanban, Gallery Wall, and Calendar Object Studio views 📅 2026-11-04 #capacities
+                    - [ ] Publish cross-platform release artifacts for macOS, Windows, Linux, iOS, and Android 📅 2026-11-10 #launch
+                    """);
+            }
+
+            string meetingNotePath = Path.Combine(meetingsSubdir, "Architecture Design Review.md");
+            if (!File.Exists(meetingNotePath))
+            {
+                File.WriteAllText(meetingNotePath, """
+                    ---
+                    type: Meeting
+                    icon: 🤝
+                    cover: #EC4899
+                    collection: Launch Roadmap
+                    status: Active
+                    subsystem: Rhyolite.Core
+                    priority: P1 High
+                    date: 2026-11-04
+                    tags: [capacities, meeting, review, design]
+                    ---
+                    # Architecture Design Review — 9 Design Systems & Object Studio
+
+                    Reviewed [[Apple Design Tokens]], [[MCP and GraphQL P2P Mesh]], and [[Rhyolite 1.0 Launch]] across all 9 `open-design-agent-kit` design systems.
+
+                    - [x] Approve hierarchical subfolder tree and emoji badge picker 📅 2026-11-04 #design
+                    - [x] Verify Capacities Gallery Wall and Calendar timeline projections 📅 2026-11-04 #capacities
+                    """);
+            }
+        }
     }
 
     public void Dispose()

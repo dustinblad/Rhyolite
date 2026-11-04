@@ -78,6 +78,11 @@
       <Setter Property="CornerRadius" Value="{DynamicResource AppleSecondaryBtnCornerRadius}" />
       <Setter Property="Padding" Value="4,2" />
       <Setter Property="Margin" Value="0,1" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.14" />
+        </Transitions>
+      </Setter>
     </Style>
 
     <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
@@ -100,6 +105,11 @@
       <Setter Property="CornerRadius" Value="{DynamicResource AppleCardCornerRadius}" />
       <Setter Property="Padding" Value="{DynamicResource AppleCardPadding}" />
       <Setter Property="BoxShadow" Value="{DynamicResource AppleCardShadow}" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.14" />
+        </Transitions>
+      </Setter>
     </Style>
 
     <Style Selector="Border.apple-surface-card">
@@ -109,6 +119,11 @@
       <Setter Property="CornerRadius" Value="{DynamicResource AppleCardCornerRadius}" />
       <Setter Property="Padding" Value="{DynamicResource AppleCardPadding}" />
       <Setter Property="BoxShadow" Value="{DynamicResource AppleCardShadow}" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.14" />
+        </Transitions>
+      </Setter>
     </Style>
 
     <Style Selector="Border.apple-pill">
@@ -131,6 +146,13 @@
       <Setter Property="FontSize" Value="{DynamicResource AppleBtnFontSize}" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="RenderTransform" Value="scale(1)" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.14" />
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="CubicEaseOut" />
+        </Transitions>
+      </Setter>
       <Setter Property="Template">
         <ControlTemplate>
           <Border x:Name="PART_ButtonChrome"
@@ -157,9 +179,17 @@
       </Setter>
     </Style>
 
+    <Style Selector="Button.apple-btn-primary:pointerover">
+      <Setter Property="RenderTransform" Value="scale(1.015)" />
+    </Style>
+
     <Style Selector="Button.apple-btn-primary:pointerover /template/ Border#PART_ButtonChrome">
       <Setter Property="Background" Value="{DynamicResource AppleAccentHoverBrush}" />
       <Setter Property="Opacity" Value="0.95" />
+    </Style>
+
+    <Style Selector="Button.apple-btn-primary:pressed">
+      <Setter Property="RenderTransform" Value="scale(0.975)" />
     </Style>
 
     <Style Selector="Button.apple-btn-primary:pressed /template/ Border#PART_ButtonChrome">
@@ -179,6 +209,13 @@
       <Setter Property="FontSize" Value="{DynamicResource AppleBtnFontSize}" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="RenderTransform" Value="scale(1)" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.14" />
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="CubicEaseOut" />
+        </Transitions>
+      </Setter>
       <Setter Property="Template">
         <ControlTemplate>
           <Border x:Name="PART_ButtonChrome"
@@ -205,9 +242,17 @@
       </Setter>
     </Style>
 
+    <Style Selector="Button.apple-btn-secondary:pointerover">
+      <Setter Property="RenderTransform" Value="scale(1.015)" />
+    </Style>
+
     <Style Selector="Button.apple-btn-secondary:pointerover /template/ Border#PART_ButtonChrome">
       <Setter Property="Background" Value="{DynamicResource AppleSurfaceWarmBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AppleAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.apple-btn-secondary:pressed">
+      <Setter Property="RenderTransform" Value="scale(0.975)" />
     </Style>
 
     <Style Selector="Button.apple-btn-secondary:pressed /template/ Border#PART_ButtonChrome">
