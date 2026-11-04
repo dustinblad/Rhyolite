@@ -273,7 +273,8 @@ git push origin main
 git push origin "${TAG}" --force
 
 # 5. Create / Update GitHub Release with Embedded Logo & Packaged Binaries
-RELEASE_BODY="$(cat <<EOF
+RELEASE_NOTES_FILE="${RELEASE_DIR}/RELEASE_NOTES.md"
+cat > "$RELEASE_NOTES_FILE" <<EOF
 <p align="center">
   <img src="https://raw.githubusercontent.com/dustinblad/Rhyolite/main/assets/logo/rhyolite-logo.png" width="140" alt="Rhyolite Logo" />
 </p>
@@ -307,7 +308,6 @@ RELEASE_BODY="$(cat <<EOF
 - \`rhyolite-logo.png\`, \`rhyolite-logo.svg\`, \`rhyolite-logo.ico\` — Official Rhyolite App Icons
 - \`SHA256SUMS.txt\` — Cryptographic SHA-256 checksums
 EOF
-)"
 
 UPLOAD_FILES=(
   "${RELEASE_DIR}/Rhyolite-UserSetup-${TAG}-win-x64.exe"
@@ -327,9 +327,9 @@ fi
 
 if gh release view "${TAG}" >/dev/null 2>&1; then
   gh release upload "${TAG}" "${UPLOAD_FILES[@]}" --clobber
-  gh release edit "${TAG}" --title "Rhyolite ${TAG}" --notes "$RELEASE_BODY"
+  gh release edit "${TAG}" --title "Rhyolite ${TAG}" --notes-file "$RELEASE_NOTES_FILE"
 else
-  gh release create "${TAG}" "${UPLOAD_FILES[@]}" --title "Rhyolite ${TAG}" --notes "$RELEASE_BODY"
+  gh release create "${TAG}" "${UPLOAD_FILES[@]}" --title "Rhyolite ${TAG}" --notes-file "$RELEASE_NOTES_FILE"
 fi
 
 echo "✓ Successfully published Rhyolite ${TAG} to GitHub Releases!"
