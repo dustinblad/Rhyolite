@@ -7,7 +7,7 @@
         Width="1420" Height="880"
         MinWidth="960" MinHeight="640"
         x:Class="Rhyolite.Views.MainWindow"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="avares://Rhyolite.UI/Assets/Rhyolite.ico"
         Title="Rhyolite — Local-First Knowledge Studio (Apple Design System)">
   <views:MainView />
 </Window>

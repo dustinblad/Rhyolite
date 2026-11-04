@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
@@ -12,9 +13,25 @@ namespace Rhyolite.Desktop;
 
 sealed class Program
 {
+    [DllImport("shell32.dll")]
+    private static extern void SHChangeNotify(int wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
     [STAThread]
     public static int Main(string[] args)
     {
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                // Ensure Windows Explorer refreshes any cached .exe icon from prior versions
+                SHChangeNotify(0x08000000, 0x0000, IntPtr.Zero, IntPtr.Zero);
+            }
+            catch
+            {
+                // Ignore if shell notification is unavailable
+            }
+        }
+
         if (args.Length >= 2 && args[0] == "--export-mockups")
         {
             return ExportAllScreenMockups(args[1]);
@@ -97,7 +114,8 @@ sealed class Program
             using var bitmap = new RenderTargetBitmap(pixelSize, dpi);
             bitmap.Render(root);
             string fullPath = Path.Combine(outputDir, fileName);
-            bitmap.Save(fullPath);
+            using var fs = File.Create(fullPath);
+            bitmap.Save(fs);
             Console.WriteLine($"Rendered: {fullPath}");
         }
 

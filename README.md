@@ -111,12 +111,21 @@
 
 ## Quick Start — How to Get Rhyolite Working
 
-### 1. Prerequisites
+### 1. Download User-Based Installer or Single-File Portable Executable (No `.NET SDK` or Admin Required)
+Every [GitHub Release](https://github.com/dustinblad/Rhyolite/releases) publishes **Single-File Self-Contained Executables** (all `.dll`s and native runtime libraries combined into one file with the multi-resolution `Rhyolite.ico` / `Rhyolite.icns` embedded) alongside **Per-User Installers** that require **zero Administrator / UAC privileges**:
+
+| Platform | User-Based Installer (Recommended) | Single-File Portable Bundle |
+| :--- | :--- | :--- |
+| **Windows (x64)** | **`Rhyolite-UserSetup-vX.Y.Z-win-x64.exe`**<br>• Installs per-user to `%LocalAppData%\Programs\Rhyolite\Rhyolite.exe` (`asInvoker`, no UAC prompt).<br>• Creates Start Menu & Desktop shortcuts with the embedded `Rhyolite.ico` icon.<br>• Registers `.md` & `.canvas` associations and `HKCU` uninstaller (`--uninstall`). | **`Rhyolite-vX.Y.Z-win-x64.zip`**<br>• Contains a single `Rhyolite.exe` with all `.dll`s combined inside it and `Rhyolite.ico` embedded in its Win32 PE `.rsrc` section. |
+| **macOS (Apple Silicon)** | **`Rhyolite-UserInstaller-vX.Y.Z-macos-arm64.dmg`**<br>• Includes `Rhyolite.app` (with Retina `Rhyolite.icns`) + one-click `Install-For-Current-User.command` (`~/Applications/Rhyolite.app`). | **`Rhyolite-vX.Y.Z-macos-arm64.zip`**<br>• Self-contained `Rhyolite.app` bundle. |
+| **Linux (x64)** | **`Rhyolite-UserInstaller-vX.Y.Z-linux-x64.sh`**<br>• Installs single-file `rhyolite` to `~/.local/bin/rhyolite` and creates `~/.local/share/applications/rhyolite.desktop` (no `sudo`). | **`Rhyolite-vX.Y.Z-linux-x64.tar.gz`**<br>• Single-file `Rhyolite` executable. |
+
+### 2. Prerequisites (Building from Source)
 - **[.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)** (`10.0.100` or newer)
 - *(Optional)* **1Password CLI (`op`)** or **KeePassXC CLI (`keepassxc-cli`)** for live runbook secret injection
 - *(Optional)* **Xcode / Android SDK** if building `Rhyolite.iOS` or `Rhyolite.Android` (`dotnet workload install ios android`)
 
-### 2. Clone, Run & Test
+### 3. Clone, Run & Test from Source
 ```bash
 # 1. Clone the repository
 git clone https://github.com/dustinblad/Rhyolite.git

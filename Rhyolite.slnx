@@ -4,6 +4,7 @@
     <Project Path="src/Rhyolite.Core/Rhyolite.Core.csproj" />
     <Project Path="src/Rhyolite.Desktop/Rhyolite.Desktop.csproj" />
     <Project Path="src/Rhyolite.iOS/Rhyolite.iOS.csproj" />
+    <Project Path="src/Rhyolite.Setup/Rhyolite.Setup.csproj" />
     <Project Path="src/Rhyolite.UI/Rhyolite.UI.csproj" />
   </Folder>
   <Folder Name="/tests/">

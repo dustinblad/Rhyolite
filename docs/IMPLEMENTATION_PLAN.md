@@ -60,7 +60,7 @@ flowchart TD
 
 ## 2. Design System: `open-design-agent-kit` Apple Design Implementation
 
-We will integrate the exact tokens and craft rules from `feimacode/open-design-agent-kit/claude-design-systems/apple` (Desktop/Editorial) and `apple-music-ios` (Mobile/iOS HIG + Dark Mode) into Avalonia's styling system (`AppleDesignTokens.axaml` and `AppleControls.axaml`):
+We will integrate the exact tokens and craft rules from `feimacode/open-design-agent-kit/claude-design-systems/apple` (../Desktop/Editorial) and `apple-music-ios` (../Mobile/iOS HIG + Dark Mode) into Avalonia's styling system (`AppleDesignTokens.axaml` and `AppleControls.axaml`):
 
 > [!IMPORTANT]
 > **Apple Design Rules Enforced Across Rhyolite**
@@ -152,7 +152,7 @@ We will integrate the exact tokens and craft rules from `feimacode/open-design-a
    - **Peer-to-Peer (P2P) Rhyolite Mesh**: Direct installation-to-installation synchronization using Merkle-tree SHA-256 vault digests, Hybrid Logical Clocks (HLC), and delta block transfer.
    - **Identity, RBAC & Extensible OAuth2/OIDC SSO**:
      - Built-in Email & Account authentication (`PBKDF2-SHA512` password hashing, stateless `HMAC-SHA256` bearer tokens, and scoped Agent API keys) with granular roles (`VaultOwner`, `Admin`, `Editor`, `Reader`, `AiAgentReadWrite`, `AiAgentReadOnly`, `TrustedPeerNode`) and path/`#tag` ACL rules.
-     - Pluggable OAuth2/OIDC provider architecture ready for **Enterprise SSO (OIDC/SAML)**, **Google**, **GitHub**, **Microsoft Entra ID**, and **Sign in with Apple**.
+     - Pluggable OAuth2/OIDC provider architecture ready for **Enterprise SSO (../OIDC/SAML)**, **Google**, **GitHub**, **Microsoft Entra ID**, and **Sign in with Apple**.
 8. **External Collaborative Workspace Connectors — Docmost Space & Bladbase Workspace Sync (`Rhyolite.Core.Protocol.WorkspaceConnectorsEngine`)**:
    - **Bladbase Workspace Bidirectional Sync ([`dustinblad/bladbase`](https://github.com/dustinblad/bladbase) / `bladbase.com`)**:
      - **Dual-Authorship & Native MCP / REST / Yjs Bridge**: Synchronizes local Rhyolite `.md` folders with a remote **Bladbase Workspace** (`workspaceId`, nested pages, and collections). Preserves Bladbase's human + AI agent dual-authorship metadata (`bladbase_author_type: human | agent`, `bladbase_agent_id`, `bladbase_role`, `bladbase_workspace_id`, `bladbase_page_id`, `bladbase_etag`) inside non-destructive YAML frontmatter while keeping the Markdown body 100% clean.
@@ -235,13 +235,13 @@ Rhyolite bridges **local-first `.md` vaults** with collaborative cloud/self-host
 flowchart LR
     subgraph Local["Rhyolite Local Vault (.NET 10)"]
         MD["Plain .md Files + YAML Frontmatter"]
-        WAL["SQLite WAL Sidecar (.rhyolite/cache.db)"]
+        WAL["SQLite WAL Sidecar (../.rhyolite/cache.db)"]
         CONN["WorkspaceConnectorsEngine (HLC + SHA-256 3-Way Merge)"]
         MD <--> CONN
         WAL <--> CONN
     end
 
-    subgraph Bladbase["Bladbase Workspace (dustinblad/bladbase)"]
+    subgraph Bladbase["Bladbase Workspace (../dustinblad/bladbase)"]
         BB_MCP["Bladbase MCP Server (Dual Authorship: Human + Agent)"]
         BB_FS["Firestore / Yjs / TipTap Pages + Cloud Storage"]
         BB_TS["Typesense Typo-Tolerant Search Index"]
@@ -250,7 +250,7 @@ flowchart LR
     end
 
     subgraph Docmost["Docmost Space (Self-Hosted / Enterprise)"]
-        DM_API["Docmost REST & Import/Export API (/api/spaces, /api/pages/*)"]
+        DM_API["Docmost REST & Import/Export API (..//api/spaces, /api/pages/*)"]
         DM_PM["ProseMirror / TipTap Page Tree & Sub-Pages"]
         DM_API <--> DM_PM
     end
@@ -356,7 +356,7 @@ All core engines, workspace connectors, enterprise DevEx tools, and cross-platfo
   - [`assets/logo/rhyolite-logo.jpg`](../assets/logo/rhyolite-logo.jpg) (`1024×1024` JPG)
   - [`assets/logo/rhyolite-logo.svg`](../assets/logo/rhyolite-logo.svg) (Vector SVG)
   - [`src/Rhyolite.UI/Assets/Icon.png`](../src/Rhyolite.UI/Assets/Icon.png) & [`src/Rhyolite.Android/Icon.png`](../src/Rhyolite.Android/Icon.png) (Embedded application icon rendered in the top-left header of `MainView.axaml` and native app bundles).
-- **Placement**: Displayed centered at the very top of [`README.md`](../README.md), inside every GitHub Release body, and uploaded as a downloadable release asset.
+- **Placement**: Displayed centered at the very top of [`README.md`](README.md), inside every GitHub Release body, and uploaded as a downloadable release asset.
 
 ### 8.2 Comprehensive `README.md` with Official Tech-Stack Logos & Simple Documentation
 - Hero section with the Rhyolite logo, tagline, and Shields.io badges using official tech-stack logos (`.NET 10`, `C# 14`, `Avalonia UI 12.1.3`, `Apple HIG`, `SQLite WAL`, `GraphQL`, `MCP JSON-RPC 2.0`, `1Password CLI`, `KeePassXC CLI`, `GitHub`, `Bladbase`, `Docmost`, `macOS`, `Windows`, `Linux`, `iOS`, `Android`).
@@ -364,7 +364,7 @@ All core engines, workspace connectors, enterprise DevEx tools, and cross-platfo
 - Step-by-step Quick Start & Simple User/Developer Documentation.
 
 ### 8.3 Deterministic Release Pattern (`0.1.0` Baseline + `+0.0.1` Increment)
-- **Version Source of Truth**: [`VERSION`](../VERSION) (initialized at `0.1.0`) and [`Directory.Build.props`](../Directory.Build.props) (`<Version>0.1.0</Version>`).
+- **Version Source of Truth**: [`VERSION`](VERSION) (initialized at `0.1.0`) and [`Directory.Build.props`](Directory.Build.props) (`<Version>0.1.0</Version>`).
 - **Increment Rules ([`scripts/release.sh`](../scripts/release.sh) & [`.github/workflows/release.yml`](../.github/workflows/release.yml))**:
   - **Default / Standard Release (`./scripts/release.sh` or `./scripts/release.sh patch`)**: Increments version by **`+0.0.1`** (`0.1.0` → `0.1.1` → `0.1.2`).
   - **Big Milestone Release (`./scripts/release.sh minor` or `./scripts/release.sh major`)**: Increments minor (`+0.1.0`, e.g., `0.2.0`) or major (`+1.0.0`, e.g., `1.0.0`).
@@ -404,6 +404,10 @@ If you want to replicate **Rhyolite** from scratch in **Claude Code** (or anothe
    - Build a **Single-RTT GitHub GraphQL v4 PR Preview, Blast-Radius Analyzer & Comment Ingestion Studio** (with SQLite WAL `headRefOid` caching, Vault ADR blast-radius cross-referencing, 1-click comment-to-task materialization, and bidirectional review thread reply/resolution).
 7. **Prompt 7 (Multi-Agent Execution & Verification)**: Coordinate specialist implementation agents reporting to a **Lead Orchestration & Verification Agent** that audits, benchmarks (`dotnet test`), and justifies algorithmic efficiency in `docs/MULTI_AGENT_VERIFICATION_REPORT.md`.
 8. **Prompt 8 (Logo, Tech-Stack `README.md` & `0.1.0` + `0.0.1` Release Pipeline)**:
-   - Create an official **Rhyolite App Logo** (`assets/logo/rhyolite-logo.png`/`.svg`) and embed it in the app, at the top of `README.md`, and in GitHub Releases.
+   - Create an official **Rhyolite App Logo** (`assets/logo/rhyolite-logo.png`/`.svg`/`.ico`) and embed it in the app, at the top of `README.md`, and in GitHub Releases.
    - Author a comprehensive `README.md` with official tech-stack logo badges, screenshots, and simple documentation.
    - Build a deterministic **Release Pattern** starting at **`0.1.0`** that increments by **`0.0.1`** each release (`scripts/release.sh` + `.github/workflows/release.yml`) unless it is a big (`minor`/`major`) release, and publish `v0.1.0` to GitHub Releases.
+9. **Prompt 9 (Single-File `.dll` Bundling, Embedded Win32 `.exe` Icon & User-Based Installers)**:
+   - Update builds so all `.dll`s and native runtime libraries (`SkiaSharp`, `HarfBuzzSharp`, `e_sqlite3`, .NET 10 runtime) are combined into single-file executables (`PublishSingleFile=true`, `SelfContained=true`, `IncludeNativeLibrariesForSelfExtract=true`).
+   - Embed a Win32 DIB+PNG multi-resolution `.ico` (`16×16` through `128×128` 32-bpp BGRA DIB + `256×256` PNG) into `Rhyolite.exe` and `Rhyolite-UserSetup.exe` PE `.rsrc` sections (`RT_GROUP_ICON` / `RT_ICON`) and call `SHChangeNotify(SHCNE_ASSOCCHANGED)` on Windows to flush any cached blank icon.
+   - Build per-user installers requiring zero Administrator / UAC elevation (`Rhyolite-UserSetup-vX.Y.Z-win-x64.exe` installing to `%LocalAppData%\Programs\Rhyolite`, `Rhyolite-UserInstaller-vX.Y.Z-macos-arm64.dmg` installing to `~/Applications`, and `Rhyolite-UserInstaller-vX.Y.Z-linux-x64.sh` installing to `~/.local/bin`).

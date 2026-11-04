@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\Rhyolite.Desktop\Rhyolite.ico</ApplicationIcon>
+    <AssemblyName>Rhyolite-UserSetup</AssemblyName>
+    <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(RuntimeIdentifier)' != ''">true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\Rhyolite.Desktop\Rhyolite.ico" LogicalName="Rhyolite.ico" />
+    <EmbeddedResource Include="$(PayloadExePath)" LogicalName="Rhyolite.exe.gz" Condition="'$(PayloadExePath)' != '' and Exists('$(PayloadExePath)')" />
+  </ItemGroup>
+
+  <Target Name="RemoveNativePdbsAfterPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_LoosePdbFiles Include="$(PublishDir)*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(_LoosePdbFiles)" />
+  </Target>
+</Project>
