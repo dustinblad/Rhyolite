@@ -77,31 +77,26 @@ sealed class Program
         };
         window.Show();
 
-        var specs = new (string FileName, string Screen, bool DarkMode)[]
+        var specs = new (string FileName, string Screen, string DesignId, bool DarkMode)[]
         {
-            ("01_note_studio_light.png", "Studio", false),
-            ("02_note_studio_dark.png", "Studio", true),
-            ("03_knowledge_graph_light.png", "Graph", false),
-            ("04_spatial_canvas_dark.png", "Canvas", true),
-            ("05_bases_database_light.png", "Bases", false),
-            ("06_study_timemachine_light.png", "Study", false),
-            ("07_mcp_graphql_p2p_dark.png", "Protocol", true),
-            ("08_mobile_ios_android_light.png", "Mobile", false),
-            ("09_enterprise_github_pr_devex_dark.png", "DevEx", true)
+            ("01_note_studio_light.png", "Studio", "apple", false),
+            ("02_note_studio_dark.png", "Studio", "apple", true),
+            ("03_knowledge_graph_light.png", "Graph", "apple", false),
+            ("04_spatial_canvas_dark.png", "Canvas", "linear-app", true),
+            ("05_bases_database_light.png", "Bases", "notion", false),
+            ("06_study_timemachine_light.png", "Study", "claude", false),
+            ("07_mcp_graphql_p2p_dark.png", "Protocol", "supabase", true),
+            ("08_mobile_ios_android_light.png", "Mobile", "stripe", false),
+            ("09_enterprise_github_pr_devex_dark.png", "DevEx", "github", true)
         };
 
         var size = new Size(1440, 900);
         var pixelSize = new PixelSize(1440, 900);
         var dpi = new Vector(96, 96);
 
-        foreach (var (fileName, screen, darkMode) in specs)
+        foreach (var (fileName, screen, designId, darkMode) in specs)
         {
-            vm.IsDarkTheme = darkMode;
-            vm.ThemeButtonLabel = darkMode ? "☀️ Apple Light" : "🌙 True-Black Dark";
-            if (Application.Current is App app)
-            {
-                app.SetAppleTheme(darkMode);
-            }
+            vm.SelectDesignSystem(designId, darkMode);
             root.RequestedThemeVariant = darkMode ? ThemeVariant.Dark : ThemeVariant.Light;
             vm.SwitchScreen(screen);
 
@@ -116,7 +111,7 @@ sealed class Program
             string fullPath = Path.Combine(outputDir, fileName);
             using var fs = File.Create(fullPath);
             bitmap.Save(fs);
-            Console.WriteLine($"Rendered: {fullPath}");
+            Console.WriteLine($"Rendered: {fullPath} ({designId}, dark={darkMode})");
         }
 
         return 0;

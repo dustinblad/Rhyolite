@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using Rhyolite.Core.Design;
 using Rhyolite.ViewModels;
 using Rhyolite.Views;
@@ -29,6 +30,18 @@ public partial class App : Application
     {
         ArgumentNullException.ThrowIfNull(preset);
         _currentPreset = preset;
+
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => ApplyDesignSystemOnUiThread(preset, darkMode));
+            return;
+        }
+
+        ApplyDesignSystemOnUiThread(preset, darkMode);
+    }
+
+    private void ApplyDesignSystemOnUiThread(DesignSystemPreset preset, bool darkMode)
+    {
         RequestedThemeVariant = darkMode ? ThemeVariant.Dark : ThemeVariant.Light;
 
         var p = darkMode ? preset.DarkPalette : preset.LightPalette;
