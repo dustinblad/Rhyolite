@@ -950,4 +950,175 @@ public sealed class EnterpriseDevExIntegrationTests
             }
         }
     }
+
+    [Fact]
+    public async Task UserAccountProfile_AvatarImagePersistence_AndEnterpriseAdminRbac_WorkEndToEnd()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "RhyoliteAccountAdminTest_" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            // 1. Verify default owner UserProfileRecord on initial vault seed
+            using (var vault = new HybridVaultEngine(tempDir))
+            {
+                await vault.LoadOrSeedVaultAsync();
+
+                var defaultProfile = vault.GetUserProfile();
+                Assert.Equal("Dustin Blad", defaultProfile.DisplayName);
+                Assert.Equal("dustin@rhyolite.dev", defaultProfile.Email);
+                Assert.Equal("VaultOwner · Admin", defaultProfile.RoleBadge);
+                Assert.Equal("DB", defaultProfile.AvatarInitialsOrEmoji);
+                Assert.Equal("Initials", defaultProfile.AvatarMode);
+
+                // 2. Persist updated UserProfileRecord fields in SQLite WAL ui_preferences
+                var updatedProfile = vault.SaveUserProfile(defaultProfile with
+                {
+                    DisplayName = "Dustin Blad (Staff Architect)",
+                    Email = "dustin.blad@rhyolite.enterprise",
+                    WorkspaceSubtitle = "Core Platform Engineering",
+                    JobTitle = "Distinguished Systems Engineer",
+                    Organization = "Rhyolite Enterprise Platform",
+                    RoleBadge = "VaultOwner · Global Admin",
+                    PresenceStatus = "Focusing",
+                    AvatarInitialsOrEmoji = "⚡",
+                    AvatarAccentHex = "#8B5CF6"
+                });
+                Assert.Equal("Dustin Blad (Staff Architect)", updatedProfile.DisplayName);
+
+                var reloadedProfile = vault.GetUserProfile();
+                Assert.Equal("Dustin Blad (Staff Architect)", reloadedProfile.DisplayName);
+                Assert.Equal("dustin.blad@rhyolite.enterprise", reloadedProfile.Email);
+                Assert.Equal("Core Platform Engineering", reloadedProfile.WorkspaceSubtitle);
+                Assert.Equal("Distinguished Systems Engineer", reloadedProfile.JobTitle);
+                Assert.Equal("Rhyolite Enterprise Platform", reloadedProfile.Organization);
+                Assert.Equal("VaultOwner · Global Admin", reloadedProfile.RoleBadge);
+                Assert.Equal("Focusing", reloadedProfile.PresenceStatus);
+                Assert.Equal("⚡", reloadedProfile.AvatarInitialsOrEmoji);
+                Assert.Equal("#8B5CF6", reloadedProfile.AvatarAccentHex);
+
+                // 3. Save custom avatar image bytes atomically to .rhyolite/avatar.png
+                byte[] samplePngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D];
+                string savedAvatarPath = vault.SaveProfileAvatarBytes(samplePngBytes, ".png");
+                Assert.True(File.Exists(savedAvatarPath));
+                Assert.Equal(samplePngBytes, await File.ReadAllBytesAsync(savedAvatarPath));
+
+                var profileWithBytesAvatar = vault.GetUserProfile();
+                Assert.Equal("Image", profileWithBytesAvatar.AvatarMode);
+                Assert.Equal(savedAvatarPath, profileWithBytesAvatar.AvatarImagePath);
+
+                // 4. Copy an external profile image file into .rhyolite/avatar.png via CopyProfileAvatarFromFile
+                string externalImagePath = Path.Combine(tempDir, "external-upload-avatar.png");
+                byte[] externalPngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01, 0x02, 0x03, 0x04, 0x05];
+                await File.WriteAllBytesAsync(externalImagePath, externalPngBytes);
+
+                string? copiedAvatarPath = vault.CopyProfileAvatarFromFile(externalImagePath);
+                Assert.NotNull(copiedAvatarPath);
+                Assert.True(File.Exists(copiedAvatarPath!));
+                Assert.Equal(externalPngBytes, await File.ReadAllBytesAsync(copiedAvatarPath!));
+            }
+
+            // 5. Cold restart verification: ensure UserProfileRecord & avatar image survive a fresh HybridVaultEngine instance
+            using (var restartedVault = new HybridVaultEngine(tempDir))
+            {
+                await restartedVault.LoadOrSeedVaultAsync();
+                var persistedProfile = restartedVault.GetUserProfile();
+                Assert.Equal("Dustin Blad (Staff Architect)", persistedProfile.DisplayName);
+                Assert.Equal("dustin.blad@rhyolite.enterprise", persistedProfile.Email);
+                Assert.Equal("Distinguished Systems Engineer", persistedProfile.JobTitle);
+                Assert.Equal("Rhyolite Enterprise Platform", persistedProfile.Organization);
+                Assert.Equal("Image", persistedProfile.AvatarMode);
+                Assert.NotNull(persistedProfile.AvatarImagePath);
+                Assert.True(File.Exists(persistedProfile.AvatarImagePath!));
+            }
+
+            // 6. Enterprise Admin IAM / RBAC user provisioning, OAuth2/OIDC SSO, API keys & audit log verification
+            var auth = new RhyoliteAuthEngine();
+            var ownerAccount = auth.RegisterAccount(
+                "dustin.blad@rhyolite.enterprise",
+                "Dustin Blad",
+                "OwnerEnterprisePass#2026!",
+                VaultRole.VaultOwner,
+                iterations: 10_000);
+            var editorAccount = auth.RegisterAccount(
+                "staff.editor@rhyolite.enterprise",
+                "Elena Rostova",
+                "EditorEnterprisePass#2026!",
+                VaultRole.Editor,
+                iterations: 10_000);
+            var agentAccount = auth.RegisterAccount(
+                "claude-agent@rhyolite.enterprise",
+                "Claude Code MCP Harness",
+                "AgentEnterprisePass#2026!",
+                VaultRole.AiAgentReadWrite,
+                AccessScope.ForAiAgent(allowedFolders: ["01 — Architecture", "04 — Capacities Studio"]),
+                iterations: 10_000);
+            var peerAccount = auth.RegisterAccount(
+                "mac-studio-peer@rhyolite.enterprise",
+                "Mac Studio M4 Max Peer Node",
+                "PeerEnterprisePass#2026!",
+                VaultRole.TrustedPeerNode,
+                iterations: 10_000);
+            var readerAccount = auth.RegisterAccount(
+                "auditor@rhyolite.enterprise",
+                "SOC2 Security Auditor",
+                "AuditorEnterprisePass#2026!",
+                VaultRole.Reader,
+                iterations: 10_000);
+
+            Assert.Equal(5, auth.Accounts.Count);
+            Assert.Contains(auth.Accounts, a => a.Role == VaultRole.VaultOwner && a.Email == ownerAccount.Email);
+            Assert.Contains(auth.Accounts, a => a.Role == VaultRole.Editor && a.Email == editorAccount.Email);
+            Assert.Contains(auth.Accounts, a => a.Role == VaultRole.AiAgentReadWrite && a.Email == agentAccount.Email);
+            Assert.Contains(auth.Accounts, a => a.Role == VaultRole.TrustedPeerNode && a.Email == peerAccount.Email);
+            Assert.Contains(auth.Accounts, a => a.Role == VaultRole.Reader && a.Email == readerAccount.Email);
+
+            // Verify OAuth2 / OIDC SSO provider registry and PKCE S256 round-trip
+            var providers = auth.GetIdentityProviders();
+            Assert.Equal(6, providers.Count);
+            var oidcFlow = auth.BeginOAuthFlow(
+                OAuthProviderType.EnterpriseSsoOidc,
+                clientId: "rhyolite-enterprise-admin",
+                redirectUri: "rhyolite://auth/oidc/callback",
+                domainHint: "rhyolite.enterprise");
+            Assert.Contains("code_challenge_method=S256", oidcFlow.AuthorizationUrl);
+
+            var oidcToken = auth.CompleteOAuthFlow(
+                OAuthProviderType.EnterpriseSsoOidc,
+                oidcFlow.Pkce.State,
+                oidcFlow.Pkce.CodeVerifier,
+                "sso.admin@rhyolite.enterprise",
+                "SSO Admin Principal",
+                VaultRole.Admin);
+            Assert.Equal(VaultRole.Admin, oidcToken.Role);
+
+            // Verify API key issuance & revocation
+            var issuedKey = auth.CreateApiKey(
+                ownerAccount.UserId,
+                "Production MCP Agent Token",
+                VaultRole.AiAgentReadWrite);
+            Assert.StartsWith("rhy_pat_", issuedKey.RawApiKey);
+            Assert.True(auth.TryValidateToken(issuedKey.RawApiKey, out var validatedRole, out _, out _, out _));
+            Assert.Equal(VaultRole.AiAgentReadWrite, validatedRole);
+
+            Assert.True(auth.RevokeApiKey(issuedKey.Credential.KeyId));
+            Assert.False(auth.TryValidateToken(issuedKey.RawApiKey, out _, out _, out _, out var revokeReason));
+            Assert.Contains("revoked", revokeReason, StringComparison.OrdinalIgnoreCase);
+
+            // Verify AdminAuditLogEntry record construction
+            var auditEntry = new AdminAuditLogEntry(
+                TimestampDisplay: "2026-11-05 20:38 UTC",
+                ActorEmail: ownerAccount.Email,
+                ActionTitle: "Revoked API Key 'Production MCP Agent Token'",
+                TargetResource: issuedKey.Credential.KeyId,
+                SeverityBadge: "SECURITY");
+            Assert.Equal("SECURITY", auditEntry.SeverityBadge);
+            Assert.Equal(ownerAccount.Email, auditEntry.ActorEmail);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
 }

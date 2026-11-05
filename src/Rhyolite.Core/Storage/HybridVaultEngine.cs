@@ -23,6 +23,7 @@ public sealed class HybridVaultEngine : IDisposable
 {
     private readonly ConcurrentDictionary<string, VaultNote> _notesByRelativePath = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, List<NoteSnapshot>> _snapshotsByPath = new(StringComparer.OrdinalIgnoreCase);
+    private readonly string _rhyoliteDirPath;
     private readonly string _sqliteDbPath;
     private readonly string _canvasFilePath;
     private long _mutationVersion;
@@ -37,10 +38,10 @@ public sealed class HybridVaultEngine : IDisposable
         VaultRootPath = Path.GetFullPath(vaultRootPath);
         Directory.CreateDirectory(VaultRootPath);
 
-        var rhyoliteMetaDir = Path.Combine(VaultRootPath, ".rhyolite");
-        Directory.CreateDirectory(rhyoliteMetaDir);
+        _rhyoliteDirPath = Path.Combine(VaultRootPath, ".rhyolite");
+        Directory.CreateDirectory(_rhyoliteDirPath);
 
-        _sqliteDbPath = Path.Combine(rhyoliteMetaDir, "cache.db");
+        _sqliteDbPath = Path.Combine(_rhyoliteDirPath, "cache.db");
         _canvasFilePath = Path.Combine(VaultRootPath, "System Map.canvas");
 
         InitializeSqliteWalSidecar();
@@ -930,6 +931,124 @@ public sealed class HybridVaultEngine : IDisposable
             """;
         cmd.Parameters.AddWithValue("$key", key);
         return cmd.ExecuteScalar() as string;
+    }
+
+    /// <summary>
+    /// Retrieves the active user's profile from the SQLite WAL ui_preferences table, or returns the default owner profile.
+    /// </summary>
+    public UserProfileRecord GetUserProfile()
+    {
+        string defaultAvatarPath = Path.Combine(_rhyoliteDirPath, "avatar.png");
+        bool hasDefaultAvatarFile = File.Exists(defaultAvatarPath);
+
+        string? json = GetUiPreference("user_profile_json");
+        if (!string.IsNullOrWhiteSpace(json))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<UserProfileRecord>(json);
+                if (parsed is not null)
+                {
+                    if (string.IsNullOrWhiteSpace(parsed.AvatarImagePath) && hasDefaultAvatarFile)
+                    {
+                        return parsed with { AvatarImagePath = defaultAvatarPath };
+                    }
+                    return parsed;
+                }
+            }
+            catch
+            {
+                // Fall back to default profile if deserialization fails
+            }
+        }
+
+        return new UserProfileRecord(
+            UserId: "usr-owner-01",
+            DisplayName: "Dustin Blad",
+            Email: "dustin@rhyolite.dev",
+            WorkspaceSubtitle: "Personal",
+            JobTitle: "Principal Systems Architect",
+            Organization: "Rhyolite Core Engineering",
+            RoleBadge: "VaultOwner · Admin",
+            PresenceStatus: "Online",
+            AvatarMode: hasDefaultAvatarFile ? "Image" : "Initials",
+            AvatarInitialsOrEmoji: "DB",
+            AvatarAccentHex: "#0071E3",
+            AvatarImagePath: hasDefaultAvatarFile ? defaultAvatarPath : null,
+            UpdatedAtUtc: DateTimeOffset.UtcNow);
+    }
+
+    /// <summary>
+    /// Persists the user's profile record into the SQLite WAL ui_preferences table.
+    /// </summary>
+    public UserProfileRecord SaveUserProfile(UserProfileRecord profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        var updated = profile with { UpdatedAtUtc = DateTimeOffset.UtcNow };
+        string json = JsonSerializer.Serialize(updated);
+        SaveUiPreference("user_profile_json", json);
+        Interlocked.Increment(ref _mutationVersion);
+        return updated;
+    }
+
+    /// <summary>
+    /// Atomically writes custom profile avatar image bytes to .rhyolite/avatar{ext} and updates the stored UserProfileRecord.
+    /// </summary>
+    public string SaveProfileAvatarBytes(byte[] pngOrImageBytes, string fileExtension = ".png")
+    {
+        ArgumentNullException.ThrowIfNull(pngOrImageBytes);
+        Directory.CreateDirectory(_rhyoliteDirPath);
+
+        string ext = string.IsNullOrWhiteSpace(fileExtension)
+            ? ".png"
+            : (fileExtension.StartsWith('.') ? fileExtension.Trim() : "." + fileExtension.Trim());
+
+        string targetPath = Path.Combine(_rhyoliteDirPath, $"avatar{ext}");
+        string tempPath = targetPath + ".tmp";
+        File.WriteAllBytes(tempPath, pngOrImageBytes);
+        File.Move(tempPath, targetPath, overwrite: true);
+
+        var current = GetUserProfile();
+        SaveUserProfile(current with
+        {
+            AvatarMode = "Image",
+            AvatarImagePath = targetPath
+        });
+
+        return targetPath;
+    }
+
+    /// <summary>
+    /// Copies an image file from disk into .rhyolite/avatar{ext} and updates the stored UserProfileRecord.
+    /// </summary>
+    public string? CopyProfileAvatarFromFile(string sourceFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourceFilePath) || !File.Exists(sourceFilePath))
+        {
+            return null;
+        }
+
+        Directory.CreateDirectory(_rhyoliteDirPath);
+        string ext = Path.GetExtension(sourceFilePath);
+        if (string.IsNullOrWhiteSpace(ext))
+        {
+            ext = ".png";
+        }
+
+        string destPath = Path.Combine(_rhyoliteDirPath, $"avatar{ext}");
+        if (!string.Equals(Path.GetFullPath(sourceFilePath), Path.GetFullPath(destPath), StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(sourceFilePath, destPath, overwrite: true);
+        }
+
+        var current = GetUserProfile();
+        SaveUserProfile(current with
+        {
+            AvatarMode = "Image",
+            AvatarImagePath = destPath
+        });
+
+        return destPath;
     }
 
     private NoteSnapshot RecordSnapshotInternal(VaultNote note, string label = "Auto-Snapshot") =>

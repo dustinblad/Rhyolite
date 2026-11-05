@@ -78,28 +78,65 @@
             </Grid>
           </StackPanel>
 
-          <!-- Bottom User Profile Footer (Matches Reference Screenshots) -->
+          <!-- Bottom User Profile Image & Account Admin Trigger (Matches Reference Screenshots) -->
           <Border DockPanel.Dock="Bottom"
                   BorderBrush="{DynamicResource AppleBorderSoftBrush}"
                   BorderThickness="0,1,0,0"
-                  Padding="4,8,4,2"
+                  Padding="2,7,2,2"
                   Margin="0,6,0,0">
-            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" VerticalAlignment="Center">
-              <Grid Grid.Column="0" Width="28" Height="28">
-                <Border Width="28" Height="28" CornerRadius="999" Background="{DynamicResource AppleSurfaceWarmBrush}" BorderBrush="{DynamicResource AppleBorderBrush}" BorderThickness="1">
-                  <TextBlock Text="DB" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource AppleFgBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Border>
-                <Border Width="7" Height="7" CornerRadius="999" Background="#EF4444" HorizontalAlignment="Right" VerticalAlignment="Top" />
-              </Grid>
-              <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
-                <TextBlock Text="Dustin Blad" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppleFgBrush}" />
-                <TextBlock Text="Personal" FontSize="10.5" Foreground="{DynamicResource AppleMutedBrush}" />
-              </StackPanel>
-              <Button Grid.Column="2"
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4" VerticalAlignment="Center">
+              <Button Grid.Column="0"
+                      Command="{Binding OpenUserAccountAdminCommand}"
+                      Background="Transparent"
+                      BorderThickness="0"
+                      Padding="2,2"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch"
+                      ToolTip.Tip="Open User Account &amp; Enterprise Admin Studio (Update Profile Image, RBAC, SSO &amp; API Keys)">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                  <Grid Grid.Column="0" Width="30" Height="30">
+                    <Border Width="30" Height="30"
+                            CornerRadius="999"
+                            ClipToBounds="True"
+                            Background="{DynamicResource AppleSurfaceWarmBrush}"
+                            BorderBrush="{DynamicResource AppleAccentBrush}"
+                            BorderThickness="1.5">
+                      <Panel>
+                        <Image Source="{Binding UserProfileImageBitmap}"
+                               IsVisible="{Binding HasCustomProfileImage}"
+                               Stretch="UniformToFill"
+                               Width="30" Height="30" />
+                        <TextBlock Text="{Binding UserAvatarInitialsOrEmoji}"
+                                   IsVisible="{Binding !HasCustomProfileImage}"
+                                   FontSize="10.5"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource AppleFgBrush}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                      </Panel>
+                    </Border>
+                    <Border Width="8" Height="8"
+                            CornerRadius="999"
+                            Background="#EF4444"
+                            BorderBrush="{DynamicResource AppleSurfaceBrush}"
+                            BorderThickness="1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top" />
+                  </Grid>
+                  <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding UserDisplayName}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AppleFgBrush}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding UserWorkspaceSubtitle}" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" Text="⚙️" FontSize="10.5" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                </Grid>
+              </Button>
+
+              <Button Grid.Column="1"
                       Content="⌘P"
                       Command="{Binding ToggleCommandPaletteCommand}"
                       Classes="apple-btn-secondary"
                       Padding="6,2" FontSize="10"
+                      VerticalAlignment="Center"
                       ToolTip.Tip="Open Command Palette (⌘P)" />
             </Grid>
           </Border>
@@ -555,6 +592,7 @@
                 <Button Content="🔌 MCP" Command="{Binding SwitchScreenCommand}" CommandParameter="Protocol" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
                 <Button Content="🛡️ PR" Command="{Binding SwitchScreenCommand}" CommandParameter="DevEx" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
                 <Button Content="📱 iOS" Command="{Binding SwitchScreenCommand}" CommandParameter="Mobile" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
+                <Button Content="👤 Admin" Command="{Binding OpenUserAccountAdminCommand}" Classes="apple-btn-secondary" Padding="7,2" FontSize="10.5" />
               </StackPanel>
             </ScrollViewer>
 
@@ -1439,6 +1477,340 @@
                 </ListBox>
               </DockPanel>
             </Border>
+          </Grid>
+
+          <!-- SCREEN 9: USER ACCOUNT INFORMATION, PROFILE IMAGE STUDIO & ENTERPRISE ADMIN CENTER -->
+          <Grid IsVisible="{Binding IsAccountAdminView}" RowDefinitions="Auto,*" Margin="14,10" RowSpacing="10">
+
+            <!-- Top Studio Header Card -->
+            <Border Grid.Row="0" Classes="apple-surface-card" Padding="14,10">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" VerticalAlignment="Center">
+                <StackPanel Grid.Column="0" Spacing="2">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="👤 User Account Information &amp; Enterprise Admin Center" Classes="display-heading" FontSize="17" Foreground="{DynamicResource AppleFgBrush}" />
+                    <Border Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}" Padding="8,2">
+                      <TextBlock Text="🛡️ RBAC: VaultOwner" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" />
+                    </Border>
+                    <Border Classes="apple-pill" Background="{DynamicResource AppleSurfaceBrush}" Padding="8,2">
+                      <TextBlock Text="🔐 PBKDF2-SHA512 (210k)" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppleFg2Brush}" />
+                    </Border>
+                    <Border Classes="apple-pill" Background="{DynamicResource AppleSurfaceBrush}" Padding="8,2">
+                      <TextBlock Text="⚡ SQLite WAL Persisted" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppleSuccessBrush}" />
+                    </Border>
+                  </StackPanel>
+                  <TextBlock Text="Manage profile identity, custom profile image &amp; avatar studio, RBAC team directory, OAuth2/OIDC SSO providers, and scoped API keys"
+                             FontSize="11.5"
+                             Foreground="{DynamicResource AppleMutedBrush}" />
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Content="← Back to Note Studio"
+                        Command="{Binding SwitchScreenCommand}"
+                        CommandParameter="Studio"
+                        Classes="apple-btn-secondary"
+                        Padding="10,5"
+                        FontSize="11.5" />
+              </Grid>
+            </Border>
+
+            <!-- 2-Column Account Profile & Enterprise Admin Grid -->
+            <Grid Grid.Row="1" ColumnDefinitions="390,*" ColumnSpacing="12">
+
+              <!-- LEFT COLUMN: USER PROFILE & CUSTOM PROFILE IMAGE / AVATAR STUDIO -->
+              <Border Grid.Column="0" Classes="apple-card" Padding="14,12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <StackPanel Spacing="10">
+                    <TextBlock Text="🖼️ PROFILE IMAGE &amp; AVATAR STUDIO" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" />
+
+                    <!-- Hero 84x84 Circular Profile Image Preview + Identity Summary -->
+                    <Border Classes="apple-surface-card" Padding="12,10">
+                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" VerticalAlignment="Center">
+                        <Grid Grid.Column="0" Width="84" Height="84">
+                          <Border Width="84" Height="84"
+                                  CornerRadius="999"
+                                  ClipToBounds="True"
+                                  Background="{DynamicResource AppleSurfaceBrush}"
+                                  BorderBrush="{DynamicResource AppleAccentBrush}"
+                                  BorderThickness="2.5">
+                            <Panel>
+                              <Image Source="{Binding UserProfileImageBitmap}"
+                                     IsVisible="{Binding HasCustomProfileImage}"
+                                     Stretch="UniformToFill"
+                                     Width="84" Height="84" />
+                              <TextBlock Text="{Binding UserAvatarInitialsOrEmoji}"
+                                         IsVisible="{Binding !HasCustomProfileImage}"
+                                         FontSize="28"
+                                         FontWeight="Bold"
+                                         Foreground="{DynamicResource AppleFgBrush}"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center" />
+                            </Panel>
+                          </Border>
+                          <Border Width="16" Height="16"
+                                  CornerRadius="999"
+                                  Background="#10B981"
+                                  BorderBrush="{DynamicResource AppleSurfaceWarmBrush}"
+                                  BorderThickness="2"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Bottom" />
+                        </Grid>
+
+                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding UserDisplayName}" Classes="display-heading" FontSize="16" Foreground="{DynamicResource AppleFgBrush}" />
+                          <TextBlock Text="{Binding UserEmail}" FontSize="11.5" Foreground="{DynamicResource AppleMutedBrush}" />
+                          <TextBlock Text="{Binding UserJobTitle}" FontSize="11" Foreground="{DynamicResource AppleFg2Brush}" />
+                          <Border Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}" HorizontalAlignment="Left" Padding="8,2" Margin="0,2,0,0">
+                            <TextBlock Text="{Binding UserRoleBadge}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" />
+                          </Border>
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+
+                    <!-- Upload Profile Image / Studio Avatar Buttons -->
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="5">
+                      <Button Grid.Column="0"
+                              x:Name="BrowseProfileImageButton"
+                              Click="OnBrowseProfileImageClick"
+                              Content="📂 Upload Profile Image…"
+                              Classes="apple-btn-primary"
+                              Padding="8,5"
+                              FontSize="11"
+                              HorizontalAlignment="Stretch" />
+                      <Button Grid.Column="1"
+                              Content="✨ Studio"
+                              Command="{Binding GenerateStudioAvatarPresetCommand}"
+                              CommandParameter="architect-blue"
+                              Classes="apple-btn-secondary"
+                              Padding="8,5"
+                              FontSize="11" />
+                      <Button Grid.Column="2"
+                              Content="🗑️ Reset"
+                              Command="{Binding ResetProfileAvatarToInitialsCommand}"
+                              Classes="apple-btn-secondary"
+                              Padding="8,5"
+                              FontSize="11" />
+                    </Grid>
+
+                    <!-- Direct Image Path Input + Apply -->
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5">
+                      <TextBox Grid.Column="0"
+                               Text="{Binding ProfileImageFilePathInput, Mode=TwoWay}"
+                               PlaceholderText="/path/to/profile-avatar.png…"
+                               FontSize="10.5"
+                               Padding="7,4" />
+                      <Button Grid.Column="1"
+                              Content="Apply Path"
+                              Command="{Binding UploadProfileImageFromPathCommand}"
+                              Classes="apple-btn-secondary"
+                              Padding="8,4"
+                              FontSize="10.5" />
+                    </Grid>
+
+                    <!-- 1-Click Graphic Avatar Presets Row -->
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="1-CLICK STUDIO PORTRAIT &amp; CREST PRESETS" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" />
+                      <WrapPanel Orientation="Horizontal">
+                        <Button Content="🧑‍💻 Architect" Command="{Binding GenerateStudioAvatarPresetCommand}" CommandParameter="architect-blue" Classes="apple-btn-secondary" Padding="7,3" FontSize="10" Margin="0,0,4,4" />
+                        <Button Content="🎨 Terracotta" Command="{Binding GenerateStudioAvatarPresetCommand}" CommandParameter="claude-terracotta" Classes="apple-btn-secondary" Padding="7,3" FontSize="10" Margin="0,0,4,4" />
+                        <Button Content="⚡ Emerald" Command="{Binding GenerateStudioAvatarPresetCommand}" CommandParameter="emerald-matrix" Classes="apple-btn-secondary" Padding="7,3" FontSize="10" Margin="0,0,4,4" />
+                        <Button Content="🔮 Violet" Command="{Binding GenerateStudioAvatarPresetCommand}" CommandParameter="obsidian-violet" Classes="apple-btn-secondary" Padding="7,3" FontSize="10" Margin="0,0,4,4" />
+                        <Button Content="🏔️ Rhyolite Crest" Command="{Binding GenerateStudioAvatarPresetCommand}" CommandParameter="rhyolite-crest" Classes="apple-btn-secondary" Padding="7,3" FontSize="10" Margin="0,0,4,4" />
+                      </WrapPanel>
+                    </StackPanel>
+
+                    <Border Height="1" Background="{DynamicResource AppleBorderSoftBrush}" Margin="0,2" />
+
+                    <!-- Account Information Form Fields -->
+                    <TextBlock Text="📋 ACCOUNT IDENTITY &amp; WORKSPACE PROFILE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" />
+
+                    <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+                      <TextBlock Grid.Row="0" Grid.Column="0" Text="Display Name" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                      <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding UserDisplayName, Mode=TwoWay}" FontSize="11.5" Padding="7,4" />
+
+                      <TextBlock Grid.Row="1" Grid.Column="0" Text="Email Address" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                      <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding UserEmail, Mode=TwoWay}" FontSize="11.5" Padding="7,4" />
+
+                      <TextBlock Grid.Row="2" Grid.Column="0" Text="Sidebar Subtitle" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                      <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding UserWorkspaceSubtitle, Mode=TwoWay}" FontSize="11.5" Padding="7,4" />
+
+                      <TextBlock Grid.Row="3" Grid.Column="0" Text="Job Title" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                      <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding UserJobTitle, Mode=TwoWay}" FontSize="11.5" Padding="7,4" />
+
+                      <TextBlock Grid.Row="4" Grid.Column="0" Text="Organization" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                      <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding UserOrganization, Mode=TwoWay}" FontSize="11.5" Padding="7,4" />
+
+                      <TextBlock Grid.Row="5" Grid.Column="0" Text="Presence Status" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                      <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding UserPresenceStatus, Mode=TwoWay}" FontSize="11.5" Padding="7,4" />
+                    </Grid>
+
+                    <Button Content="💾 Save Account &amp; Profile Changes"
+                            Command="{Binding SaveUserProfileCommand}"
+                            Classes="apple-btn-primary"
+                            Padding="10,6"
+                            FontSize="12"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Margin="0,4,0,0" />
+                  </StackPanel>
+                </ScrollViewer>
+              </Border>
+
+              <!-- RIGHT COLUMN: ENTERPRISE ADMIN PAGES (RBAC DIRECTORY, API KEYS, OAUTH2/OIDC SSO & AUDIT LOG) -->
+              <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="10">
+
+                  <!-- PANEL A: TEAM DIRECTORY & ROLE-BASED ACCESS CONTROL (RBAC) ADMIN -->
+                  <Border Classes="apple-card" Padding="14,10">
+                    <StackPanel Spacing="8">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Spacing="1">
+                          <TextBlock Text="🛡️ Enterprise Team Directory &amp; Role-Based Access Control (RBAC)" Classes="display-heading" FontSize="14.5" Foreground="{DynamicResource AppleFgBrush}" />
+                          <TextBlock Text="Provision human engineers, AI MCP harnesses, and trusted P2P mesh nodes with fine-grained folder &amp; #tag ACLs" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                        </StackPanel>
+                        <Border Grid.Column="1" Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}" Padding="8,2">
+                          <TextBlock Text="4 Active Principals" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" />
+                        </Border>
+                      </Grid>
+
+                      <!-- Provision New Account Bar -->
+                      <Grid ColumnDefinitions="1.1*,1.3*,0.9*,Auto" ColumnSpacing="6">
+                        <TextBox Grid.Column="0" Text="{Binding NewAdminUserNameInput, Mode=TwoWay}" PlaceholderText="Full name…" FontSize="11" Padding="7,4" />
+                        <TextBox Grid.Column="1" Text="{Binding NewAdminUserEmailInput, Mode=TwoWay}" PlaceholderText="email@rhyolite.dev…" FontSize="11" Padding="7,4" />
+                        <TextBox Grid.Column="2" Text="{Binding SelectedAdminRoleInput, Mode=TwoWay}" PlaceholderText="Role (Admin/Editor)…" FontSize="11" Padding="7,4" />
+                        <Button Grid.Column="3" Content="＋ Provision Account" Command="{Binding ProvisionAdminUserCommand}" Classes="apple-btn-primary" Padding="10,4" FontSize="11" />
+                      </Grid>
+
+                      <!-- Managed RBAC Accounts Table -->
+                      <ItemsControl ItemsSource="{Binding ManagedUserAccounts}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Border Classes="apple-surface-card" Margin="0,2" Padding="10,6">
+                              <Grid ColumnDefinitions="1.5*,1.4*,Auto,Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                  <TextBlock Text="👤" FontSize="12" VerticalAlignment="Center" />
+                                  <TextBlock Text="{Binding DisplayName}" Classes="display-heading" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="{Binding Email}" Classes="mono-code" FontSize="10.5" Foreground="{DynamicResource AppleMutedBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                <Border Grid.Column="2" Classes="apple-pill" Background="{DynamicResource AppleBgBrush}" Padding="7,2">
+                                  <TextBlock Text="{Binding Provider}" FontSize="9.5" Foreground="{DynamicResource AppleFg2Brush}" />
+                                </Border>
+                                <Border Grid.Column="3" Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}" Padding="8,2">
+                                  <TextBlock Text="{Binding Role}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" />
+                                </Border>
+                                <Button Grid.Column="4"
+                                        Content="⟳ Cycle Role"
+                                        Command="{Binding $parent[UserControl].DataContext.CycleUserRoleCommand}"
+                                        CommandParameter="{Binding}"
+                                        Classes="apple-btn-secondary"
+                                        Padding="7,2"
+                                        FontSize="10" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Border>
+
+                  <!-- PANEL B: SCOPED API KEYS, PERSONAL ACCESS TOKENS & OAUTH2 / OIDC SSO PROVIDERS -->
+                  <Border Classes="apple-card" Padding="14,10">
+                    <StackPanel Spacing="8">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Spacing="1">
+                          <TextBlock Text="🔑 Scoped API Keys, Personal Access Tokens &amp; OAuth2 / OIDC SSO" Classes="display-heading" FontSize="14.5" Foreground="{DynamicResource AppleFgBrush}" />
+                          <TextBlock Text="SHA-256 hashed PAT credentials for AI Agents / CI pipelines + RFC 7636 S256 PKCE Single Sign-On federation" FontSize="11" Foreground="{DynamicResource AppleMutedBrush}" />
+                        </StackPanel>
+                        <Border Grid.Column="1" Classes="apple-pill" Background="{DynamicResource AppleSurfaceWarmBrush}" Padding="8,2">
+                          <TextBlock Text="{Binding LastGeneratedApiKeyPreview}" Classes="mono-code" FontSize="9.5" Foreground="{DynamicResource AppleLinkBrush}" />
+                        </Border>
+                      </Grid>
+
+                      <!-- Generate API Key Bar -->
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBox Grid.Column="0" Text="{Binding NewApiKeyLabelInput, Mode=TwoWay}" PlaceholderText="API key label (e.g., Claude Code MCP Stdio Harness)…" FontSize="11" Padding="7,4" />
+                        <Button Grid.Column="1" Content="🔑 Generate Scoped Key" Command="{Binding GenerateAdminApiKeyCommand}" Classes="apple-btn-primary" Padding="10,4" FontSize="11" />
+                      </Grid>
+
+                      <!-- Managed API Keys List -->
+                      <ItemsControl ItemsSource="{Binding ManagedApiKeys}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Border Classes="apple-surface-card" Margin="0,2" Padding="10,6">
+                              <Grid ColumnDefinitions="1.6*,Auto,Auto,Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                  <TextBlock Text="🔐" FontSize="11.5" VerticalAlignment="Center" />
+                                  <TextBlock Text="{Binding Label}" Classes="display-heading" FontSize="12" Foreground="{DynamicResource AppleFgBrush}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}" Padding="7,2">
+                                  <TextBlock Text="{Binding Role}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" />
+                                </Border>
+                                <TextBlock Grid.Column="2" Text="{Binding KeySha256Hex, StringFormat='sha256:{0}'}" Classes="mono-code" FontSize="9.5" Foreground="{DynamicResource AppleMutedBrush}" MaxWidth="135" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                <Border Grid.Column="3" Classes="apple-pill" Background="{DynamicResource AppleBgBrush}" Padding="6,2">
+                                  <TextBlock Text="{Binding IsRevoked, StringFormat='Revoked: {0}'}" FontSize="9.5" Foreground="{DynamicResource AppleFg2Brush}" />
+                                </Border>
+                                <Button Grid.Column="4"
+                                        Content="🚫 Revoke"
+                                        Command="{Binding $parent[UserControl].DataContext.RevokeAdminApiKeyCommand}"
+                                        CommandParameter="{Binding}"
+                                        Classes="apple-btn-secondary"
+                                        Padding="7,2"
+                                        FontSize="10" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <!-- OAuth2 / OIDC SSO Identity Providers Strip -->
+                      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding ManagedOAuthProviders}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                              <StackPanel Orientation="Horizontal" Spacing="6" />
+                            </ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <Border Classes="apple-pill" Background="{DynamicResource AppleSurfaceWarmBrush}" BorderBrush="{DynamicResource AppleBorderSoftBrush}" BorderThickness="1" Padding="8,3">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                  <TextBlock Text="🌐" FontSize="10.5" VerticalAlignment="Center" />
+                                  <TextBlock Text="{Binding DisplayName}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AppleFgBrush}" VerticalAlignment="Center" />
+                                  <TextBlock Text="· PKCE S256" FontSize="9.5" Foreground="{DynamicResource AppleSuccessBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                                </StackPanel>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </ScrollViewer>
+                    </StackPanel>
+                  </Border>
+
+                  <!-- PANEL C: ADMIN SECURITY & PROFILE AUDIT LOG -->
+                  <Border Classes="apple-card" Padding="14,10">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="📋 ENTERPRISE SECURITY, RBAC &amp; PROFILE AUDIT LOG" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AppleMetaBrush}" />
+                      <ItemsControl ItemsSource="{Binding AdminAuditLogEntries}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Border Classes="apple-surface-card" Margin="0,2" Padding="9,5">
+                              <Grid ColumnDefinitions="65,Auto,*,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                                <TextBlock Grid.Column="0" Text="{Binding TimestampDisplay}" Classes="mono-code" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Classes="apple-pill" Background="{DynamicResource AppleCalloutBgBrush}" Padding="6,1">
+                                  <TextBlock Text="{Binding SeverityBadge}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AppleLinkBrush}" />
+                                </Border>
+                                <TextBlock Grid.Column="2" Text="{Binding ActionTitle}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AppleFgBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="3" Text="{Binding TargetResource}" Classes="mono-code" FontSize="10" Foreground="{DynamicResource AppleMutedBrush}" VerticalAlignment="Center" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Border>
+
+                </StackPanel>
+              </ScrollViewer>
+            </Grid>
           </Grid>
         </Grid>
       </Grid>

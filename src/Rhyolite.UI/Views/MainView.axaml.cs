@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Rhyolite.Core.Models;
 using Rhyolite.ViewModels;
 
@@ -56,5 +58,46 @@ public partial class MainView : UserControl
         {
             vm.SelectNote(note);
         }
+    }
+
+    private async void OnBrowseProfileImageClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        try
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel?.StorageProvider is { CanOpen: true } storageProvider)
+            {
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Select User Profile Image",
+                    AllowMultiple = false,
+                    FileTypeFilter =
+                    [
+                        new FilePickerFileType("Profile Images (.png, .jpg, .jpeg, .webp)")
+                        {
+                            Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp"]
+                        },
+                        FilePickerFileTypes.All
+                    ]
+                });
+
+                if (files is { Count: > 0 } && files[0].TryGetLocalPath() is { Length: > 0 } localPath)
+                {
+                    vm.ApplyUploadedProfileImageFile(localPath);
+                    return;
+                }
+            }
+        }
+        catch
+        {
+            // Fall back to path input or built-in crest if native dialog is unavailable
+        }
+
+        vm.UploadProfileImageFromPath();
     }
 }

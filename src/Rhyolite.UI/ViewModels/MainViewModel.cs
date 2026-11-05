@@ -1,6 +1,10 @@
+using System.Buffers.Binary;
 using System.Collections.ObjectModel;
+using System.IO.Compression;
+using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Rhyolite.Core.Bases;
@@ -264,6 +268,58 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private string _devExTerminalOutput = string.Empty;
 
+    // User Account Profile, Avatar Studio & Enterprise Admin State
+    [ObservableProperty]
+    private string _userDisplayName = "Dustin Blad";
+
+    [ObservableProperty]
+    private string _userEmail = "dustin@rhyolite.dev";
+
+    [ObservableProperty]
+    private string _userWorkspaceSubtitle = "Personal · VaultOwner";
+
+    [ObservableProperty]
+    private string _userJobTitle = "Principal Systems Architect";
+
+    [ObservableProperty]
+    private string _userOrganization = "Rhyolite Core Engineering";
+
+    [ObservableProperty]
+    private string _userRoleBadge = "VaultOwner · Enterprise Admin";
+
+    [ObservableProperty]
+    private string _userPresenceStatus = "Online";
+
+    [ObservableProperty]
+    private string _userAvatarInitialsOrEmoji = "DB";
+
+    [ObservableProperty]
+    private string _userAvatarAccentHex = "#0071E3";
+
+    [ObservableProperty]
+    private string _profileImageFilePathInput = string.Empty;
+
+    [ObservableProperty]
+    private Bitmap? _userProfileImageBitmap;
+
+    [ObservableProperty]
+    private bool _hasCustomProfileImage;
+
+    [ObservableProperty]
+    private string _newAdminUserEmailInput = "alex.rivera@rhyolite.dev";
+
+    [ObservableProperty]
+    private string _newAdminUserNameInput = "Alex Rivera";
+
+    [ObservableProperty]
+    private string _selectedAdminRoleInput = "Editor";
+
+    [ObservableProperty]
+    private string _newApiKeyLabelInput = "CI/CD Production Vault Sync";
+
+    [ObservableProperty]
+    private string _lastGeneratedApiKeyPreview = "rhy_pat_9f8a7b6c5d4e3f2a1b0c... (SHA-256 Digest Stored)";
+
     public ObservableCollection<VaultNote> VaultNotes { get; } = [];
     public ObservableCollection<VaultNote> PinnedNotes { get; } = [];
     public ObservableCollection<VaultNote> FilteredCommandPaletteNotes { get; } = [];
@@ -286,6 +342,10 @@ public partial class MainViewModel : ViewModelBase
     public ObservableCollection<DiffLine> ActiveDiffLines { get; } = [];
     public ObservableCollection<GitHubPrReviewComment> ActivePrComments { get; } = [];
     public ObservableCollection<GitHubPrChangedFile> ActivePrFiles { get; } = [];
+    public ObservableCollection<UserAccount> ManagedUserAccounts { get; } = [];
+    public ObservableCollection<ApiKeyCredential> ManagedApiKeys { get; } = [];
+    public ObservableCollection<OAuthProviderDescriptor> ManagedOAuthProviders { get; } = [];
+    public ObservableCollection<AdminAuditLogEntry> AdminAuditLogEntries { get; } = [];
 
     public bool IsStudioView => ActiveScreen == "Studio";
     public bool IsGraphView => ActiveScreen == "Graph";
@@ -295,6 +355,7 @@ public partial class MainViewModel : ViewModelBase
     public bool IsProtocolView => ActiveScreen == "Protocol";
     public bool IsDevExView => ActiveScreen == "DevEx";
     public bool IsMobileView => ActiveScreen == "Mobile";
+    public bool IsAccountAdminView => ActiveScreen == "AccountAdmin";
 
     public bool IsFilesTabActive => string.Equals(LeftSidebarTab, "Files", StringComparison.OrdinalIgnoreCase);
     public bool IsSearchTabActive => string.Equals(LeftSidebarTab, "Search", StringComparison.OrdinalIgnoreCase);
@@ -372,6 +433,7 @@ public partial class MainViewModel : ViewModelBase
         RebuildFlashcardDeck();
         ExecuteAskCopilot();
         InitializeProtocolPreview();
+        InitializeUserProfileAndAdminStudio();
     }
 
     partial void OnSearchFilterChanged(string value) => RefreshCollectionsFromEngine();
@@ -910,6 +972,7 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsProtocolView));
         OnPropertyChanged(nameof(IsDevExView));
         OnPropertyChanged(nameof(IsMobileView));
+        OnPropertyChanged(nameof(IsAccountAdminView));
     }
 
     [RelayCommand]
@@ -1840,5 +1903,525 @@ public partial class MainViewModel : ViewModelBase
         var saved = await _vaultEngine.SaveNoteAsync(daily.RelativePath, updated, "Mobile Quick Capture");
         RefreshCollectionsFromEngine();
         SelectNote(saved);
+    }
+
+    private void InitializeUserProfileAndAdminStudio()
+    {
+        try
+        {
+            // Seed additional enterprise RBAC team accounts if not already present
+            if (_authEngine.Accounts.Count <= 1)
+            {
+                _authEngine.RegisterAccount(
+                    "sarah.chen@rhyolite.dev",
+                    "Sarah Chen (Security Admin)",
+                    "Rhyolite!2026#Admin",
+                    VaultRole.Admin);
+                _authEngine.RegisterAccount(
+                    "claude-agent@rhyolite.local",
+                    "Claude Code MCP Agent",
+                    "Rhyolite!2026#Agent",
+                    VaultRole.AiAgentReadWrite,
+                    AccessScope.ForAiAgent());
+                _authEngine.RegisterAccount(
+                    "macbook-pro@rhyolite.mesh",
+                    "MacBook Pro M4 Max (P2P Node)",
+                    "Rhyolite!2026#Peer",
+                    VaultRole.TrustedPeerNode);
+            }
+
+            if (_authEngine.ApiKeys.Count == 0)
+            {
+                var k1 = _authEngine.CreateApiKey(
+                    "usr-owner-01",
+                    "Claude Code MCP Stdio Harness",
+                    VaultRole.AiAgentReadWrite,
+                    AccessScope.ForAiAgent(),
+                    TimeSpan.FromDays(90));
+                _authEngine.CreateApiKey(
+                    "usr-owner-01",
+                    "GitHub Actions PR Docs Sync",
+                    VaultRole.Editor,
+                    AccessScope.Unrestricted,
+                    TimeSpan.FromDays(180));
+                LastGeneratedApiKeyPreview = $"{k1.RawApiKey[..Math.Min(26, k1.RawApiKey.Length)]}… (SHA-256: {k1.Credential.KeySha256Hex[..12]}…)";
+            }
+
+            RefreshAdminCollections();
+
+            if (AdminAuditLogEntries.Count == 0)
+            {
+                AdminAuditLogEntries.Add(new AdminAuditLogEntry(
+                    DateTime.Now.ToString("HH:mm:ss"),
+                    "dustin@rhyolite.dev",
+                    "Verified PBKDF2-SHA512 (210,000 iter) & HMAC-SHA256 Master Key",
+                    "RhyoliteAuthEngine · VaultOwner",
+                    "SECURITY"));
+                AdminAuditLogEntries.Add(new AdminAuditLogEntry(
+                    DateTime.Now.AddMinutes(-4).ToString("HH:mm:ss"),
+                    "claude-agent@rhyolite.local",
+                    "Authorized MCP JSON-RPC 2.0 Tool Scope (Denied: 99 — Personal/)",
+                    "AccessScope.ForAiAgent()",
+                    "RBAC ACL"));
+                AdminAuditLogEntries.Add(new AdminAuditLogEntry(
+                    DateTime.Now.AddMinutes(-12).ToString("HH:mm:ss"),
+                    "sarah.chen@rhyolite.dev",
+                    "Enabled OIDC S256 PKCE Enterprise SSO Provider",
+                    "sso.enterprise.example.com",
+                    "OIDC SSO"));
+            }
+
+            var profile = _vaultEngine.GetUserProfile();
+            UserDisplayName = profile.DisplayName;
+            UserEmail = profile.Email;
+            UserWorkspaceSubtitle = string.IsNullOrWhiteSpace(profile.WorkspaceSubtitle) ? "Personal · Admin" : profile.WorkspaceSubtitle;
+            UserJobTitle = profile.JobTitle;
+            UserOrganization = profile.Organization;
+            UserRoleBadge = profile.RoleBadge;
+            UserPresenceStatus = profile.PresenceStatus;
+            UserAvatarInitialsOrEmoji = profile.AvatarInitialsOrEmoji;
+            UserAvatarAccentHex = profile.AvatarAccentHex;
+
+            if (!string.IsNullOrWhiteSpace(profile.AvatarImagePath) && File.Exists(profile.AvatarImagePath))
+            {
+                byte[] existingBytes = File.ReadAllBytes(profile.AvatarImagePath);
+                UserProfileImageBitmap = new Bitmap(new MemoryStream(existingBytes));
+                HasCustomProfileImage = true;
+                ProfileImageFilePathInput = profile.AvatarImagePath;
+            }
+            else
+            {
+                GenerateStudioAvatarPreset("architect-blue");
+            }
+        }
+        catch
+        {
+            // Ignore non-fatal avatar initialization errors on restricted filesystems
+        }
+    }
+
+    private void RefreshAdminCollections()
+    {
+        ManagedUserAccounts.Clear();
+        foreach (var acc in _authEngine.Accounts.OrderBy(a => a.Role).ThenBy(a => a.DisplayName))
+        {
+            ManagedUserAccounts.Add(acc);
+        }
+
+        ManagedApiKeys.Clear();
+        foreach (var key in _authEngine.ApiKeys.OrderByDescending(k => k.CreatedAtUtc))
+        {
+            ManagedApiKeys.Add(key);
+        }
+
+        ManagedOAuthProviders.Clear();
+        foreach (var provider in _authEngine.GetIdentityProviders())
+        {
+            ManagedOAuthProviders.Add(provider);
+        }
+    }
+
+    private void PrependAuditLog(string actionTitle, string targetResource, string severity = "AUDIT")
+    {
+        AdminAuditLogEntries.Insert(0, new AdminAuditLogEntry(
+            DateTime.Now.ToString("HH:mm:ss"),
+            UserEmail,
+            actionTitle,
+            targetResource,
+            severity));
+    }
+
+    [RelayCommand]
+    public void OpenUserAccountAdmin()
+    {
+        SwitchScreen("AccountAdmin");
+        StatusBarRightText = "👤 Opened User Account Information, Profile Image Studio & Enterprise Admin Center";
+    }
+
+    [RelayCommand]
+    public void GenerateStudioAvatarPreset(string? presetId)
+    {
+        string key = string.IsNullOrWhiteSpace(presetId) ? "architect-blue" : presetId.Trim().ToLowerInvariant();
+
+        // Support loading the official Rhyolite volcanic prism crest if requested and available
+        if (key == "rhyolite-crest")
+        {
+            string repoLogo = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "assets", "logo", "rhyolite-logo.png"));
+            if (!File.Exists(repoLogo))
+            {
+                repoLogo = "/Volumes/dockdata/dev/projects/Rhyolite/assets/logo/rhyolite-logo.png";
+            }
+
+            if (File.Exists(repoLogo))
+            {
+                ApplyUploadedProfileImageFile(repoLogo);
+                return;
+            }
+        }
+
+        (byte r1, byte g1, byte b1, byte r2, byte g2, byte b2, string hex) = key switch
+        {
+            "claude-terracotta" => ((byte)217, (byte)119, (byte)87, (byte)124, (byte)45, (byte)18, "#D97757"),
+            "emerald-matrix" => ((byte)16, (byte)185, (byte)129, (byte)6, (byte)78, (byte)59, "#10B981"),
+            "obsidian-violet" => ((byte)139, (byte)92, (byte)246, (byte)46, (byte)16, (byte)101, "#8B5CF6"),
+            "solar-gold" => ((byte)245, (byte)158, (byte)11, (byte)153, (byte)27, (byte)27, "#F59E0B"),
+            _ => ((byte)14, (byte)165, (byte)233, (byte)30, (byte)58, (byte)138, "#0071E3")
+        };
+
+        UserAvatarAccentHex = hex;
+        byte[] pngBytes = RenderProceduralAvatarPngBytes(160, 160, r1, g1, b1, r2, g2, b2);
+        string savedPath = _vaultEngine.SaveProfileAvatarBytes(pngBytes, ".png");
+        UserProfileImageBitmap = new Bitmap(new MemoryStream(pngBytes));
+        HasCustomProfileImage = true;
+        ProfileImageFilePathInput = savedPath;
+        PrependAuditLog($"Generated Studio Profile Avatar ({key})", savedPath, "PROFILE");
+        StatusBarRightText = $"✨ Applied '{key}' studio profile image ({savedPath})";
+    }
+
+    [RelayCommand]
+    public void UploadProfileImageFromPath()
+    {
+        if (!string.IsNullOrWhiteSpace(ProfileImageFilePathInput) && File.Exists(ProfileImageFilePathInput.Trim()))
+        {
+            ApplyUploadedProfileImageFile(ProfileImageFilePathInput.Trim());
+            return;
+        }
+
+        string fallbackLogo = "/Volumes/dockdata/dev/projects/Rhyolite/assets/logo/rhyolite-logo.png";
+        if (File.Exists(fallbackLogo))
+        {
+            ApplyUploadedProfileImageFile(fallbackLogo);
+        }
+        else
+        {
+            GenerateStudioAvatarPreset("claude-terracotta");
+        }
+    }
+
+    public void ApplyUploadedProfileImageFile(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            return;
+        }
+
+        string? copiedPath = _vaultEngine.CopyProfileAvatarFromFile(filePath);
+        if (string.IsNullOrWhiteSpace(copiedPath) || !File.Exists(copiedPath))
+        {
+            return;
+        }
+
+        byte[] bytes = File.ReadAllBytes(copiedPath);
+        UserProfileImageBitmap = new Bitmap(new MemoryStream(bytes));
+        HasCustomProfileImage = true;
+        ProfileImageFilePathInput = copiedPath;
+        PrependAuditLog("Uploaded Custom Profile Image from Disk", Path.GetFileName(filePath), "PROFILE");
+        StatusBarRightText = $"🖼️ Updated profile image from '{Path.GetFileName(filePath)}' → {copiedPath}";
+    }
+
+    [RelayCommand]
+    public void ResetProfileAvatarToInitials()
+    {
+        HasCustomProfileImage = false;
+        UserProfileImageBitmap = null;
+        var current = _vaultEngine.GetUserProfile();
+        _vaultEngine.SaveUserProfile(current with
+        {
+            AvatarMode = "Initials",
+            AvatarInitialsOrEmoji = UserAvatarInitialsOrEmoji,
+            AvatarAccentHex = UserAvatarAccentHex
+        });
+        PrependAuditLog("Reset Profile Avatar to Monogram Initials", UserAvatarInitialsOrEmoji, "PROFILE");
+        StatusBarRightText = $"👤 Reset profile avatar to '{UserAvatarInitialsOrEmoji}' initials badge";
+    }
+
+    [RelayCommand]
+    public void SelectAvatarColorPreset(string? hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex)) return;
+        UserAvatarAccentHex = hex.Trim();
+        SaveUserProfile();
+    }
+
+    [RelayCommand]
+    public void SaveUserProfile()
+    {
+        string initials = string.IsNullOrWhiteSpace(UserAvatarInitialsOrEmoji)
+            ? DeriveInitials(UserDisplayName)
+            : UserAvatarInitialsOrEmoji.Trim();
+        UserAvatarInitialsOrEmoji = initials;
+
+        var current = _vaultEngine.GetUserProfile();
+        var updated = new UserProfileRecord(
+            UserId: current.UserId,
+            DisplayName: string.IsNullOrWhiteSpace(UserDisplayName) ? "Dustin Blad" : UserDisplayName.Trim(),
+            Email: string.IsNullOrWhiteSpace(UserEmail) ? "dustin@rhyolite.dev" : UserEmail.Trim(),
+            WorkspaceSubtitle: string.IsNullOrWhiteSpace(UserWorkspaceSubtitle) ? "Personal · VaultOwner" : UserWorkspaceSubtitle.Trim(),
+            JobTitle: string.IsNullOrWhiteSpace(UserJobTitle) ? "Principal Systems Architect" : UserJobTitle.Trim(),
+            Organization: string.IsNullOrWhiteSpace(UserOrganization) ? "Rhyolite Core Engineering" : UserOrganization.Trim(),
+            RoleBadge: string.IsNullOrWhiteSpace(UserRoleBadge) ? "VaultOwner · Enterprise Admin" : UserRoleBadge.Trim(),
+            PresenceStatus: string.IsNullOrWhiteSpace(UserPresenceStatus) ? "Online" : UserPresenceStatus.Trim(),
+            AvatarMode: HasCustomProfileImage ? "Image" : "Initials",
+            AvatarInitialsOrEmoji: initials,
+            AvatarAccentHex: UserAvatarAccentHex,
+            AvatarImagePath: HasCustomProfileImage ? ProfileImageFilePathInput : current.AvatarImagePath,
+            UpdatedAtUtc: DateTimeOffset.UtcNow);
+
+        _vaultEngine.SaveUserProfile(updated);
+        PrependAuditLog("Saved User Account & Profile Metadata to SQLite WAL", $"{updated.DisplayName} ({updated.Email})", "PROFILE");
+        StatusBarRightText = $"✓ Saved user account profile for '{updated.DisplayName}' to .rhyolite/cache.db";
+    }
+
+    [RelayCommand]
+    public void ProvisionAdminUser()
+    {
+        string email = string.IsNullOrWhiteSpace(NewAdminUserEmailInput)
+            ? $"engineer.{DateTime.Now:HHmmss}@rhyolite.dev"
+            : NewAdminUserEmailInput.Trim();
+        string name = string.IsNullOrWhiteSpace(NewAdminUserNameInput)
+            ? email.Split('@')[0]
+            : NewAdminUserNameInput.Trim();
+        var role = Enum.TryParse<VaultRole>(SelectedAdminRoleInput, true, out var parsedRole)
+            ? parsedRole
+            : VaultRole.Editor;
+
+        try
+        {
+            var scope = role is VaultRole.AiAgentReadWrite or VaultRole.AiAgentReadOnly
+                ? AccessScope.ForAiAgent()
+                : AccessScope.Unrestricted;
+            var created = _authEngine.RegisterAccount(email, name, "Enterprise!2026#Vault", role, scope);
+            RefreshAdminCollections();
+            PrependAuditLog($"Provisioned RBAC Account ({role})", $"{created.DisplayName} <{created.Email}>", "RBAC");
+            StatusBarRightText = $"🛡️ Provisioned '{created.DisplayName}' with RBAC role '{role}'";
+        }
+        catch (InvalidOperationException)
+        {
+            // Account email already exists: append a unique suffix so demo provisioning always succeeds
+            string uniqueEmail = $"{email.Split('@')[0]}+{DateTime.Now:mmss}@rhyolite.dev";
+            var created = _authEngine.RegisterAccount(uniqueEmail, name, "Enterprise!2026#Vault", role, AccessScope.Unrestricted);
+            RefreshAdminCollections();
+            PrependAuditLog($"Provisioned RBAC Account ({role})", $"{created.DisplayName} <{created.Email}>", "RBAC");
+            StatusBarRightText = $"🛡️ Provisioned '{created.DisplayName}' ({uniqueEmail}) with RBAC role '{role}'";
+        }
+    }
+
+    [RelayCommand]
+    public void CycleUserRole(UserAccount? account)
+    {
+        if (account is null) return;
+        int idx = ManagedUserAccounts.IndexOf(account);
+        if (idx < 0) return;
+
+        VaultRole nextRole = account.Role switch
+        {
+            VaultRole.VaultOwner => VaultRole.Admin,
+            VaultRole.Admin => VaultRole.Editor,
+            VaultRole.Editor => VaultRole.Reader,
+            VaultRole.Reader => VaultRole.AiAgentReadWrite,
+            VaultRole.AiAgentReadWrite => VaultRole.TrustedPeerNode,
+            _ => VaultRole.VaultOwner
+        };
+
+        var updated = account with { Role = nextRole };
+        ManagedUserAccounts[idx] = updated;
+        PrependAuditLog($"Updated RBAC Role: {account.Role} → {nextRole}", account.Email, "RBAC");
+        StatusBarRightText = $"🛡️ Updated '{account.DisplayName}' RBAC role to '{nextRole}'";
+    }
+
+    [RelayCommand]
+    public void GenerateAdminApiKey()
+    {
+        string label = string.IsNullOrWhiteSpace(NewApiKeyLabelInput)
+            ? $"Scoped Key {DateTime.Now:HH:mm}"
+            : NewApiKeyLabelInput.Trim();
+
+        var result = _authEngine.CreateApiKey(
+            "usr-owner-01",
+            label,
+            VaultRole.AiAgentReadWrite,
+            AccessScope.ForAiAgent(),
+            TimeSpan.FromDays(90));
+
+        LastGeneratedApiKeyPreview = $"{result.RawApiKey[..Math.Min(28, result.RawApiKey.Length)]}… (SHA-256: {result.Credential.KeySha256Hex[..12]}…)";
+        RefreshAdminCollections();
+        PrependAuditLog("Issued Scoped Personal Access Token / API Key", $"{label} ({result.Credential.Role})", "API KEY");
+        StatusBarRightText = $"🔑 Generated scoped API key '{label}' (SHA-256 digest stored)";
+    }
+
+    [RelayCommand]
+    public void RevokeAdminApiKey(ApiKeyCredential? key)
+    {
+        if (key is null) return;
+        _authEngine.RevokeApiKey(key.KeyId);
+        RefreshAdminCollections();
+        PrependAuditLog("Revoked API Key Credential", $"{key.Label} ({key.KeyId})", "SECURITY");
+        StatusBarRightText = $"🚫 Revoked API key '{key.Label}'";
+    }
+
+    private static string DeriveInitials(string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName)) return "DB";
+        var parts = displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+        {
+            return $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[^1][0])}";
+        }
+        return displayName.Length >= 2 ? displayName[..2].ToUpperInvariant() : displayName.ToUpperInvariant();
+    }
+
+    /// <summary>
+    /// Thread-safe, zero-dependency procedural 32-bit RGBA PNG generator that renders a modern architectural portrait badge
+    /// with a rich diagonal gradient, glowing ambient aura, stylized portrait silhouette, and specular glass border.
+    /// </summary>
+    private static byte[] RenderProceduralAvatarPngBytes(
+        int width,
+        int height,
+        byte r1, byte g1, byte b1,
+        byte r2, byte g2, byte b2)
+    {
+        byte[] rgba = new byte[width * height * 4];
+        float cx = width * 0.5f;
+        float cy = height * 0.5f;
+        float radius = width * 0.48f;
+
+        for (int y = 0; y < height; y++)
+        {
+            float ny = (float)y / height;
+            for (int x = 0; x < width; x++)
+            {
+                float nx = (float)x / width;
+                float dx = x - cx;
+                float dy = y - cy;
+                float dist = MathF.Sqrt(dx * dx + dy * dy);
+
+                int offset = (y * width + x) * 4;
+
+                // Smooth diagonal gradient base
+                float t = Math.Clamp((nx * 0.65f) + (ny * 0.35f), 0f, 1f);
+                float r = r1 + (r2 - r1) * t;
+                float g = g1 + (g2 - g1) * t;
+                float b = b1 + (b2 - b1) * t;
+
+                // Warm top-left specular glow
+                float gx = nx - 0.28f;
+                float gy = ny - 0.24f;
+                float glowDist = MathF.Sqrt(gx * gx + gy * gy);
+                float glow = MathF.Max(0f, 1f - glowDist * 1.85f);
+                r = MathF.Min(255f, r + glow * 58f);
+                g = MathF.Min(255f, g + glow * 58f);
+                b = MathF.Min(255f, b + glow * 65f);
+
+                // Stylized minimalist architect portrait silhouette (head circle + shoulders arc)
+                float headDx = x - cx;
+                float headDy = y - (height * 0.39f);
+                float headDist = MathF.Sqrt(headDx * headDx + headDy * headDy);
+                float headRadius = width * 0.175f;
+
+                float shoulderDx = (x - cx) / 1.35f;
+                float shoulderDy = y - (height * 0.86f);
+                float shoulderDist = MathF.Sqrt(shoulderDx * shoulderDx + shoulderDy * shoulderDy);
+                float shoulderRadius = width * 0.285f;
+
+                bool inSilhouette = headDist <= headRadius || (y >= height * 0.58f && shoulderDist <= shoulderRadius && dist <= radius * 0.90f);
+                if (inSilhouette)
+                {
+                    float silBlend = 0.88f;
+                    r = r * (1f - silBlend) + 248f * silBlend;
+                    g = g * (1f - silBlend) + 250f * silBlend;
+                    b = b * (1f - silBlend) + 252f * silBlend;
+                }
+
+                // Concentric architectural orbital ring
+                float ringDist = MathF.Abs(dist - (radius * 0.86f));
+                if (ringDist < 1.6f)
+                {
+                    float ringAlpha = (1.6f - ringDist) / 1.6f * 0.55f;
+                    r = r * (1f - ringAlpha) + 255f * ringAlpha;
+                    g = g * (1f - ringAlpha) + 255f * ringAlpha;
+                    b = b * (1f - ringAlpha) + 255f * ringAlpha;
+                }
+
+                rgba[offset] = (byte)Math.Clamp((int)r, 0, 255);
+                rgba[offset + 1] = (byte)Math.Clamp((int)g, 0, 255);
+                rgba[offset + 2] = (byte)Math.Clamp((int)b, 0, 255);
+                rgba[offset + 3] = 255;
+            }
+        }
+
+        return EncodeRgbaToPng(width, height, rgba);
+    }
+
+    private static byte[] EncodeRgbaToPng(int width, int height, byte[] rgba)
+    {
+        using var ms = new MemoryStream();
+        // PNG 8-byte signature
+        ms.Write([137, 80, 78, 71, 13, 10, 26, 10]);
+
+        // IHDR chunk (13 bytes)
+        Span<byte> ihdr = stackalloc byte[13];
+        BinaryPrimitives.WriteUInt32BigEndian(ihdr[0..4], (uint)width);
+        BinaryPrimitives.WriteUInt32BigEndian(ihdr[4..8], (uint)height);
+        ihdr[8] = 8;  // Bit depth: 8
+        ihdr[9] = 6;  // Color type: 6 (RGBA)
+        ihdr[10] = 0; // Compression
+        ihdr[11] = 0; // Filter
+        ihdr[12] = 0; // Interlace
+        WritePngChunk(ms, "IHDR"u8, ihdr);
+
+        // IDAT chunk (ZLib-compressed scanlines with filter byte 0 per row)
+        int stride = width * 4;
+        byte[] rawScanlines = new byte[(stride + 1) * height];
+        for (int y = 0; y < height; y++)
+        {
+            int dstRow = y * (stride + 1);
+            rawScanlines[dstRow] = 0; // Filter type 0 (None)
+            Buffer.BlockCopy(rgba, y * stride, rawScanlines, dstRow + 1, stride);
+        }
+
+        using var compressedStream = new MemoryStream();
+        using (var zlib = new ZLibStream(compressedStream, CompressionLevel.Fastest, leaveOpen: true))
+        {
+            zlib.Write(rawScanlines, 0, rawScanlines.Length);
+        }
+        WritePngChunk(ms, "IDAT"u8, compressedStream.ToArray());
+
+        // IEND chunk
+        WritePngChunk(ms, "IEND"u8, []);
+        return ms.ToArray();
+    }
+
+    private static void WritePngChunk(Stream stream, ReadOnlySpan<byte> typeAscii, ReadOnlySpan<byte> data)
+    {
+        Span<byte> lenBytes = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(lenBytes, (uint)data.Length);
+        stream.Write(lenBytes);
+        stream.Write(typeAscii);
+        if (data.Length > 0)
+        {
+            stream.Write(data);
+        }
+
+        uint crc = 0xFFFFFFFFu;
+        crc = UpdateCrc32(crc, typeAscii);
+        crc = UpdateCrc32(crc, data);
+        crc ^= 0xFFFFFFFFu;
+
+        Span<byte> crcBytes = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(crcBytes, crc);
+        stream.Write(crcBytes);
+    }
+
+    private static uint UpdateCrc32(uint crc, ReadOnlySpan<byte> bytes)
+    {
+        foreach (byte b in bytes)
+        {
+            crc ^= b;
+            for (int k = 0; k < 8; k++)
+            {
+                crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
+            }
+        }
+        return crc;
     }
 }

@@ -137,15 +137,22 @@ sealed class Program
             ("09_enterprise_github_pr_devex_dark.png", "DevEx", "github", true, false, ""),
             ("10_obsidian_command_palette_dark.png", "Studio", "linear-app", true, true, ""),
             ("11_capacities_gallery_studio_dark.png", "Bases", "claude", true, false, "Gallery"),
-            ("12_capacities_wall_calendar_light.png", "Bases", "apple", false, false, "Calendar")
+            ("12_capacities_wall_calendar_light.png", "Bases", "apple", false, false, "Calendar"),
+            ("13_user_account_admin_studio_dark.png", "AccountAdmin", "claude", true, false, "")
         };
 
         var size = new Size(1440, 900);
         var pixelSize = new PixelSize(1440, 900);
         var dpi = new Vector(96, 96);
 
+        vm.GenerateStudioAvatarPreset("architect-blue");
+
         foreach (var (fileName, screen, designId, darkMode, openCommandPalette, basesMode) in specs)
         {
+            if (fileName == "13_user_account_admin_studio_dark.png")
+            {
+                vm.GenerateStudioAvatarPreset("claude-terracotta");
+            }
             root.RequestedThemeVariant = darkMode ? ThemeVariant.Dark : ThemeVariant.Light;
             vm.SelectDesignSystem(designId, darkMode);
             vm.SwitchScreen(screen);

@@ -276,3 +276,25 @@ public sealed record CapacitiesCalendarEntry(
     string FolderPath,
     string SummaryText,
     int TaskCount);
+
+public sealed record UserProfileRecord(
+    string UserId,
+    string DisplayName,
+    string Email,
+    string WorkspaceSubtitle,
+    string JobTitle,
+    string Organization,
+    string RoleBadge,
+    string PresenceStatus,
+    string AvatarMode,
+    string AvatarInitialsOrEmoji,
+    string AvatarAccentHex,
+    string? AvatarImagePath,
+    DateTimeOffset UpdatedAtUtc);
+
+public sealed record AdminAuditLogEntry(
+    string TimestampDisplay,
+    string ActorEmail,
+    string ActionTitle,
+    string TargetResource,
+    string SeverityBadge);

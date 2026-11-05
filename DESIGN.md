@@ -75,7 +75,8 @@ This document is the canonical source of truth for Rhyolite's visual hierarchy, 
          - `🤝 Meetings  1/1` (indented subfolder)
    - **Section 3: `Tags`** (header row with `+` button): `🏷️ Design 12`, `🏷️ Architecture 6`, `🏷️ Screenshots 250`.
    - **Section 4: `Trash`**: `🏷️ Silver / Snapshots 28`.
-   - **Bottom User Profile Footer**: Avatar circle + `"Dustin Blad"` / `"Personal"`.
+   - **Bottom User Profile Footer & Account/Admin Triggers**:
+     - Interactive avatar circle (renders uploaded `.rhyolite/avatar.png` bitmap when `AvatarMode == "Image"`, or custom accent-tinted initials/emoji badge) + `"Dustin Blad"` / `"Personal"` subtitle + live presence indicator dot (`Online`, `Focusing`, `In a Meeting`, `Offline`) + one-click triggers for **Screen 8: User Account & Profile Studio** and **Screen 9: Enterprise Admin Console**.
 2. **Pane 2 — Middle Note List / Feed Column (`285px`, mid-tone surface)**:
    - **Top Search & Quick-Create Row**: Pill-shaped Search input (`🔍 Search` with filter icon `≡`) + **Circular Accent `+` Button** (`30×30px`, `CornerRadius="999"`).
    - **Feed Header**: `All notes ▾` (or active folder/filter title).
@@ -94,6 +95,15 @@ This document is the canonical source of truth for Rhyolite's visual hierarchy, 
      - Optional **Hero Cover Banner** (Screenshot 1) or top-right `✨ Templates` pill (Screenshot 3).
      - **Colored Accent Dot + Large `26px` Display Title** (`● Fusion energy` / `● Hybrid Storage Engine`).
      - Generous editorial prose with inline highlight spans, embedded diagram/visual preview, bordered **Attachment / Google Drive / SQLite Sidecar Card**, and bottom slash-command bar (`Type "/" or add  ☑️  ☰  🔢  ⊞  🖼️  📎  |  ⌄`).
+
+### 3.3 User Account & Profile Image Studio + Enterprise Admin Console (Screens 8 & 9)
+1. **User Account & Profile Image Studio (`UserProfileRecord`)**:
+   - **Custom Avatar Image Upload & Studio**: Users can upload any PNG/JPG/WebP image from disk (`CopyProfileAvatarFromFile`), generate a synthesized gradient avatar (`SaveProfileAvatarBytes`), or choose custom initials/emoji (`DB`, `⚡`, `🏛️`, `🚀`) with an accent color swatch (`#0071E3`, `#8B5CF6`, `#10B981`, `#F97316`, `#EC4899`). Avatars are persisted atomically to `.rhyolite/avatar.png` and reflected immediately in the sidebar footer and top header.
+   - **Editable Account Identity Card**: Full editing and SQLite WAL persistence (`ui_preferences.user_profile_json`) for `DisplayName`, `Email`, `WorkspaceSubtitle`, `JobTitle`, `Organization`, `RoleBadge`, and `PresenceStatus`.
+2. **Enterprise Admin Console (`RhyoliteAuthEngine` & `AdminAuditLogEntry`)**:
+   - **IAM & RBAC Directory**: Provision and manage human users, AI Coding Agents, and P2P peer nodes across granular roles (`VaultOwner`, `Admin`, `Editor`, `AiAgentReadWrite`, `TrustedPeerNode`, `Reader`) with folder-prefix and `#tag` ACL scopes.
+   - **OAuth2 / OIDC Single Sign-On Federation**: Configure and test S256 PKCE flows for **Enterprise OIDC (Okta / Keycloak)**, **Google Workspace**, **GitHub Enterprise**, **Microsoft Entra ID**, and **Sign in with Apple**.
+   - **Scoped API / MCP Personal Access Tokens (`rhy_pat_...`) & Security Audit Log**: Issue and revoke SHA-256 hashed bearer tokens and inspect real-time `AdminAuditLogEntry` security events.
 
 ---
 

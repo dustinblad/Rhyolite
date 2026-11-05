@@ -96,7 +96,9 @@
 - **Model Context Protocol (MCP) JSON-RPC 2.0 Server**: Exposes 10 tools (`rhyolite.read_note`, `rhyolite.write_note`, `rhyolite.patch_note`, `rhyolite.search_vault`, `rhyolite.query_graph`, `rhyolite.sync_status`, `rhyolite.manage_access`, `rhyolite.scan_secrets`, `rhyolite.analyze_github_pr`, `rhyolite.verify_workspace_connectors`).
 - **Bladbase Workspace Sync ([`dustinblad/bladbase`](https://github.com/dustinblad/bladbase))**: Bidirectional 3-way merge preserving Human + AI Agent Dual-Authorship (`bladbase_author_type: human | agent`, `bladbase_author_id`, `bladbase_role`) in YAML frontmatter.
 - **Docmost Space Sync (`docmost`)**: Bidirectional sync of Spaces & nested Pages with lossless `[[WikiLink]]` ↔ `/s/{spaceSlug}/p/{pageSlug}` normalization.
-- **Identity, RBAC & OAuth2/OIDC SSO**: Built-in Email/Account auth (`PBKDF2-SHA512` + `HMAC-SHA256`) and pluggable PKCE S256 providers for **Enterprise SSO (OIDC)**, **Google**, **GitHub**, **Microsoft Entra ID**, and **Sign in with Apple**.
+- **Identity, RBAC, User Account Studio & Enterprise Admin Console**:
+  - **User Account & Profile Image Studio (`UserProfileRecord`)**: Persists user account metadata (`DisplayName`, `Email`, `WorkspaceSubtitle`, `JobTitle`, `Organization`, `RoleBadge`, `PresenceStatus`, `AvatarInitialsOrEmoji`, `AvatarAccentHex`) in SQLite WAL (`ui_preferences`) and supports custom profile image uploads (`CopyProfileAvatarFromFile` / `SaveProfileAvatarBytes`) stored atomically in `.rhyolite/avatar.png`.
+  - **Enterprise Admin Console (`RhyoliteAuthEngine` & `AdminAuditLogEntry`)**: Interactive IAM user & role provisioning (`VaultOwner`, `Admin`, `Editor`, `AiAgentReadWrite`, `TrustedPeerNode`, `Reader`), pluggable PKCE S256 OAuth2/OIDC SSO providers (**Enterprise SSO (OIDC)**, **Google**, **GitHub**, **Microsoft Entra ID**, **Sign in with Apple**), scoped MCP/API bearer token (`rhy_pat_...`) lifecycle management, and immutable security audit logs.
 
 ---
 
@@ -134,7 +136,7 @@ Every [GitHub Release](https://github.com/dustinblad/Rhyolite/releases) publishe
 git clone https://github.com/dustinblad/Rhyolite.git
 cd Rhyolite
 
-# 2. Run the 10-suite xUnit verification & benchmark tests
+# 2. Run the 14-suite xUnit verification & benchmark tests
 dotnet test tests/Rhyolite.Tests/Rhyolite.Tests.csproj
 
 # 3. Launch the Rhyolite Desktop App (macOS, Windows, or Linux)
