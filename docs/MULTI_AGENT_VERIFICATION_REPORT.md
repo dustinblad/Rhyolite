@@ -408,6 +408,61 @@ flowchart TD
   * Updated [`README.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/README.md) with references to [`DESIGN.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/DESIGN.md) and [`docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/OBSIDIAN_CAPACITIES_FEATURE_ANALYSIS.md).
   * **Final Build & Test Verification**: `0 Warning(s), 0 Error(s)`, `13/13 Passed` in `0.6864 Seconds`.
 
+---
+
+## 9. Phase 8 Multi-Agent Verification — User Account Information, Profile Image Upload/Studio & Enterprise Admin Center
+
+```mermaid
+flowchart TD
+    Parent8["Parent Architect Agent (4856753c-95e3-456d-946a-2918b10117ab)"]
+    Lead8["Lead Orchestration & Verification Architect (bff50619-217b-440d-9b0a-7507627932cd)"]
+
+    subgraph Phase8Specialists["Phase 8 Parallel Specialist Implementation Engineers"]
+        P8S1["Specialist 1: Core Profile & Avatar Storage Engineer\n(7f12a07d-f066-48df-b14a-2608d49c4220)\nTarget: VaultModels.cs, HybridVaultEngine.cs"]
+        P8S2["Specialist 2: User Account Studio, Avatar Upload & Enterprise Admin UI Engineer\n(2e75df26-00e8-4180-bb9b-44dfc35554a3)\nTarget: MainViewModel.cs, MainView.axaml, MainView.axaml.cs, Program.cs"]
+        P8S3["Specialist 3: Verification & Documentation Engineer\n(469ca988-685c-4714-8409-dfe185fe9ec7)\nTarget: DESIGN.md, README.md, EnterpriseDevExIntegrationTests.cs"]
+    end
+
+    Parent8 -->|"Spawns 3 Specialists with Disjoint Scopes"| P8S1 & P8S2 & P8S3
+    P8S1 <-->|"UserProfileRecord & Avatar Persistence Sync"| P8S3
+    P8S1 & P8S2 & P8S3 -->|"Completion Reports + Complexity Justifications"| Lead8
+    Lead8 -->|"Audit + Build (0 Warn / 0 Err) + Test (14/14 Pass) + 13 Mockups"| Verified8["Phase 8 Verified & Signed Off"]
+```
+
+### 9.1 Specialist 1 — Core Profile & Avatar Storage Engineer (`7f12a07d-f066-48df-b14a-2608d49c4220`)
+* **Audited Files**:
+  * [`src/Rhyolite.Core/Models/VaultModels.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Models/VaultModels.cs#L280-L300)
+  * [`src/Rhyolite.Core/Storage/HybridVaultEngine.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Storage/HybridVaultEngine.cs#L939-L1052)
+* **Delivered Capabilities**:
+  * Added [`UserProfileRecord`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Models/VaultModels.cs#L280-L293) (`UserId`, `DisplayName`, `Email`, `WorkspaceSubtitle`, `JobTitle`, `Organization`, `RoleBadge`, `PresenceStatus`, `AvatarMode`, `AvatarInitialsOrEmoji`, `AvatarAccentHex`, `AvatarImagePath`, `UpdatedAtUtc`) and [`AdminAuditLogEntry`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Models/VaultModels.cs#L295-L300).
+  * Added [`GetUserProfile()`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Storage/HybridVaultEngine.cs#L939-L979), [`SaveUserProfile(UserProfileRecord)`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Storage/HybridVaultEngine.cs#L984-L992), [`SaveProfileAvatarBytes(byte[], string)`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Storage/HybridVaultEngine.cs#L997-L1019), and [`CopyProfileAvatarFromFile(string)`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Core/Storage/HybridVaultEngine.cs#L1024-L1052).
+* **Algorithmic Efficiency Justification**:
+  * **$\mathcal{O}(1)$ SQLite WAL Profile Lookup & Atomic `.tmp` Avatar Swap**: `GetUserProfile` and `SaveUserProfile` execute via the `ui_preferences` `PRIMARY KEY (pref_key)` B-tree index (`user_profile_json`), and `SaveProfileAvatarBytes` writes to `.rhyolite/avatar{ext}.tmp` followed by an atomic `File.Move(..., overwrite: true)`.
+
+### 9.2 Specialist 2 — User Account Studio, Avatar Upload & Enterprise Admin UI Engineer (`2e75df26-00e8-4180-bb9b-44dfc35554a3`)
+* **Audited Files**:
+  * [`src/Rhyolite.UI/ViewModels/MainViewModel.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/ViewModels/MainViewModel.cs)
+  * [`src/Rhyolite.UI/Views/MainView.axaml`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Views/MainView.axaml#L1516-L1816)
+  * [`src/Rhyolite.UI/Views/MainView.axaml.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.UI/Views/MainView.axaml.cs#L63-L103)
+  * [`src/Rhyolite.Desktop/Program.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/src/Rhyolite.Desktop/Program.cs)
+* **Delivered Capabilities**:
+  * Implemented **Screen 9 (`IsAccountAdminView` — User Account Information, Profile Image Studio & Enterprise Admin Center)**:
+    * **Interactive Bottom-Left Profile Footer**: Clicking the User Profile Avatar + Name (`Dustin Blad` / `Personal · ⚙️`) opens the Account & Enterprise Admin Center and displays the live `UserProfileImageBitmap` (`.rhyolite/avatar.png`).
+    * **Profile Image & Avatar Studio**: Native `StorageProvider.OpenFilePickerAsync` image upload (`OnBrowseProfileImageClick`), direct file path input (`UploadProfileImageFromPathCommand`), and a procedural 32-bit RGBA PNG studio avatar generator (`architect-blue`, `claude-terracotta`, `emerald-matrix`, `obsidian-violet`, `rhyolite-crest`).
+    * **Account Identity & Workspace Profile Form**: Editable `DisplayName`, `Email`, `WorkspaceSubtitle`, `JobTitle`, `Organization`, and `PresenceStatus` persisted via `SaveUserProfileCommand`.
+    * **Enterprise Admin Console**: Team Directory & RBAC provisioning (`ProvisionAdminUserCommand`, `CycleUserRoleCommand`), Scoped API Key / PAT management (`GenerateAdminApiKeyCommand`, `RevokeAdminApiKeyCommand`), OAuth2/OIDC PKCE S256 SSO provider strip, and real-time `AdminAuditLogEntries`.
+  * Exported all **13 high-resolution PNG mockups** (including [`13_user_account_admin_studio_dark.png`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/mockups/13_user_account_admin_studio_dark.png)) into [`docs/mockups/`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/mockups/) and [`docs/screenshots/`](file:///Volumes/dockdata/dev/projects/Rhyolite/docs/screenshots/).
+
+### 9.3 Specialist 3 — Verification & Documentation Engineer (`469ca988-685c-4714-8409-dfe185fe9ec7`)
+* **Audited Files**:
+  * [`tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs`](file:///Volumes/dockdata/dev/projects/Rhyolite/tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs#L954-L1123)
+  * [`DESIGN.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/DESIGN.md#L78-L107)
+  * [`README.md`](file:///Volumes/dockdata/dev/projects/Rhyolite/README.md#L99-L101)
+* **Delivered Capabilities**:
+  * Added Test #14 ([`UserAccountProfile_AvatarImagePersistence_AndEnterpriseAdminRbac_WorkEndToEnd`](file:///Volumes/dockdata/dev/projects/Rhyolite/tests/Rhyolite.Tests/EnterpriseDevExIntegrationTests.cs#L954-L1123)), verifying default `GetUserProfile()`, `SaveUserProfile(...)`, `SaveProfileAvatarBytes(...)`, `CopyProfileAvatarFromFile(...)`, cold restart persistence across a fresh `HybridVaultEngine` instance, 5-role RBAC user provisioning, S256 PKCE OIDC flow, `rhy_pat_...` API key issuance/revocation, and `AdminAuditLogEntry`.
+  * **Final Build & Test Verification**: `0 Warning(s), 0 Error(s)`, **`14/14 Passed`** in **`0.7259 Seconds`**.
+
+
 
 
 
